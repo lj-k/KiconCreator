@@ -424,23 +424,76 @@ function fillSegment(c,seg,x,y,w,h){
 
 // ═══════ DRAW BG ═══════
 function drawBg(c,size){
+  c.save();
   shapePath(c,size);c.clip();
   const m=Math.max(2,Math.round(size*0.02));
   const x=m,y=m,w=size-m*2,h=size-m*2;
   const segs=S.bg.segments;
-  if(segs.length===1){fillSegment(c,segs[0],x,y,w,h);return;}
-  const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
-  c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
-  if(segs.length===2){
-    fillSegment(c,segs[0],x,y,w,h/2);fillSegment(c,segs[1],x,y+h/2,w,h/2);
-  } else if(segs.length===3){
-    const topR=S.bg.ratios[0]!==undefined?S.bg.ratios[0]/100:0.5;
-    fillSegment(c,segs[0],x,y,w,h*topR);
-    fillSegment(c,segs[1],x,y+h*topR,w/2,h*(1-topR));
-    fillSegment(c,segs[2],x+w/2,y+h*topR,w/2,h*(1-topR));
-  } else if(segs.length===4){
-    fillSegment(c,segs[0],x,y,w/2,h/2);fillSegment(c,segs[1],x+w/2,y,w/2,h/2);
-    fillSegment(c,segs[2],x,y+h/2,w/2,h/2);fillSegment(c,segs[3],x+w/2,y+h/2,w/2,h/2);
+  const n=segs.length;
+  // Bug2 fix: overlap 1px 消除抗锯齿缝
+  const OL=1.5;
+  // 累计比例（空值均分）
+  const ratios = (()=>{
+    if(!S.bg.ratios||S.bg.ratios.length<n) return Array(n).fill(100/n);
+    const arr = S.bg.ratios.slice(0,n);
+    return arr.map(v=>isFinite(v)?v:100/n);
+  })();
+  // 归一化
+  const sum = ratios.reduce((a,b)=>a+b,0);
+  const nr = ratios.map(r=>r/sum);
+
+  if(n===1){
+    fillSegment(c,segs[0],x,y,w,h);
+  } else if(n===2){
+    // 垂直切分 + 角度旋转
+    const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
+    c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
+    const R=nr[0];
+    // 左右切，y 方向 overlap
+    fillSegment(c,segs[0],x,y,w*R+OL,h);
+    fillSegment(c,segs[1],x+w*R-OL,y,w*(1-R)+OL,h);
+    c.restore();
+  } else if(n===3){
+    const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
+    c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
+    const R=nr[0];
+    fillSegment(c,segs[0],x,y,w,h*R+OL);
+    fillSegment(c,segs[1],x,y+h*R-OL,w/2+OL,h*(1-R)+OL);
+    fillSegment(c,segs[2],x+w/2-OL,y+h*R-OL,w/2+OL,h*(1-R)+OL);
+    c.restore();
+  } else if(n===4){
+    const R1=nr[0]/(nr[0]+nr[1]); // 横向切分比例
+    const R2=nr[0]/(nr[0]+nr[2]); // 纵向切分比例（左上占比）
+    fillSegment(c,segs[0],x,y,w*R1+OL,h*R2+OL);
+    fillSegment(c,segs[1],x+w*R1-OL,y,w*(1-R1)+OL,h*R2+OL);
+    fillSegment(c,segs[2],x,y+h*R2-OL,w*R1+OL,h*(1-R2)+OL);
+    fillSegment(c,segs[3],x+w*R1-OL,y+h*R2-OL,w*(1-R1)+OL,h*(1-R2)+OL);
+  }
+  // Bug4 fix: 过渡边界 (transMode)
+  if(S.bg.transMode&&S.bg.transMode!=='none'&&n>1){
+    const tw = Math.max(1,S.bg.transWidth||8)*size/256;
+    const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
+    c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
+    c.globalCompositeOperation='destination-in';
+    const bd = S.bg.borderShape||'line';
+    c.strokeStyle='#000';
+    c.lineWidth=tw;
+    c.beginPath();
+    if(n===2){
+      if(bd==='curve'){
+        c.moveTo(x+w/2,y);c.quadraticCurveTo(x+w/2+tw*2,y+h/2,x+w/2,y+h);
+      } else {
+        c.moveTo(x+w/2,y);c.lineTo(x+w/2,y+h);
+      }
+    } else if(n===3){
+      c.moveTo(x,y+h*nr[0]);c.lineTo(x+w,y+h*nr[0]);
+      c.moveTo(x+w/2,y+h*nr[0]);c.lineTo(x+w/2,y+h);
+    } else if(n===4){
+      c.moveTo(x+w*R1,y);c.lineTo(x+w*R1,y+h);
+      c.moveTo(x,y+h*R2);c.lineTo(x+w,y+h*R2);
+    }
+    c.stroke();
+    c.restore();
   }
   c.restore();
 }
@@ -535,17 +588,24 @@ function drawContent(c,size){
         c.restore();
       } else {
         c.save();c.translate(cx,cy);c.scale(line.hStretch/100,line.vStretch/100);
-        c.fillStyle=line.color;
-        c.fillText(line.text,line.hOffset*size/256,line.vOffset*size/256);
+        // Bug1 根因修复：save 后完整重置绘制状态 + newLine() 默认值合并
+        c.globalAlpha = 1;
+        c.globalCompositeOperation = 'source-over';
+        c.fillStyle = line.color;
+        c.font = `${line.weight} ${fs}px "${fam}", sans-serif`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(line.text, line.hOffset*size/256, line.vOffset*size/256);
         c.restore();
       }
     } else if(line.mode==='fa'){
       const FA_MAP={'fa-star':'\uf005','fa-heart':'\uf004','fa-check':'\uf00c','fa-plus':'\uf067','fa-search':'\uf002','fa-home':'\uf015','fa-cog':'\uf013','fa-bell':'\uf0f3','fa-user':'\uf007','fa-camera':'\uf030','fa-gift':'\uf06b','fa-rocket':'\uf135','fa-fire':'\uf06d','fa-bolt':'\uf0e7','fa-cloud':'\uf0c2','fa-leaf':'\uf06c','fa-sun':'\uf185','fa-moon':'\uf186','fa-code':'\uf121','fa-wifi':'\uf1eb','fa-music':'\uf001','fa-flag':'\uf024','fa-thumbs-up':'\uf164','fa-heart-pulse':'\uf21e','fa-shield':'\uf132','fa-lock':'\uf023','fa-key':'\uf084','fa-envelope':'\uf0e0','fa-phone':'\uf095','fa-map-marker':'\uf041','fa-car':'\uf1b9','fa-plane':'\uf072','fa-compass':'\uf14e','fa-bicycle':'\uf206','fa-dog':'\uf06d','fa-cat':'\uf19b','fa-paw':'\uf1b0','fa-dice':'\uf522','fa-chess-king':'\uf43f'};
       const glyph=FA_MAP[line.faIcon]||'★';
       let fs=size*(line.faSize||65)/100;
-      c.textAlign='center';c.textBaseline='middle';
       c.save();c.translate(cx,cy);
+      c.globalAlpha=1;c.globalCompositeOperation='source-over';
       c.font=`${fs}px "Font Awesome 6 Free","FontAwesome","Inter",sans-serif`;
+      c.textAlign='center';c.textBaseline='middle';
       c.fillStyle=line.faColor||'#fff';
       c.fillText(glyph,0,0);
       c.restore();
@@ -663,9 +723,10 @@ function renderLineTabs(){
       const order=['text','image','fa'];
       const idx=order.indexOf(line.mode);
       line.mode=order[(idx+1)%3];
-      // 同步 S
       S.lines[i]=line;
-      renderLineTabs();renderStylePanel();draw();
+      // Bug6 fix: 切模式后重置 _curStyleTab，同时重建 tabs 和 panel
+      _curStyleTab='font';// 会在 renderStyleTabs 内校正为第一个可用 tab
+      renderStyleTabs();renderStylePanel();renderLineTabs();draw();
     });
     tab.appendChild(modeSpan);
     // 内容输入
@@ -855,7 +916,8 @@ function drawSegGrid(){
     d.onclick=()=>{_curSeg=i;drawSegGrid();renderSegEditor();};
     el.appendChild(d);
   });
-  $('splitLayoutSec').style.display=S.bg.segments.length>1?'':'none';
+  // Bug5 fix: 布局功能区始终显示（数量多时才能看到效果）
+  $('splitLayoutSec').style.display='';
   renderSplitRatios();
 }
 function renderSplitRatios(){
@@ -991,7 +1053,8 @@ const PRESETS=[
 ];
 function applyPreset(p){
   S=JSON.parse(JSON.stringify(DEFAULTS));
-  S.lines=JSON.parse(JSON.stringify(p.lines));
+  // Bug1 fix: 每个 line 必须和 newLine() 合并，防止缺失字段 (hOffset/vOffset 等)
+  S.lines = JSON.parse(JSON.stringify(p.lines)).map(l=>Object.assign(newLine(),l));
   S.lineCount=p.lineCount;S.layout=p.layout;
   S.shape=p.shape||'polygon';
   if(p.shapeSides!==undefined)S.shapeSides=p.shapeSides;
@@ -1020,7 +1083,8 @@ function drawPresets(){
     const{cx}=presetCanvases[idx];
     const saved=JSON.parse(JSON.stringify(S));
     S=JSON.parse(JSON.stringify(DEFAULTS));
-    S.lines=JSON.parse(JSON.stringify(p.lines));
+    // Bug1 fix: 同样合并 newLine() 默认值
+    S.lines = JSON.parse(JSON.stringify(p.lines)).map(l=>Object.assign(newLine(),l));
     S.lineCount=p.lineCount;S.layout=p.layout;S.shape=p.shape||'polygon';
     if(p.shapeSides!==undefined)S.shapeSides=p.shapeSides;
     if(p.shapeStar!==undefined)S.shapeStar=p.shapeStar;
