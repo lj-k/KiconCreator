@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IconMaker · 图标制作器</title>
+
+<!-- ═══ LOADING ═══ -->
+<style>
+#__lf{position:fixed;inset:0;z-index:9999;background:#4f7a4f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .35s,visibility .35s}
+#__lf.gone{opacity:0;visibility:hidden}
+#__lf .t{font-family:'Menlo','Consolas',monospace;font-size:12px;color:#d9e8d9;letter-spacing:.18em;text-transform:uppercase}
+#__lf .b{width:180px;height:2px;background:rgba(255,255,255,.2);position:relative;overflow:hidden}
+#__lf .f{position:absolute;inset:0;width:0;background:#fff;transition:width .16s ease-out}
+#__lf .p{font-family:'Menlo','Consolas',monospace;font-size:11px;color:#fff;opacity:.8;font-variant-numeric:tabular-nums}
+body.lf-lock{overflow:hidden}
+</style>
+<script>
+(function(){var f,p,cur=0,t,done=false;function s(v){cur=v;if(f)f.style.width=v+'%';if(p)p.textContent=v+'%'}function fin(){if(done)return;done=true;if(t)clearInterval(t);s(100);setTimeout(function(){var o=document.getElementById('__lf');if(o)o.classList.add('gone');document.body&&document.body.classList.remove('lf-lock')},220)}function w(){var o=document.getElementById('__lf');if(!o){setTimeout(w,16);return}f=o.querySelector('.f');p=o.querySelector('.p');document.body&&document.body.classList.add('lf-lock');s(0);t=setInterval(function(){if(cur<60)s(cur+6+Math.random()*3);else if(cur<85)s(cur+2+Math.random()*1.5);else if(cur<95)s(cur+.8+Math.random()*.6);if(cur>=95)s(95)},160)}w();if(document.readyState==='complete')fin();else window.addEventListener('load',fin);setTimeout(fin,15000)})();
+</script>
+
+<!-- ═══ FONTS & CSS ═══ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@700&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet" onerror="this.href='https://fonts.loli.net/css2?family=Inter:wght@400;700&family=Noto+Sans+SC:wght@400;700&display=swap'">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.14/dist/tailwind.min.css"
+      onerror="this.onerror=null;this.href='https://unpkg.com/tailwindcss@3.4.14/dist/tailwind.min.css'">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css'">
+
+<style>
+:root{
+  --bg-page:#eef5ee;
+  --bg-card:rgba(255,255,255,.85);
+  --bg-card-solid:#ffffff;
+  --border:rgba(120,140,120,.25);
+  --accent:#4f7a4f;
+  --accent-hover:#3d623d;
+  --text:#2d472d;
+  --text-sub:#6b8e6b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;background:var(--bg-page);color:var(--text);font-family:'Noto Sans SC','Inter',system-ui,sans-serif}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#b0c4b0;border-radius:3px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ═══ APP GRID —— 三列等分，800×400 基线 ═══ */
+.app{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:12px;
+  min-width:800px;
+  min-height:400px;
+  padding:12px;
+  height:100vh;
+  max-height:100vh;
+}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;min-width:0;height:auto;max-height:none;min-height:100vh;overflow-y:auto}
+}
+.col{
+  background:var(--bg-card);
+  backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.col-hd{
+  padding:10px 14px;
+  border-bottom:1px solid var(--border);
+  font-family:'JetBrains Mono',ui-monospace,monospace;
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#6b8e6b;
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.col-hd i{font-size:11px;color:var(--accent)}
+.col-bd{flex:1;overflow-y:auto;padding:12px}
+
+/* ═══ LEFT —— PREVIEW ═══ */
+.stage{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px}
+.stage .title-row{display:flex;align-items:center;gap:8px;width:100%}
+.stage h1{font-size:14px;margin:0;font-weight:700;letter-spacing:.02em}
+.stage .v{font-family:'JetBrains Mono',monospace;font-size:10px;color:#999}
+.canvas-outer{
+  border-radius:8px;padding:14px;background:rgba(255,255,255,.6);
+  border:1px solid var(--border);
+  box-shadow:0 4px 14px rgba(70,90,70,.1);
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+canvas#icon{border-radius:4px;background:#fafdfa;box-shadow:0 2px 10px rgba(70,90,70,.15)}
+.size-strip{display:flex;gap:10px;align-items:flex-end}
+.size-strip .ss{display:flex;flex-direction:column;align-items:center;gap:3px}
+.size-strip canvas{border-radius:1px;border:1px solid #ddd;background:#fff}
+.size-strip .sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:#999}
+
+.dl-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.btn{
+  font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.04em;
+  padding:6px 12px;border-radius:8px;cursor:pointer;
+  border:1px solid #b0c4b0;background:#fff;color:var(--text);
+  transition:.12s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.btn:hover{background:#e9f2e9}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn:active{transform:translateY(1px)}
+.btn-sm{padding:4px 8px;font-size:10px}
+
+.preset-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.preset{
+  aspect-ratio:1;border-radius:8px;cursor:pointer;border:2px solid transparent;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;
+  transition:.12s;font-family:'Noto Sans SC','Inter',sans-serif;
+}
+.preset:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,.15)}
+.preset.active{border-color:var(--accent)}
+
+/* ═══ MIDDLE —— CONTENT PARAMS ═══ */
+.sec{margin-bottom:14px}
+.sec:last-child{margin-bottom:0}
+.sec-t{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6b8e6b;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+
+.line-tabs{display:flex;background:#f4f9f4;border-radius:8px;padding:2px;margin-bottom:8px}
+.line-tab{flex:1;padding:6px;font-size:11px;text-align:center;border-radius:6px;cursor:pointer;color:#6b8e6b;font-family:'JetBrains Mono',monospace;transition:.12s;border:1px solid transparent}
+.line-tab.active{background:#fff;color:var(--accent);font-weight:600;border-color:#b0c4b0}
+
+.line-item{display:flex;gap:6px;margin-bottom:6px}
+.line-item input{flex:1;padding:7px 10px;border-radius:8px;border:1px solid #b0c4b0;background:#fff;font-size:13px;font-family:'Noto Sans SC','Inter',sans-serif}
+.line-item input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,122,79,.15)}
+.line-item .remove{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid #e0b0b0;background:#fde8e8;color:#a04040;cursor:pointer;font-size:11px}
+
+.add-line-btn{width:100%;padding:7px;border:1px dashed #b0c4b0;border-radius:8px;background:#f4f9f4;color:#6b8e6b;cursor:pointer;font-size:12px;font-family:'JetBrains Mono',monospace;transition:.12s}
+.add-line-btn:hover{background:#e9f2e9;color:var(--accent)}
+
+.layout-group{display:flex;flex-wrap:wrap;gap:5px}
+.layout-btn{
+  padding:5px 10px;border-radius:6px;border:1px solid #b0c4b0;background:#fff;cursor:pointer;
+  font-size:11px;font-family:'Noto Sans SC','Inter',sans-serif;color:var(--text-sub);transition:.12s;
+}
+.layout-btn:hover{background:#e9f2e9;color:var(--accent)}
+.layout-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.text-style-tabs{display:flex;background:#f4f9f4;border-radius:8px;padding:2px;margin-bottom:8px}
+.text-style-tab{flex:1;padding:5px;font-size:10px;text-align:center;border-radius:5px;cursor:pointer;color:#6b8e6b;font-family:'JetBrains Mono',monospace;transition:.12s;border:1px solid transparent}
+.text-style-tab.active{background:#fff;color:var(--accent);font-weight:600;border-color:#b0c4b0}
+
+.form-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.form-row .lbl{font-size:11px;color:#6b8e6b;min-width:48px;font-family:'JetBrains Mono',monospace}
+.form-row select, .form-row input[type="text"]{flex:1;padding:5px 8px;border-radius:6px;border:1px solid #b0c4b0;background:#fff;font-size:12px}
+.form-row select:focus, .form-row input[type="text"]:focus{outline:none;border-color:var(--accent)}
+.form-row input[type="color"]{width:32px;height:26px;padding:0;border-radius:6px;border:1px solid #b0c4b0;background:#fff;cursor:pointer}
+.form-row .v{font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b8e6b;min-width:36px;text-align:right}
+.form-row input[type="range"]{flex:1;-webkit-appearance:none;height:4px;background:#d9e8d9;border-radius:4px}
+.form-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 1px #b0c4b0;cursor:pointer}
+
+/* ═══ RIGHT —— BACKGROUND PARAMS ═══ */
+.bg-mode-row{display:flex;background:#f4f9f4;border-radius:8px;padding:2px;margin-bottom:10px}
+.bg-mode{flex:1;padding:6px;font-size:11px;text-align:center;border-radius:6px;cursor:pointer;color:#6b8e6b;font-family:'JetBrains Mono',monospace;transition:.12s;border:1px solid transparent}
+.bg-mode.active{background:#fff;color:var(--accent);font-weight:600;border-color:#b0c4b0}
+
+.chip-row{display:flex;flex-wrap:wrap;gap:5px}
+.chip{padding:4px 9px;border-radius:6px;border:1px solid #b0c4b0;background:#fff;cursor:pointer;font-size:11px;color:var(--text-sub);transition:.12s;font-family:'JetBrains Mono',monospace}
+.chip:hover{background:#e9f2e9;color:var(--accent)}
+.chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.dropzone{border:2px dashed #b0c4b0;border-radius:8px;padding:14px;text-align:center;background:#f9fdf9;cursor:pointer;font-size:12px;color:#6b8e6b;transition:.12s}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:#e9f2e9}
+
+.sep{border-top:1px dashed #cbdccb;margin:12px 0}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="__lf" aria-hidden="true">
+  <div class="t">IconMaker / loading</div>
+  <div class="b"><div class="f"></div></div>
+  <div class="p">0%</div>
+</div>
+
+<!-- ═══════════════════════════════════
+     三列布局
+═══════════════════════════════════ -->
+<div class="app">
+
+  <!-- ═══════ LEFT: PREVIEW + PRESETS + DOWNLOAD ═══════ -->
+  <section class="col">
+    <div class="col-hd"><i class="fa-solid fa-eye"></i>预览 · 预设 · 导出</div>
+    <div class="col-bd">
+
+      <div class="canvas-outer">
+        <div class="size-strip">
+          <div class="ss"><canvas data-ss="16" width="16" height="16"></canvas><span class="sl">16</span></div>
+          <div class="ss"><canvas data-ss="32" width="32" height="32"></canvas><span class="sl">32</span></div>
+          <div class="ss"><canvas data-ss="48" width="48" height="48"></canvas><span class="sl">48</span></div>
+          <div class="ss"><canvas data-ss="128" width="128" height="128"></canvas><span class="sl">128</span></div>
+        </div>
+        <canvas id="icon" width="256" height="256" style="width:220px;height:220px"></canvas>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="sec-t"><i class="fa-solid fa-wand-sparkles"></i>预设（内容 + 背景）</div>
+        <div class="preset-row" id="presetRow"></div>
+      </div>
+
+      <div class="dl-row" style="margin-top:14px">
+        <button id="dlPng" class="btn btn-primary"><i class="fa-solid fa-download"></i>PNG</button>
+        <button id="dlJpg" class="btn"><i class="fa-solid fa-download"></i>JPEG</button>
+        <button id="dlSvg" class="btn"><i class="fa-solid fa-code"></i>SVG</button>
+        <button id="btnReset" class="btn btn-sm"><i class="fa-solid fa-rotate-left"></i>重置</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ MIDDLE: CONTENT PARAMS ═══════ -->
+  <section class="col">
+    <div class="col-hd"><i class="fa-solid fa-font"></i>内容参数 · 文本图标</div>
+    <div class="col-bd">
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-list-ol"></i>文本行数（最多 4 行）</div>
+        <div class="line-tabs" id="lineCountTabs"></div>
+        <div id="linesContainer"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-table-cells-large"></i>排版模式</div>
+        <div class="layout-group" id="layoutGroup"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-pen"></i>当前行样式（<span id="currentLineLabel" class="font-bold text-[#4f7a4f]">行1</span>）</div>
+        <div class="text-style-tabs" id="textStyleTabs"></div>
+        <div id="textStylePanel"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ RIGHT: BACKGROUND PARAMS ═══════ -->
+  <section class="col">
+    <div class="col-hd"><i class="fa-solid fa-palette"></i>背景参数 · 尺寸 · 形状</div>
+    <div class="col-bd">
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-ruler-combined"></i>尺寸</div>
+        <div class="chip-row" id="sizeChips"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-shapes"></i>形状</div>
+        <div class="chip-row" id="shapeChips"></div>
+        <div class="form-row" style="margin-top:6px">
+          <div class="lbl">圆角</div>
+          <input type="range" id="radius" min="0" max="50" value="22">
+          <span class="v" id="radiusV">22%</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-fill-drip"></i>背景类型</div>
+        <div class="bg-mode-row" id="bgModeRow">
+          <div class="bg-mode active" data-mode="solid">纯色</div>
+          <div class="bg-mode" data-mode="split">拼色</div>
+          <div class="bg-mode" data-mode="gradient">渐变</div>
+          <div class="bg-mode" data-mode="image">图片</div>
+        </div>
+
+        <div id="bgSolid">
+          <div class="form-row"><div class="lbl">颜色</div><input type="color" id="bgColor" value="#4f7a4f"></div>
+        </div>
+
+        <div id="bgSplit" class="hidden">
+          <div class="form-row"><div class="lbl">上</div><input type="color" id="splitTop" value="#4f7a4f"></div>
+          <div class="form-row"><div class="lbl">下</div><input type="color" id="splitBottom" value="#2d472d"></div>
+          <div class="form-row"><div class="lbl">比例</div><input type="range" id="splitRatio" min="10" max="90" value="50"><span class="v" id="splitRatioV">50%</span></div>
+          <div class="chip-row" id="splitDirGroup" style="margin-top:4px"></div>
+        </div>
+
+        <div id="bgGradient" class="hidden">
+          <div class="form-row"><div class="lbl">起始</div><input type="color" id="gradStart" value="#4f7a4f"></div>
+          <div class="form-row"><div class="lbl">终止</div><input type="color" id="gradEnd" value="#1d3a2a"></div>
+          <div class="chip-row" id="gradTypeGroup" style="margin-top:4px"></div>
+          <div class="chip-row" id="gradDirGroup" style="margin-top:4px"></div>
+        </div>
+
+        <div id="bgImage" class="hidden">
+          <div class="dropzone" id="dz"><i class="fa-solid fa-cloud-arrow-up" style="font-size:18px;margin-bottom:4px;color:#4f7a4f"></i><div>拖放图片或点击上传</div><div style="font-size:10px;color:#999;margin-top:2px">PNG · SVG · max 2MB</div><input type="file" id="bgFile" accept="image/png,image/svg+xml" hidden></div>
+          <div class="form-row" style="margin-top:6px"><div class="lbl">缩放</div><input type="range" id="bgImgScale" min="10" max="200" value="100"><span class="v" id="bgImgScaleV">100%</span></div>
+          <div class="form-row"><div class="lbl">位置</div>
+            <select id="bgImgPos"><option value="center">居中</option><option value="cover">填满</option><option value="top">顶部</option><option value="bottom">底部</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-font"></i>文字颜色</div>
+        <div class="form-row"><div class="lbl">颜色</div><input type="color" id="fgColor" value="#ffffff"></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-wand-magic-sparkles"></i>高级效果</div>
+        <div class="form-row"><label class="chip" style="cursor:pointer;font-size:11px"><input type="checkbox" id="borderOn" class="mr-1 accent-[#4f7a4f]">边框</label><label class="chip" style="cursor:pointer;font-size:11px"><input type="checkbox" id="shadowOn" class="mr-1 accent-[#4f7a4f]">阴影</label><label class="chip" style="cursor:pointer;font-size:11px"><input type="checkbox" id="transparentBg" class="mr-1 accent-[#4f7a4f]">透明底</label></div>
+
+        <div id="borderBox" class="hidden">
+          <div class="form-row"><div class="lbl">宽度</div><input type="range" id="borderW" min="1" max="10" value="3"><span class="v" id="borderWV">3px</span></div>
+          <div class="form-row"><div class="lbl">颜色</div><input type="color" id="borderC" value="#ffffff"></div>
+        </div>
+        <div id="shadowBox" class="hidden">
+          <div class="form-row"><div class="lbl">模糊</div><input type="range" id="shadowB" min="0" max="30" value="8"><span class="v" id="shadowBV">8px</span></div>
+          <div class="form-row"><div class="lbl">X</div><input type="range" id="shadowX" min="-20" max="20" value="0"><span class="v" id="shadowXV">0px</span></div>
+          <div class="form-row"><div class="lbl">Y</div><input type="range" id="shadowY" min="-20" max="20" value="3"><span class="v" id="shadowYV">3px</span></div>
+          <div class="form-row"><div class="lbl">颜色</div><input type="color" id="shadowC" value="#000000"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ═══════ STATE ═══════
+// 每行独立样式：text、font、weight、size、hStretch、vStretch、hOffset、vOffset、color
+const DEFAULTS = {
+  lines: [
+    { text:'A', font:'Inter', zhFont:'Noto Sans SC', weight:'700', size:70, hStretch:100, vStretch:100, hOffset:0, vOffset:0, color:'#ffffff' }
+  ],
+  lineCount:1, currentLine:0,
+  layout:'h-center',
+  size:256, shape:'square', radius:22,
+  bg:{ mode:'solid', solid:'#4f7a4f', split:{top:'#4f7a4f',bottom:'#2d472d',ratio:50,dir:'v'},
+       gradient:{start:'#4f7a4f',end:'#1d3a2a',type:'linear',dir:'ltr'},
+       image:{url:null,scale:100,pos:'center'} },
+  fg:'#ffffff',
+  border:{on:false, w:3, color:'#ffffff'},
+  shadow:{on:false, b:8, x:0, y:3, color:'#000000'},
+  transparentBg:false
+};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+
+const $ = id=>document.getElementById(id);
+const canvas = $('icon'), ctx = canvas.getContext('2d');
+
+// ═══════ roundRect polyfill ═══════
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(typeof r==='number')r={tl:r,tr:r,br:r,bl:r};
+    this.beginPath();
+    this.moveTo(x+r.tl,y);this.lineTo(x+w-r.tr,y);
+    this.quadraticCurveTo(x+w,y,x+w,y+r.tr);
+    this.lineTo(x+w,y+h-r.br);this.quadraticCurveTo(x+w,y+h,x+w-r.br,y+h);
+    this.lineTo(x+r.bl,y+h);this.quadraticCurveTo(x,y+h,x,y+h-r.bl);
+    this.lineTo(x,y+r.tl);this.quadraticCurveTo(x,y,x+r.tl,y);
+    this.closePath();
+  };
+}
+
+// ═══════ SHAPE PATH ═══════
+function shapePath(size){
+  const m=Math.max(2,Math.round(size*0.02));
+  ctx.beginPath();
+  if(S.shape==='circle'){ ctx.arc(size/2,size/2,size/2-m,0,Math.PI*2); }
+  else if(S.shape==='rect'){ ctx.rect(m,m,size-m*2,size-m*2); }
+  else if(S.shape==='pills'){
+    const x=m,y=m,w=size-m*2,h=size-m*2,r=h/2;
+    ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arc(x+w-r,y+r,r,-Math.PI/2,Math.PI/2);
+    ctx.lineTo(x+r,y+h);ctx.arc(x+r,y+r,r,Math.PI/2,-Math.PI/2);ctx.closePath();
+  } else if(S.shape==='diamond'){
+    const cx=size/2,cy=size/2,r=size/2-m;
+    ctx.moveTo(cx,cy-r);ctx.lineTo(cx+r,cy);ctx.lineTo(cx,cy+r);ctx.lineTo(cx-r,cy);ctx.closePath();
+  } else if(S.shape==='octagon'){
+    const cx=size/2,cy=size/2,r=size*0.38;
+    for(let i=0;i<8;i++){const a=-Math.PI/2+i*Math.PI/4;ctx[i?'lineTo':'moveTo'](cx+Math.cos(a)*r,cy+Math.sin(a)*r)}ctx.closePath();
+  } else { // square (rounded)
+    const x=m,y=m,w=size-m*2,h=size-m*2;
+    ctx.roundRect(x,y,w,h,Math.round(Math.min(w,h)*S.radius/100));
+  }
+}
+
+// ═══════ BACKGROUND DRAW ═══════
+function drawBg(size){
+  if(S.transparentBg) return;
+  const m=Math.max(2,Math.round(size*0.02));
+  const x=m,y=m,w=size-m*2,h=size-m*2;
+
+  ctx.save();
+  shapePath(size);
+  ctx.clip();
+
+  if(S.bg.mode==='solid'){
+    ctx.fillStyle=S.bg.solid; ctx.fillRect(0,0,size,size);
+  } else if(S.bg.mode==='split'){
+    const r = S.bg.split.ratio/100;
+    if(S.bg.split.dir==='h'){ // horizontal (top/bottom)
+      const ySplit = y + h*r;
+      ctx.fillStyle=S.bg.split.top; ctx.fillRect(x,y,w,ySplit-y);
+      ctx.fillStyle=S.bg.split.bottom; ctx.fillRect(x,ySplit,w,y+h-ySplit);
+    } else { // vertical (left/right)
+      const xSplit = x + w*r;
+      ctx.fillStyle=S.bg.split.top; ctx.fillRect(x,y,xSplit-x,h);
+      ctx.fillStyle=S.bg.split.bottom; ctx.fillRect(xSplit,y,x+w-xSplit,h);
+    }
+  } else if(S.bg.mode==='gradient'){
+    let g;
+    if(S.bg.gradient.type==='radial'){
+      g = ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size*0.7);
+    } else {
+      let x1,y1,x2,y2;
+      if(S.bg.gradient.dir==='ltr'){x1=0;y1=size/2;x2=size;y2=size/2}
+      else if(S.bg.gradient.dir==='ttb'){x1=size/2;y1=0;x2=size/2;y2=size}
+      else if(S.bg.gradient.dir==='diag'){x1=0;y1=0;x2=size;y2=size}
+      else {x1=size/2;y1=0;x2=size/2;y2=size/2}
+      g = ctx.createLinearGradient(x1,y1,x2,y2);
+    }
+    g.addColorStop(0,S.bg.gradient.start); g.addColorStop(1,S.bg.gradient.end);
+    ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
+  } else if(S.bg.mode==='image' && S.bg.image.url){
+    const img = new Image();
+    img.onload = ()=>{
+      ctx.save(); ctx.restore(); // pop clip to redraw with image
+      // Redraw full canvas with image
+      fullDrawWithImage(img);
+    };
+    img.src = S.bg.image.url;
+    // draw placeholder
+    ctx.fillStyle='#f0f0f0'; ctx.fillRect(0,0,size,size);
+  }
+  ctx.restore();
+}
+
+function fullDrawWithImage(img){
+  const size = S.size; canvas.width=size; canvas.height=size; ctx.clearRect(0,0,size,size);
+  // Redraw shape + image as bg
+  ctx.save();
+  shapePath(size); ctx.clip();
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+  const scale = S.bg.image.scale/100;
+  if(S.bg.image.pos==='cover'){
+    const ratio = Math.max(size/img.width, size/img.height);
+    const dw = img.width*ratio*scale, dh = img.height*ratio*scale;
+    ctx.drawImage(img, size/2-dw/2, size/2-dh/2, dw, dh);
+  } else {
+    const ratio = Math.min(size/img.width, size/img.height);
+    const dw = img.width*ratio*scale, dh = img.height*ratio*scale;
+    let dy = size/2 - dh/2;
+    if(S.bg.image.pos==='top') dy = 0;
+    if(S.bg.image.pos==='bottom') dy = size - dh;
+    ctx.drawImage(img, size/2-dw/2, dy, dw, dh);
+  }
+  ctx.restore();
+  // Border + text
+  drawBorder(size); drawText(size); drawSizeStrips();
+}
+
+// ═══════ BORDER ═══════
+function drawBorder(size){
+  if(!S.border.on) return;
+  shapePath(size);
+  ctx.lineWidth = Math.round(S.border.w*size/256);
+  ctx.strokeStyle = S.border.color;
+  ctx.stroke();
+}
+
+// ═══════ SHADOW SETUP ═══════
+function applyShadow(){
+  if(!S.shadow.on) return;
+  ctx.save();
+  ctx.shadowColor = S.shadow.color + '73';
+  ctx.shadowBlur = Math.round(S.shadow.b*S.size/256);
+  ctx.shadowOffsetX = Math.round(S.shadow.x*S.size/256);
+  ctx.shadowOffsetY = Math.round(S.shadow.y*S.size/256);
+}
+function endShadow(){ if(S.shadow.on) ctx.restore(); }
+
+// ═══════ LAYOUT POSITION COMPUTATION ═══════
+// Returns array of {x,y} for each line based on layout mode
+function computeLayout(lineCount, layout, size){
+  const cx=size/2, cy=size/2, m=size*0.14;
+  const W = size - m*2, H = size - m*2;
+  const positions = [];
+  if(lineCount===1){
+    if(layout==='h-top')        positions.push([cx, m + H*0.18]);
+    else if(layout==='h-bottom') positions.push([cx, m + H*0.82]);
+    else if(layout==='v-left')  positions.push([m + W*0.18, cy]);
+    else if(layout==='v-right') positions.push([m + W*0.82, cy]);
+    else                        positions.push([cx, cy]); // h-center default
+  } else if(lineCount===2){
+    if(layout==='v-top-bot'){ positions.push([cx, cy - H*0.22]); positions.push([cx, cy + H*0.22]); }
+    else { // h-left-right default
+      positions.push([cx - W*0.22, cy]); positions.push([cx + W*0.22, cy]);
+    }
+  } else if(lineCount===3){
+    if(layout==='t-inverted'){ // 倒品
+      positions.push([cx, cy + H*0.28]);
+      positions.push([cx - W*0.25, cy - H*0.12]);
+      positions.push([cx + W*0.25, cy - H*0.12]);
+    } else { // 品字
+      positions.push([cx, cy - H*0.28]);
+      positions.push([cx - W*0.25, cy + H*0.12]);
+      positions.push([cx + W*0.25, cy + H*0.12]);
+    }
+  } else if(lineCount===4){
+    if(layout==='l-121'){
+      positions.push([cx, cy - H*0.30]);
+      positions.push([cx - W*0.25, cy]);
+      positions.push([cx + W*0.25, cy]);
+      positions.push([cx, cy + H*0.30]);
+    } else { // 四宫格
+      positions.push([cx - W*0.25, cy - H*0.25]);
+      positions.push([cx + W*0.25, cy - H*0.25]);
+      positions.push([cx - W*0.25, cy + H*0.25]);
+      positions.push([cx + W*0.25, cy + H*0.25]);
+    }
+  }
+  return positions;
+}
+
+// ═══════ TEXT DRAW ═══════
+function drawText(size){
+  const positions = computeLayout(S.lineCount, S.layout, size);
+  applyShadow();
+  positions.forEach((pos, i)=>{
+    const line = S.lines[i]; if(!line) return;
+    const cx = pos[0], cy = pos[1];
+    const hasCJK = /[\u4e00-\u9fff]/.test(line.text);
+    const family = hasCJK ? line.zhFont : line.font;
+    let fs = size * line.size / 100;
+    ctx.font = `${line.weight} ${fs}px "${family}", sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle = line.color;
+
+    // 自动缩小适配
+    const fgMargin = size*0.14;
+    const maxW = size - fgMargin*2;
+    let attempts = 0;
+    while(ctx.measureText(line.text).width > maxW && fs > 6 && attempts<80){
+      fs -= 2; ctx.font = `${line.weight} ${fs}px "${family}", sans-serif`; attempts++;
+    }
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(line.hStretch/100, line.vStretch/100);
+    ctx.fillText(line.text, line.hOffset*size/256, line.vOffset*size/256);
+    ctx.restore();
+  });
+  endShadow();
+}
+
+// ═══════ MAIN DRAW ═══════
+function draw(){
+  const size = S.size;
+  canvas.width=size; canvas.height=size;
+  ctx.clearRect(0,0,size,size);
+
+  drawBg(size);
+  drawBorder(size);
+
+  // 如果 bg mode is image, fullDrawWithImage already handled this
+  if(!(S.bg.mode==='image' && S.bg.image.url)){
+    drawText(size);
+  }
+  drawSizeStrips();
+}
+
+function drawSizeStrips(){
+  document.querySelectorAll('[data-ss]').forEach(c=>{
+    const t = parseInt(c.dataset.ss,10);
+    const tctx = c.getContext('2d');
+    tctx.imageSmoothingQuality='high';
+    tctx.clearRect(0,0,t,t);
+    tctx.drawImage(canvas,0,0,t,t);
+  });
+}
+
+// ═══════ BUILD UI ═══════
+function buildLineCountTabs(){
+  const box=$('lineCountTabs'); box.innerHTML='';
+  for(let i=1;i<=4;i++){
+    const d = document.createElement('div');
+    d.className='line-tab'+(S.lineCount===i?' active':'');
+    d.textContent = i+' 行';
+    d.addEventListener('click',()=>{
+      S.lineCount = i;
+      // ensure lines array has i elements
+      while(S.lines.length < i){ S.lines.push(JSON.parse(JSON.stringify(DEFAULTS.lines[0]))); S.lines[S.lines.length-1].text='B'; }
+      while(S.lines.length > i) S.lines.pop();
+      S.currentLine = Math.min(S.currentLine, i-1);
+      renderLines(); renderTextStyleTabs(); renderTextStylePanel(); renderLineCountTabs(); draw();
+    });
+    box.appendChild(d);
+  }
+}
+function renderLineCountTabs(){
+  document.querySelectorAll('#lineCountTabs .line-tab').forEach((el,i)=>{
+    el.classList.toggle('active', S.lineCount===i+1);
+  });
+}
+
+function renderLines(){
+  const c=$('linesContainer'); c.innerHTML='';
+  for(let i=0;i<S.lineCount;i++){
+    const line = S.lines[i] || {text:''};
+    const row = document.createElement('div');
+    row.className='line-item';
+    row.innerHTML = `<input type="text" value="${line.text||''}" data-line="${i}" placeholder="第 ${i+1} 行文字 (无长度限制)">`;
+    c.appendChild(row);
+  }
+  c.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const idx = parseInt(e.target.dataset.line,10);
+      if(S.lines[idx]){ S.lines[idx].text = e.target.value; draw(); }
+    });
+    inp.addEventListener('focus', e=>{
+      S.currentLine = parseInt(e.target.dataset.line,10);
+      renderTextStyleTabs(); renderTextStylePanel();
+      $('currentLineLabel').textContent = '行'+(S.currentLine+1);
+    });
+  });
+}
+
+const LAYOUTS_1 = [['h-center','居中'],['h-top','上半边'],['h-bottom','下半边'],['v-left','左半边'],['v-right','右半边']];
+const LAYOUTS_2 = [['v-top-bot','上下'],['h-left-right','左右']];
+const LAYOUTS_3 = [['t-default','品字'],['t-inverted','倒品']];
+const LAYOUTS_4 = [['grid','四宫格'],['l-121','1-2-1']];
+function renderLayoutGroup(){
+  const g=$('layoutGroup'); g.innerHTML='';
+  const list = S.lineCount===1 ? LAYOUTS_1 : S.lineCount===2 ? LAYOUTS_2 : S.lineCount===3 ? LAYOUTS_3 : LAYOUTS_4;
+  // fix default layout when lineCount changes
+  const validLayouts = list.map(x=>x[0]);
+  if(!validLayouts.includes(S.layout)) S.layout = list[0][0];
+  list.forEach(([v,l])=>{
+    const b=document.createElement('div');
+    b.className='layout-btn'+(S.layout===v?' active':'');
+    b.textContent = l;
+    b.addEventListener('click',()=>{ S.layout=v; renderLayoutGroup(); draw(); });
+    g.appendChild(b);
+  });
+}
+
+function renderTextStyleTabs(){
+  const t=$('textStyleTabs'); t.innerHTML='';
+  for(let i=0;i<S.lineCount;i++){
+    const d=document.createElement('div');
+    d.className='text-style-tab'+(S.currentLine===i?' active':'');
+    d.textContent = '行'+(i+1);
+    d.addEventListener('click',()=>{ S.currentLine=i; renderTextStyleTabs(); renderTextStylePanel(); $('currentLineLabel').textContent='行'+(i+1); });
+    t.appendChild(d);
+  }
+}
+
+function renderTextStylePanel(){
+  const panel=$('textStylePanel'); panel.innerHTML='';
+  const line = S.lines[S.currentLine] || {};
+  const add = (html)=>{ const d=document.createElement('div'); d.innerHTML=html; panel.appendChild(d.firstElementChild); };
+
+  add(`<div class="form-row"><div class="lbl">英文字体</div><select id="fontEn">
+    <option>Inter</option><option>Poppins</option><option>Roboto</option><option>Orbitron</option><option>Playfair Display</option><option>Lobster</option><option>JetBrains Mono</option><option>Arial</option>
+  </select></div>`);
+  add(`<div class="form-row"><div class="lbl">中文字体</div><select id="fontZh">
+    <option>Noto Sans SC</option><option>Noto Serif SC</option><option>Microsoft YaHei</option><option>SimSun</option>
+  </select></div>`);
+  add(`<div class="form-row"><div class="lbl">粗细</div><select id="weight">
+    <option value="300">细</option><option value="400">正常</option><option value="600" selected>半粗</option><option value="700">粗体</option><option value="800">特粗</option>
+  </select></div>`);
+  add(`<div class="form-row"><div class="lbl">大小</div><input type="range" id="size" min="15" max="120" value="${line.size||70}"><span class="v" id="sizeV">${line.size||70}%</span></div>`);
+  add(`<div class="form-row"><div class="lbl">颜色</div><input type="color" id="color" value="${line.color||'#ffffff'}"></div>`);
+  add(`<div class="form-row"><div class="lbl">水平拉伸</div><input type="range" id="hSt" min="50" max="300" value="${line.hStretch||100}"><span class="v" id="hStV">${line.hStretch||100}%</span></div>`);
+  add(`<div class="form-row"><div class="lbl">垂直拉伸</div><input type="range" id="vSt" min="50" max="500" value="${line.vStretch||100}"><span class="v" id="vStV">${line.vStretch||100}%</span></div>`);
+  add(`<div class="form-row"><div class="lbl">横向偏移</div><input type="range" id="hOf" min="-60" max="60" value="${line.hOffset||0}"><span class="v" id="hOfV">${line.hOffset||0}px</span></div>`);
+  add(`<div class="form-row"><div class="lbl">纵向偏移</div><input type="range" id="vOf" min="-60" max="60" value="${line.vOffset||0}"><span class="v" id="vOfV">${line.vOffset||0}px</span></div>`);
+
+  // set values
+  $('fontEn').value = line.font || 'Inter';
+  $('fontZh').value = line.zhFont || 'Noto Sans SC';
+  $('weight').value = line.weight || '700';
+  $('color').value = line.color || '#ffffff';
+
+  // bind
+  const idx = S.currentLine;
+  $('fontEn').addEventListener('change', e=>{ S.lines[idx].font=e.target.value; draw(); });
+  $('fontZh').addEventListener('change', e=>{ S.lines[idx].zhFont=e.target.value; draw(); });
+  $('weight').addEventListener('change', e=>{ S.lines[idx].weight=e.target.value; draw(); });
+  $('color').addEventListener('input', e=>{ S.lines[idx].color=e.target.value; draw(); });
+  $('size').addEventListener('input', e=>{ const v=parseInt(e.target.value,10); S.lines[idx].size=v; $('sizeV').textContent=v+'%'; draw(); });
+  $('hSt').addEventListener('input', e=>{ const v=parseInt(e.target.value,10); S.lines[idx].hStretch=v; $('hStV').textContent=v+'%'; draw(); });
+  $('vSt').addEventListener('input', e=>{ const v=parseInt(e.target.value,10); S.lines[idx].vStretch=v; $('vStV').textContent=v+'%'; draw(); });
+  $('hOf').addEventListener('input', e=>{ const v=parseInt(e.target.value,10); S.lines[idx].hOffset=v; $('hOfV').textContent=v+'px'; draw(); });
+  $('vOf').addEventListener('input', e=>{ const v=parseInt(e.target.value,10); S.lines[idx].vOffset=v; $('vOfV').textContent=v+'px'; draw(); });
+}
+
+function buildChips(id, items, key){
+  const el=$(id); el.innerHTML='';
+  items.forEach(([v,l])=>{
+    const d=document.createElement('div');
+    d.className='chip'+(String(S[key])===String(v)?' active':'');
+    d.textContent=l; d.dataset.val=v;
+    d.addEventListener('click',()=>{
+      S[key] = typeof v==='string'?v:parseInt(v,10);
+      buildChips(id,items,key); draw();
+    });
+    el.appendChild(d);
+  });
+}
+
+// sizes
+buildChips('sizeChips',[[16,'16'],[24,'24'],[32,'32'],[48,'48'],[64,'64'],[96,'96'],[128,'128'],[192,'192'],[256,'256'],[512,'512'],[1024,'1024']],'size');
+// shapes
+buildChips('shapeChips',[['circle','圆'],['square','圆角方'],['rect','直角方'],['pills','胶囊'],['octagon','八边'],['diamond','菱形']],'shape');
+// split dir
+buildChips('splitDirGroup',[['v','上下'],['h','左右']],'bg.split.dir');
+// grad type
+buildChips('gradTypeGroup',[['linear','线性'],['radial','径向']],'bg.gradient.type');
+// grad dir
+buildChips('gradDirGroup',[['ltr','←→'],['ttb','↑↓'],['diag','↘'],['center','中心']],'bg.gradient.dir');
+// fix nested buildChips for bg.split.dir
+document.querySelectorAll('#splitDirGroup .chip').forEach(c=>{
+  c.onclick=()=>{ S.bg.split.dir=c.dataset.val; buildChips('splitDirGroup',[['v','上下'],['h','左右']],null); document.querySelectorAll('#splitDirGroup .chip').forEach(x=>x.classList.toggle('active',x.dataset.val===S.bg.split.dir)); draw(); };
+});
+document.querySelectorAll('#gradTypeGroup .chip').forEach(c=>{
+  c.onclick=()=>{ S.bg.gradient.type=c.dataset.val; document.querySelectorAll('#gradTypeGroup .chip').forEach(x=>x.classList.toggle('active',x.dataset.val===S.bg.gradient.type)); draw(); };
+});
+document.querySelectorAll('#gradDirGroup .chip').forEach(c=>{
+  c.onclick=()=>{ S.bg.gradient.dir=c.dataset.val; document.querySelectorAll('#gradDirGroup .chip').forEach(x=>x.classList.toggle('active',x.dataset.val===S.bg.gradient.dir)); draw(); };
+});
+
+// ═══════ BG MODE TABS ═══════
+document.querySelectorAll('#bgModeRow .bg-mode').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('#bgModeRow .bg-mode').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    S.bg.mode = t.dataset.mode;
+    $('bgSolid').classList.toggle('hidden', S.bg.mode!=='solid');
+    $('bgSplit').classList.toggle('hidden', S.bg.mode!=='split');
+    $('bgGradient').classList.toggle('hidden', S.bg.mode!=='gradient');
+    $('bgImage').classList.toggle('hidden', S.bg.mode!=='image');
+    draw();
+  });
+});
+
+// ═══════ BORDER / SHADOW / TRANSPARENT ═══════
+$('borderOn').addEventListener('change', e=>{ S.border.on=e.target.checked; $('borderBox').classList.toggle('hidden',!e.target.checked); draw(); });
+$('shadowOn').addEventListener('change', e=>{ S.shadow.on=e.target.checked; $('shadowBox').classList.toggle('hidden',!e.target.checked); draw(); });
+$('transparentBg').addEventListener('change', e=>{ S.transparentBg=e.target.checked; draw(); });
+
+// ═══════ RADII / COLORS ═══════
+$('radius').addEventListener('input', e=>{ S.radius=parseInt(e.target.value,10); $('radiusV').textContent=e.target.value+'%'; draw(); });
+$('borderW').addEventListener('input', e=>{ S.border.w=parseInt(e.target.value,10); $('borderWV').textContent=e.target.value+'px'; draw(); });
+$('borderC').addEventListener('input', e=>{ S.border.color=e.target.value; draw(); });
+$('shadowB').addEventListener('input', e=>{ S.shadow.b=parseInt(e.target.value,10); $('shadowBV').textContent=e.target.value+'px'; draw(); });
+$('shadowX').addEventListener('input', e=>{ S.shadow.x=parseInt(e.target.value,10); $('shadowXV').textContent=e.target.value+'px'; draw(); });
+$('shadowY').addEventListener('input', e=>{ S.shadow.y=parseInt(e.target.value,10); $('shadowYV').textContent=e.target.value+'px'; draw(); });
+$('shadowC').addEventListener('input', e=>{ S.shadow.color=e.target.value; draw(); });
+
+$('bgColor').addEventListener('input', e=>{ S.bg.solid=e.target.value; draw(); });
+$('fgColor').addEventListener('input', e=>{ S.fg=e.target.value; S.lines.forEach(l=>{ l.color=e.target.value; }); renderTextStylePanel(); draw(); });
+
+$('splitTop').addEventListener('input', e=>{ S.bg.split.top=e.target.value; draw(); });
+$('splitBottom').addEventListener('input', e=>{ S.bg.split.bottom=e.target.value; draw(); });
+$('splitRatio').addEventListener('input', e=>{ S.bg.split.ratio=parseInt(e.target.value,10); $('splitRatioV').textContent=e.target.value+'%'; draw(); });
+
+$('gradStart').addEventListener('input', e=>{ S.bg.gradient.start=e.target.value; draw(); });
+$('gradEnd').addEventListener('input', e=>{ S.bg.gradient.end=e.target.value; draw(); });
+
+$('bgImgScale').addEventListener('input', e=>{ S.bg.image.scale=parseInt(e.target.value,10); $('bgImgScaleV').textContent=e.target.value+'%'; draw(); });
+$('bgImgPos').addEventListener('change', e=>{ S.bg.image.pos=e.target.value; draw(); });
+
+// ═══════ BG IMAGE UPLOAD ═══════
+const dz=$('dz'), bgFile=$('bgFile');
+dz.addEventListener('click',()=>bgFile.click());
+['dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('over')}));
+dz.addEventListener('drop',e=>{if(e.dataTransfer.files[0])handleBgFile(e.dataTransfer.files[0])});
+bgFile.addEventListener('change',e=>{if(e.target.files[0])handleBgFile(e.target.files[0])});
+function handleBgFile(f){
+  if(!/image\/(png|svg\+xml)/.test(f.type)){alert('仅支持 PNG / SVG');return}
+  if(f.size>2*1024*1024){alert('超过 2MB');return}
+  const r=new FileReader();
+  r.onload = e=>{ S.bg.image.url=e.target.result; $('bgModeRow').querySelector('[data-mode="image"]').click(); };
+  r.readAsDataURL(f);
+}
+
+// ═══════ PRESETS ═══════
+const PRESETS = [
+  { name:'Aa', lines:[{text:'Aa',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:65,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffffff'}], layout:'h-center', shape:'circle', radius:0, bg:{mode:'solid',solid:'#4f7a4f'} },
+  { name:'好', lines:[{text:'好',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:70,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffeb3b'}], layout:'h-center', shape:'square', radius:35, bg:{mode:'solid',solid:'#c14749'} },
+  { name:'★', lines:[{text:'★',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:65,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#f4a261'}], layout:'h-center', shape:'octagon', radius:0, bg:{mode:'solid',solid:'#1a1a2e'} },
+  { name:'飞', lines:[{text:'飞',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:65,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffcc00'}], layout:'h-center', shape:'rect', radius:0, bg:{mode:'solid',solid:'#111111'} },
+  { name:'S\nD', lines:[{text:'S',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:55,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffffff'},{text:'D',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:55,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffffff'}], layout:'v-top-bot', shape:'circle', radius:0, bg:{mode:'gradient',gradient:{start:'#667eea',end:'#764ba2',type:'linear',dir:'diag'}} },
+  { name:'福\n气', lines:[{text:'福',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:50,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffffff'},{text:'气',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:50,hStretch:100,vStretch:100,hOffset:0,vOffset:0,color:'#ffffff'}], layout:'t-default', shape:'diamond', radius:0, bg:{mode:'solid',solid:'#d94f4f'} }
+];
+function applyPreset(p){
+  S = JSON.parse(JSON.stringify(DEFAULTS));
+  S.lines = JSON.parse(JSON.stringify(p.lines));
+  S.lineCount = p.lines.length;
+  S.layout = p.layout;
+  S.shape = p.shape;
+  S.radius = p.radius;
+  if(p.bg) Object.assign(S.bg, p.bg);
+  // make sure split/gradient sub-objs exist
+  if(!S.bg.split) S.bg.split = JSON.parse(JSON.stringify(DEFAULTS.bg.split));
+  if(!S.bg.gradient) S.bg.gradient = JSON.parse(JSON.stringify(DEFAULTS.bg.gradient));
+  renderAll(); draw();
+}
+function renderAll(){
+  buildChips('sizeChips',[[16,'16'],[24,'24'],[32,'32'],[48,'48'],[64,'64'],[96,'96'],[128,'128'],[192,'192'],[256,'256'],[512,'512'],[1024,'1024']],'size');
+  buildChips('shapeChips',[['circle','圆'],['square','圆角方'],['rect','直角方'],['pills','胶囊'],['octagon','八边'],['diamond','菱形']],'shape');
+  document.querySelectorAll('#splitDirGroup .chip').forEach(c=>{ c.onclick=()=>{ S.bg.split.dir=c.dataset.val; document.querySelectorAll('#splitDirGroup .chip').forEach(x=>x.classList.toggle('active',x.dataset.val===S.bg.split.dir)); draw(); }});
+  document.querySelectorAll('#gradTypeGroup .chip').forEach(c=>{ c.onclick=()=>{ S.bg.gradient.type=c.dataset.val; document.querySelectorAll('#gradTypeGroup .chip').forEach(x=>x.classList.toggle('active',x.dataset.val===S.bg.gradient.type)); draw(); }});
+  document.querySelectorAll('#gradDirGroup .chip').forEach(c=>{ c.onclick=()=>{ S.bg.gradient.dir=c.dataset.val; document.querySelectorAll('#gradDirGroup .chip').forEach(x=>x.classList.toggle('active',x.dataset.val===S.bg.gradient.dir)); draw(); }});
+  renderLineCountTabs(); renderLines(); renderLayoutGroup();
+  S.currentLine = 0;
+  renderTextStyleTabs(); renderTextStylePanel();
+  $('borderOn').checked = S.border.on; $('borderBox').classList.toggle('hidden',!S.border.on);
+  $('shadowOn').checked = S.shadow.on; $('shadowBox').classList.toggle('hidden',!S.shadow.on);
+  $('transparentBg').checked = S.transparentBg;
+  $('radius').value=S.radius; $('radiusV').textContent=S.radius+'%';
+  $('bgColor').value=S.bg.solid;
+  $('fgColor').value=S.lines[0]?.color || '#ffffff';
+  $('borderW').value=S.border.w; $('borderWV').textContent=S.border.w+'px';
+  $('borderC').value=S.border.color;
+  $('shadowB').value=S.shadow.b; $('shadowBV').textContent=S.shadow.b+'px';
+  $('shadowX').value=S.shadow.x; $('shadowXV').textContent=S.shadow.x+'px';
+  $('shadowY').value=S.shadow.y; $('shadowYV').textContent=S.shadow.y+'px';
+  $('shadowC').value=S.shadow.color;
+  $('currentLineLabel').textContent = '行'+(S.currentLine+1);
+}
+
+const presetRow=$('presetRow');
+PRESETS.forEach((p,i)=>{
+  const el = document.createElement('div');
+  el.className='preset';
+  const bg = p.bg.mode==='gradient' ? `linear-gradient(135deg,${p.bg.gradient.start},${p.bg.gradient.end})` : p.bg.solid;
+  el.style.background = bg;
+  el.textContent = p.name.replace(/\n/g,'/');
+  el.addEventListener('click',()=>applyPreset(p));
+  presetRow.appendChild(el);
+});
+
+// ═══════ DOWNLOAD ═══════
+function download(dataUrl, name){
+  const a=document.createElement('a'); a.href=dataUrl; a.download=name; a.click();
+}
+$('dlPng').addEventListener('click',()=>{ draw(); download(canvas.toDataURL('image/png'),`icon-${S.size}.png`); });
+$('dlJpg').addEventListener('click',()=>{ draw(); download(canvas.toDataURL('image/jpeg',0.92),`icon-${S.size}.jpg`); });
+$('dlSvg').addEventListener('click',()=>{ draw(); const svg=buildSvg(); const b=new Blob([svg],{type:'image/svg+xml'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u;a.download=`icon-${S.size}.svg`;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);});
+
+function buildSvg(){
+  const s=S.size;
+  let shapeEl = `<rect x="${Math.max(2,Math.round(s*0.02))}" y="${Math.max(2,Math.round(s*0.02))}" width="${s-2*Math.max(2,Math.round(s*0.02))}" height="${s-2*Math.max(2,Math.round(s*0.02))}" rx="${S.shape==='square'?Math.round(s*S.radius/100):0}"/>`;
+  const pos = computeLayout(S.lineCount, S.layout, s);
+  let textEls = '';
+  pos.forEach((p,i)=>{
+    const l=S.lines[i]; if(!l) return;
+    const hasCJK=/[\u4e00-\u9fff]/.test(l.text);
+    const fam=hasCJK?l.zhFont:l.font;
+    const fs=s*l.size/100;
+    textEls += `<text x="${p[0]}" y="${p[1]}" text-anchor="middle" dominant-baseline="middle" font-family="${fam}" font-size="${fs}" font-weight="${l.weight}" fill="${l.color}" transform="translate(${p[0]} ${p[1]}) scale(${l.hStretch/100} ${l.vStretch/100}) translate(${l.hOffset} ${l.vOffset})">${String(l.text).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]))}</text>`;
+  });
+  let bgAttr='fill="'+(S.bg.mode==='solid'?S.bg.solid:(S.bg.mode==='gradient'?'url(#g1)':'#eee'))+'"';
+  let defs='';
+  if(S.bg.mode==='gradient'){
+    const a=S.bg.gradient;
+    if(a.type==='linear'){
+      let x1,y1,x2,y2;
+      if(a.dir==='ltr'){x1=0;y1=s/2;x2=s;y2=s/2}else if(a.dir==='ttb'){x1=s/2;y1=0;x2=s/2;y2=s}else if(a.dir==='diag'){x1=0;y1=0;x2=s;y2=s}else{x1=s/2;y1=0;x2=s/2;y2=s/2}
+      defs=`<linearGradient id="g1" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"><stop offset="0" stop-color="${a.start}"/><stop offset="1" stop-color="${a.end}"/></linearGradient>`;
+    } else {
+      defs=`<radialGradient id="g1" cx="${s/2}" cy="${s/2}" r="${s*0.7}"><stop offset="0" stop-color="${a.start}"/><stop offset="1" stop-color="${a.end}"/></radialGradient>`;
+    }
+  }
+  let borderEl=S.border.on?`<rect x="${Math.max(2,Math.round(s*0.02))}" y="${Math.max(2,Math.round(s*0.02))}" width="${s-2*Math.max(2,Math.round(s*0.02))}" height="${s-2*Math.max(2,Math.round(s*0.02))}" fill="none" stroke="${S.border.color}" stroke-width="${S.border.w}"/>`:'';
+  return `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}"><defs>${defs}</defs>${S.transparentBg?'':`<g ${bgAttr}>${shapeEl}</g>`}<g>${textEls}</g>${borderEl}</svg>`;
+}
+
+// ═══════ RESET ═══════
+$('btnReset').addEventListener('click',()=>{
+  S = JSON.parse(JSON.stringify(DEFAULTS));
+  renderAll(); draw();
+});
+
+// ═══════ INIT ═══════
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=>{ renderAll(); draw(); });
+} else { renderAll(); draw(); }
+
+window.IM = { S, draw, DEFAULTS };
+})();
+</script>
+</body>
+</html>
