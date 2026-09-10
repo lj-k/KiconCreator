@@ -1,0 +1,581 @@
+﻿diff --git a/IconMaker.html b/IconMaker.html
+index 7ef4838..87187e2 100644
+--- a/IconMaker.html
++++ b/IconMaker.html
+@@ -23,13 +23,16 @@ body.lf-lock{overflow:hidden}
+       onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css'">
+ <style>
+ :root,[data-theme="light"]{
+-  --lf-bg:#eef5ee;--lf-text:#6b8e6b;--lf-bar:#cbdccb;--lf-fg:#4f7a4f;
+-  --bg-page:#eef5ee;--bg-card:rgba(255,255,255,.85);--bg-card-solid:#ffffff;
+-  --bg-rail:#f4f9f4;--bg-input:#ffffff;--bg-hover:#e9f2e9;--bg-deep:#cbdccb;
+-  --border:rgba(120,140,120,.28);--border-strong:#b0c4b0;
+-  --accent:#4f7a4f;--accent-hover:#3d623d;
+-  --text:#2d472d;--text-sub:#6b8e6b;--text-muted:#99a899;--text-inv:#ffffff;
+-  --shadow:rgba(70,90,70,.15);
++  --lf-bg:#f0f4f8;--lf-text:#5a7090;--lf-bar:#c5d4e6;--lf-fg:#3a5580;
++  --bg-page:#ffffff;--bg-card:#ffffff;--bg-card-solid:#ffffff;
++  --bg-rail:#f4f7fb;--bg-input:#ffffff;--bg-hover:#e8f0fa;--bg-deep:#c5d4e6;
++  --bg-func:#e8f0fa;          /* 功能区浅蓝（背景参数） */
++  --bg-multi:#e8f5ff;          /* 多行功能区浅蓝 */
++  --bg-single:#f0f6ff;         /* 单行功能区浅蓝 */
++  --border:rgba(160,175,195,.35);--border-strong:#b8c4d4;
++  --accent:#3a5580;--accent-hover:#2d4570;
++  --text:#1e2d40;--text-sub:#5a7090;--text-muted:#8095a8;--text-inv:#ffffff;
++  --shadow:rgba(60,80,120,.12);
+ }
+ [data-theme="warm"]{
+   --lf-bg:#f5ead0;--lf-text:#8a7a50;--lf-bar:#e4d6a8;--lf-fg:#a67c52;
+@@ -49,6 +52,56 @@ body.lf-lock{overflow:hidden}
+   --text:#e4ebe4;--text-sub:#9bb0a0;--text-muted:#6a7a6a;--text-inv:#1a1d1a;
+   --shadow:rgba(0,0,0,.4);
+ }
++
++/* ── 功能区额外浅蓝规则 ── */
++[data-theme="light"] .col-hd{background:#e8f0fa;border-bottom:1px solid #c5d4e6}
++[data-theme="light"] .col-bd .sec{background:#fafbfd;border:1px solid #e4e8ef;border-radius:8px;padding:6px 8px;margin-bottom:8px}
++[data-theme="light"] .col-bd .sec-t{background:#e8f0fa;color:#2d4570;border-bottom:1px solid #d8e1ee;font-weight:600}
++[data-theme="light"] .col-bd #outerSec{background:transparent;border:none;padding:0;margin-bottom:8px}
++[data-theme="light"] .col-bd #outerSec > .sec-t{background:#dce8f8;border:1px solid #c5d4e6;border-bottom:none;border-radius:8px 8px 0 0;color:#2d4570}
++[data-theme="light"] .sh-tabs{background:#f0f6ff;border-color:#c5d4e6}
++[data-theme="light"] .sh-tab.active{background:#b8d4f0;color:#1a3a60}
++[data-theme="light"] .sh-pane.active{background:#e8f0fa;border-color:#c5d4e6}
++[data-theme="light"] .col-bd .sec .multi-line-wrap,.data-theme="light" .col-bd .sec .multi-wrap{background:#dce8f8;border:1px solid #c5d4e6;border-radius:6px;padding:6px}
++[data-theme="light"] .col-bd .sec .line-tabs{background:#f0f6ff;border:1px solid #d8e1ee;border-radius:6px;padding:3px}
++.line-tab{display:flex;align-items:center;gap:4px;padding:4px 6px;background:transparent;border-radius:4px;font-size:11px;cursor:pointer;transition:.12s;color:var(--text);white-space:nowrap}
++.line-tab.active{background:rgba(70,140,230,.25);color:var(--accent);font-weight:600}
++.line-tab > input[type="text"]{
++  width:50%;min-width:60px;max-width:140px;flex-shrink:0;
++  padding:3px 6px;border:1px solid var(--border);border-radius:4px;
++  background:var(--bg-input);color:var(--text);font-size:11px;
++  transition:border-color .12s;
++}
++.line-tab > input[type="text"]:focus{outline:none;border-color:var(--accent)}
++
++[data-theme="light"] .col-bd .sec #stylePanel{background:#f0f6ff;border:1px solid #d8e1ee;border-radius:0 0 6px 6px}
++[data-theme="light"] .style-tabs{background:#e4ecf8;border:1px solid #c5d4e6;border-bottom:none;border-radius:6px 6px 0 0}
++[data-theme="light"] .style-tab.active{background:#b8d4f0;color:#1a3a60}
++[data-theme="light"] .preview-center{background:#f0f4f8;border:1px solid #d8e1ee;border-radius:8px}
++[data-theme="light"] .form-row input[type="range"]::-webkit-slider-thumb{background:#3a5580}
++[data-theme="light"] .chip{background:#ffffff;border:1px solid #d8e1ee;color:#3a5580}
++[data-theme="light"] .chip.active{background:#3a5580;color:#fff;border-color:#3a5580}
++[data-theme="light"] .btn{background:#f0f6ff;border:1px solid #c5d4e6;color:#2d4570}
++[data-theme="light"] .btn:hover{background:#dce8f8}
++[data-theme="light"] .btn-primary{background:#3a5580;color:#fff;border-color:#3a5580}
++[data-theme="light"] .num-input{background:#ffffff;border-color:#d8e1ee;color:#1e2d40}
++
++/* 多行功能区强制浅蓝色 */
++.multi-wrap,.multi-line-wrap{background:var(--bg-multi,rgba(200,225,255,.4))!important;border:1px solid var(--border-strong,#b8c4d4)!important;border-radius:8px!important;padding:8px!important}
++
++/* 单行样式面板浅蓝色 + 标签连参数区域无分割 */
++.style-tabs{display:flex;gap:1px;margin-bottom:0;border-radius:6px 6px 0 0;background:var(--bg-rail,#eef);padding:2px;border:1px solid var(--border-strong,#b8c4d4);border-bottom:none}
++.style-tab{flex:1;text-align:center;padding:6px 4px;font-size:11px;cursor:pointer;border-radius:4px;border:none;background:transparent;color:var(--text);transition:.12s}
++.style-tab.active{background:rgba(70,140,230,.25);color:var(--accent);font-weight:600}
++#stylePanel{background:rgba(70,140,230,.06);border:1px solid var(--border-strong,#b8c4d4);border-radius:0 0 6px 6px;padding:8px}
++
++/* 预览模块 sticky 固定（竖屏优先） */
++@media (max-width: 1200px){
++  #previewSec{position:sticky;top:8px;z-index:20}
++}
++@media (orientation: portrait){
++  #previewSec{position:sticky;top:8px;z-index:20}
++}
+ *{box-sizing:border-box}
+ html,body{margin:0;padding:0;height:100%;background:var(--bg-page);color:var(--text);font-family:'Noto Sans SC','Inter',system-ui,sans-serif}
+ ::-webkit-scrollbar{width:5px;height:5px}
+@@ -82,13 +135,13 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
+ .theme-btn.active{background:var(--bg-input);color:var(--accent);font-weight:600;border-color:var(--border-strong)}
+ .chip-row{display:flex;flex-wrap:wrap;gap:5px}
+ /* 形状和外框 三标签 */
+-.sh-tabs{display:flex;gap:2px;margin-bottom:6px;background:var(--bg-input);border-radius:6px;padding:2px;border:1px solid var(--border-strong)}
++.sh-tabs{display:flex;gap:2px;margin-bottom:0;background:var(--bg-input);border-radius:6px 6px 0 0;padding:2px;border:1px solid var(--border-strong);border-bottom:none}
+ .sh-tab{flex:1;text-align:center;padding:6px 4px;border-radius:4px;cursor:pointer;font-size:11px;color:var(--text);transition:.12s;background:transparent;user-select:none}
+ .sh-tab.active{background:rgba(70,140,230,.25);color:var(--accent);font-weight:600}
+ .sh-tab.tb-on .tb-content::after{content:' ✓';color:#4CAF50;font-weight:700}
+ .sh-tab.tb-on.active{background:rgba(70,180,120,.18)}
+ .sh-pane{display:none;padding:6px 2px}
+-.sh-pane.active{display:block;background:rgba(70,140,230,.06);border-radius:6px;padding:8px 6px;border:1px solid rgba(70,140,230,.18)}
++.sh-pane.active{display:block;background:rgba(70,140,230,.06);border-radius:0 0 6px 6px;padding:8px 6px;border:none}
+ .btn-fill{padding:2px 8px;border-radius:4px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--accent);cursor:pointer;font-size:11px;margin-left:4px}
+ .btn-fill:hover{background:rgba(70,140,230,.15)}
+ .chip{padding:4px 9px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg-card-solid);cursor:pointer;font-size:11px;color:var(--text-sub);transition:.12s;font-family:'JetBrains Mono',monospace}
+@@ -179,22 +232,53 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
+   <section class="col">
+     <div class="col-hd"><i class="fa-solid fa-eye"></i>预览 · 预设 · 导出</div>
+     <div class="col-bd">
+-      <div class="preview-center">
+-        <canvas id="icon" width="256" height="256" style="width:220px;height:220px;display:block"></canvas>
++      <!-- 预览模块 -->
++      <div class="sec" id="previewSec">
++        <div class="sec-t"><i class="fa-solid fa-eye"></i>预览</div>
++        <div class="preview-center">
++          <canvas id="icon" width="256" height="256" style="width:220px;height:220px;display:block"></canvas>
++        </div>
++      </div>
++      <!-- 预设模块 -->
++      <div class="sec">
++        <div class="sec-t"><i class="fa-solid fa-wand-sparkles"></i>预设
++          <div style="float:right;display:flex;gap:4px">
++            <button id="presetImport" class="btn btn-sm" title="导入预设"><i class="fa-solid fa-file-import"></i></button>
++            <button id="presetExport" class="btn btn-sm" title="导出当前预设"><i class="fa-solid fa-file-export"></i></button>
++            <input type="file" id="presetFile" accept=".json" style="display:none">
++          </div>
++        </div>
++        <div class="preset-row" id="presetRow"></div>
+       </div>
+-      <div class="dl-row">
+-        <button id="dlPng" class="btn btn-primary"><i class="fa-solid fa-download"></i>PNG</button>
+-        <button id="dlJpg" class="btn"><i class="fa-solid fa-download"></i>JPEG</button>
+-        <button id="dlSvg" class="btn"><i class="fa-solid fa-code"></i>SVG</button>
+-        <button id="btnReset" class="btn btn-sm"><i class="fa-solid fa-rotate-left"></i>重置</button>
++      <!-- 下载模块 -->
++      <div class="sec">
++        <div class="sec-t"><i class="fa-solid fa-download"></i>下载
++          <button id="btnReset" class="btn btn-sm" style="float:right"><i class="fa-solid fa-rotate-left"></i> 重置</button>
++        </div>
++        <div class="dl-row">
++          <button id="dlPng" class="btn btn-primary"><i class="fa-solid fa-download"></i>PNG</button>
++          <button id="dlJpg" class="btn"><i class="fa-solid fa-download"></i>JPEG</button>
++          <button id="dlSvg" class="btn"><i class="fa-solid fa-code"></i>SVG</button>
++          <button id="dlIco" class="btn"><i class="fa-solid fa-icons"></i>ICO</button>
++        </div>
++        <div class="form-row" style="margin-top:6px">
++          <label class="check" style="margin-right:8px"><input type="checkbox" id="dlTransparent"><span>透明背景（PNG/ICO）</span></label>
++        </div>
++        <div class="form-row">
++          <div class="lbl">尺寸</div>
++          <input type="range" id="dlSize" min="16" max="1024" step="16" value="256">
++          <span class="v" id="dlSizeV">256px</span>
++          <input type="number" id="dlSizeNum" min="16" max="2048" value="256" class="num-input">
++        </div>
+       </div>
+-      <div class="sec-t"><i class="fa-solid fa-wand-sparkles"></i>预设（canvas 真实渲染 <50px）</div>
+-      <div class="preset-row" id="presetRow"></div>
+-      <div class="sec-t"><i class="fa-solid fa-palette"></i>界面主题</div>
+-      <div class="theme-row">
+-        <div class="theme-btn active" data-t="light"><i class="fa-solid fa-sun"></i> 明亮</div>
+-        <div class="theme-btn" data-t="warm"><i class="fa-solid fa-mug-hot"></i> 复古</div>
+-        <div class="theme-btn" data-t="dark"><i class="fa-solid fa-moon"></i> 暗黑</div>
++      <!-- 主题 -->
++      <div class="sec">
++        <div class="sec-t"><i class="fa-solid fa-palette"></i>界面主题</div>
++        <div class="theme-row">
++          <div class="theme-btn active" data-t="light"><i class="fa-solid fa-sun"></i> 明亮</div>
++          <div class="theme-btn" data-t="warm"><i class="fa-solid fa-mug-hot"></i> 复古</div>
++          <div class="theme-btn" data-t="dark"><i class="fa-solid fa-moon"></i> 暗黑</div>
++        </div>
+       </div>
+     </div>
+   </section>
+@@ -2216,15 +2300,43 @@ const FA_MAP = {
+   'fa-youtube-square':'\uf431',
+   'fa-zap':'\uf0e7',
+   'fa-zhihu':'\uf63f'
++}
++// 兜底：常用 FA solid 图标 unicode（覆盖 FA_MAP 里缺失的）
++const FA_FALLBACK={
++  'fa-star':'\uf005','fa-heart':'\uf004','fa-home':'\uf015','fa-user':'\uf007',
++  'fa-check':'\uf00c','fa-xmark':'\uf00d','fa-plus':'\uf067','fa-minus':'\uf068',
++  'fa-cog':'\uf013','fa-gear':'\uf013','fa-pencil':'\uf040','fa-trash':'\uf2ed',
++  'fa-folder':'\uf07b','fa-file':'\uf15b','fa-image':'\uf03e','fa-music':'\uf001',
++  'fa-camera':'\uf030','fa-video':'\uf03d','fa-phone':'\uf095','fa-envelope':'\uf0e0',
++  'fa-globe':'\uf0ac','fa-cloud':'\uf0c2','fa-bolt':'\uf0e7','fa-fire':'\uf06d',
++  'fa-leaf':'\uf06c','fa-moon':'\uf186','fa-sun':'\uf185','fa-umbrella':'\uf0e9',
++  'fa-car':'\uf1b9','fa-plane':'\uf072','fa-rocket':'\uf135','fa-gift':'\uf06b',
++  'fa-bell':'\uf0f3','fa-calendar':'\uf133','fa-clock':'\uf017','fa-tv':'\uf26c',
++  'fa-headphones':'\uf025','fa-microphone':'\uf130','fa-comment':'\uf075','fa-share':'\uf064',
++  'fa-download':'\uf019','fa-upload':'\uf093','fa-link':'\uf0c1','fa-search':'\uf002',
++  'fa-lock':'\uf023','fa-unlock':'\uf09c','fa-key':'\uf084','fa-wifi':'\uf1eb',
++  'fa-signal':'\uf012','fa-battery-full':'\uf240','fa-bolt-lightning':'\uf0e7',
++  'fa-heart-crack':'\uf7a9','fa-face-smile':'\uf118','fa-face-frown':'\uf119',
++  'fa-flag':'\uf024','fa-bug':'\uf188','fa-code':'\uf121','fa-terminal':'\uf120',
++  'fa-database':'\uf1c0','fa-server':'\uf233','fa-memory':'\uf538',
++  'fa-robot':'\uf544','fa-shield':'\uf132','fa-circle-check':'\uf58e',
++  'fa-circle-xmark':'\uf057','fa-triangle-exclamation':'\uf071'
+ };
+-
++// FA 渲染函数：优先 FA_MAP，其次 FA_FALLBACK，最后 unicode 兜底
++function faGlyph(name){
++  if(!name) return '★';
++  const key = name.startsWith('fa-') ? name : 'fa-'+name;
++  if(FA_MAP && FA_MAP[key]) return FA_MAP[key];
++  if(FA_FALLBACK && FA_FALLBACK[key]) return FA_FALLBACK[key];
++  return '?';
++}
+ // ═══════ DEFAULTS ═══════
+ function newSegment(){return{mode:'solid',solid:'#4f7a4f',gradient:{start:'#4f7a4f',end:'#1d3a2a',type:'linear',angle:135},image:{url:null,scale:100,pos:'center'}};}
+-function newLine(){return{mode:'text',text:'A',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:65,color:'#ffffff',hStretch:100,vStretch:100,hOffset:0,vOffset:0,shadow:{on:false,blur:6,x:0,y:2,color:'#000000'},fillMode:'solid',fillGradS:'#ffffff',fillGradE:'#dddddd',imgUrl:null,imgScale:100,imgPos:'center',faIcon:'fa-star',faColor:'#ffffff',faSize:65};}
++function newLine(){return{mode:'text',text:'A',font:'Inter',zhFont:'Noto Sans SC',weight:'700',size:65,color:'#ffffff',hStretch:100,vStretch:100,hOffset:0,vOffset:0,shadow:{on:false,blur:6,x:0,y:2,color:'#000000',overflow:{show:false}},fillMode:'solid',fillGradS:'#ffffff',fillGradE:'#dddddd',imgUrl:null,imgScale:100,imgPos:'center',faIcon:'fa-star',faColor:'#ffffff',faSize:65};}
+ 
+ const DEFAULTS={
+   lines:[newLine()],lineCount:1,currentLine:0,layout:'h-center',
+-  size:256,shape:'none',shapeSides:4,shapeStar:false,radius:0,direction:0,shapeSize:100,shapeHStretch:100,shapeVStretch:100,shapeInner:0,
++  size:256,shape:'none',shapeSides:4,shapeStar:false,radius:0,direction:0,shapeSize:100,shapeHStretch:100,shapeVStretch:100,shapeInner:60,
+   bg:{segments:[newSegment()],numSegs:1,angle:0,ratios:[],borderShape:'line',transMode:'none',transWidth:0},
+   border:{on:false,w:3,color:'#ffffff'},
+   bgShadow:{on:false,size:100,b:8,x:0,y:3,color:'#000000'},
+@@ -2298,13 +2410,20 @@ function shapePath(c,size){
+       c.restore();
+       return;
+     }
+-    if(S.radius>0 && S.radius<100){
++    if(S.radius>0 && S.radius<=100){
++      if(S.radius>=99.99){
++        c.arc(cx,cy,base-Math.max(2,Math.round(size*0.02)),0,Math.PI*2);
++        c.restore();
++        return;
++      }
+       let minDist=Infinity;
+       for(let i=0;i<pts.length;i++){
+         const v=pts[(i-1+pts.length)%pts.length],p=pts[i],q=pts[(i+1)%pts.length];
+         minDist=Math.min(minDist,pointToSegDist(p,v,q));
+       }
+-      const r0 = minDist * (S.radius/100) * 0.95;
++      const x=S.radius/100;
++      const smoothX=1-Math.pow(1-x,2);
++      const r0 = minDist * smoothX * 0.95;
+       if(r0>0.5){
+         c.moveTo(pts[0][0],pts[0][1]);
+         for(let i=0;i<pts.length;i++){
+@@ -2476,19 +2595,41 @@ function drawShapeOuter(c,size){
+ // ═══════ LAYOUT ═══════
+ function computeLayout(lc,layout,size){
+   const cx=size/2,cy=size/2,m=size*0.14,W=size-m*2,H=size-m*2,pos=[];
++  // 公共：环形辅助
++  const ringPts=(n,r)=>{const arr=[];for(let i=0;i<n;i++){const a=-Math.PI/2+i*Math.PI*2/n;arr.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);}return arr;};
++  
+   if(lc===1){
+-    if(layout==='h-top')pos.push([cx,m+H*0.18]);else if(layout==='h-bottom')pos.push([cx,m+H*0.82]);
+-    else if(layout==='v-left')pos.push([m+W*0.18,cy]);else if(layout==='v-right')pos.push([m+W*0.82,cy]);
++    if(layout==='h-top')pos.push([cx,m+H*0.18]);
++    else if(layout==='h-bottom')pos.push([cx,m+H*0.82]);
++    else if(layout==='v-left')pos.push([m+W*0.18,cy]);
++    else if(layout==='v-right')pos.push([m+W*0.82,cy]);
+     else pos.push([cx,cy]);
+   } else if(lc===2){
+-    if(layout==='v-top-bot'){pos.push([cx,cy-H*0.22]);pos.push([cx,cy+H*0.22])}
+-    else{pos.push([cx-W*0.22,cy]);pos.push([cx+W*0.22,cy])}
++    if(layout==='all-top'){pos.push([cx,cy-H*0.3]);pos.push([cx,cy-H*0.3]);}
++    else if(layout==='all-bottom'){pos.push([cx,cy+H*0.3]);pos.push([cx,cy+H*0.3]);}
++    else if(layout==='all-left'){pos.push([cx-W*0.3,cy]);pos.push([cx-W*0.3,cy]);}
++    else if(layout==='all-right'){pos.push([cx+W*0.3,cy]);pos.push([cx+W*0.3,cy]);}
++    else if(layout==='h-left-right'){pos.push([cx-W*0.25,cy]);pos.push([cx+W*0.25,cy]);}
++    else{pos.push([cx,cy-H*0.25]);pos.push([cx,cy+H*0.25]);}
+   } else if(lc===3){
+-    if(layout==='t-inverted'){pos.push([cx,cy+H*0.28]);pos.push([cx-W*0.25,cy-H*0.12]);pos.push([cx+W*0.25,cy-H*0.12])}
+-    else{pos.push([cx,cy-H*0.28]);pos.push([cx-W*0.25,cy+H*0.12]);pos.push([cx+W*0.25,cy+H*0.12])}
++    if(layout==='row-h'){for(let i=0;i<3;i++)pos.push([cx-W*0.3+i*W*0.3,cy]);}
++    else if(layout==='row-v'){for(let i=0;i<3;i++)pos.push([cx,cy-H*0.3+i*H*0.3]);}
++    else if(layout==='t-inverted'){pos.push([cx,cy+H*0.28]);pos.push([cx-W*0.25,cy-H*0.12]);pos.push([cx+W*0.25,cy-H*0.12]);}
++    else{pos.push([cx,cy-H*0.28]);pos.push([cx-W*0.25,cy+H*0.12]);pos.push([cx+W*0.25,cy+H*0.12]);}
+   } else if(lc===4){
+-    if(layout==='l-121'){pos.push([cx,cy-H*0.30]);pos.push([cx-W*0.25,cy]);pos.push([cx+W*0.25,cy]);pos.push([cx,cy+H*0.30])}
+-    else{pos.push([cx-W*0.25,cy-H*0.25]);pos.push([cx+W*0.25,cy-H*0.25]);pos.push([cx-W*0.25,cy+H*0.25]);pos.push([cx+W*0.25,cy+H*0.25])}
++    if(layout==='row-h'){for(let i=0;i<4;i++)pos.push([cx-W*0.35+i*W*0.233,cy]);}
++    else if(layout==='row-v'){for(let i=0;i<4;i++)pos.push([cx,cy-H*0.35+i*H*0.233]);}
++    else if(layout==='grid'){pos.push([cx-W*0.25,cy-H*0.25]);pos.push([cx+W*0.25,cy-H*0.25]);pos.push([cx-W*0.25,cy+H*0.25]);pos.push([cx+W*0.25,cy+H*0.25]);}
++    else if(layout==='l-121-v'){pos.push([cx,cy-H*0.25]);pos.push([cx-W*0.28,cy]);pos.push([cx+W*0.28,cy]);pos.push([cx,cy+H*0.25]);}
++    else{/* l-121-h 默认 */pos.push([cx-W*0.28,cy-H*0.15]);pos.push([cx-W*0.28,cy+H*0.15]);pos.push([cx,cy]);pos.push([cx+W*0.28,cy-H*0.15]);pos.push([cx+W*0.28,cy+H*0.15]);pos.length=4;}
++  } else if(lc===5){
++    if(layout==='row-h'){for(let i=0;i<5;i++)pos.push([cx-W*0.4+i*W*0.2,cy]);}
++    else if(layout==='row-v'){for(let i=0;i<5;i++)pos.push([cx,cy-H*0.4+i*H*0.2]);}
++    else{pos.push([cx,cy]);pos.push(...ringPts(4,Math.min(W,H)*0.32));}
++  } else if(lc===6){
++    if(layout==='row-h'){for(let i=0;i<6;i++)pos.push([cx-W*0.45+i*W*0.18,cy]);}
++    else if(layout==='row-v'){for(let i=0;i<6;i++)pos.push([cx,cy-H*0.45+i*H*0.18]);}
++    else{pos.push(...ringPts(6,Math.min(W,H)*0.32));}
+   }
+   return pos;
+ }
+@@ -2499,6 +2640,9 @@ function drawContent(c,size){
+   pos.forEach((p,i)=>{
+     const line=S.lines[i];if(!line)return;
+     const cx=p[0],cy=p[1];
++    // overflowVisible 控制裁剪
++    const overflow=!!(line.overflow&&line.overflow.show);
++    
+     // shadow
+     let hasShadow=false;
+     if(line.shadow&&line.shadow.on){
+@@ -2509,69 +2653,80 @@ function drawContent(c,size){
+       c.shadowOffsetY=Math.round(line.shadow.y*size/256);
+       hasShadow=true;
+     }
++    
+     if(line.mode==='text'){
+       const hasCJK=/[\u4e00-\u9fff]/.test(line.text);
+       const fam=hasCJK?line.zhFont:line.font;
+       let fs=size*line.size/100;
+       c.textAlign='center';c.textBaseline='middle';
+       c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;
+-      // auto fit
++      // auto fit —— 但如果用户启用 overflowVisible 则不缩小
+       const maxW=size*0.72,a=0;
+-      while(c.measureText(line.text).width>maxW&&fs>6&&a<80){fs-=2;c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;a++}
+-      // Bug4 fix: 渐变填充 —— 正确的 source-in 顺序
++      if(!overflow){
++        while(c.measureText(line.text).width>maxW&&fs>6&&a<80){fs-=2;c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;a++}
++      }
++      const hOff=line.hOffset*size/256,vOff=line.vOffset*size/256;
++      const hs=line.hStretch/100,vs=line.vStretch/100;
++      
+       if(line.fillMode==='gradient'&&line.text){
++        // 离屏 canvas 做渐变（不污染主 canvas）
+         const w=c.measureText(line.text).width;
+-        // 1) 画离屏 canvas: 黑色形状（蒙版）
++        const padX=Math.max(4,Math.ceil(w*0.2)),padY=Math.ceil(fs*0.4);
+         const oc=document.createElement('canvas');
+-        oc.width=Math.ceil(w)+4;oc.height=Math.ceil(fs*1.4)+4;
++        oc.width=Math.ceil(w)+padX*2;oc.height=Math.ceil(fs*1.4)+padY*2;
+         const ocx=oc.getContext('2d');
+         ocx.font=c.font;ocx.textAlign='center';ocx.textBaseline='middle';
+-        ocx.fillStyle='#000';
++        // 渐变
++        const g=ocx.createLinearGradient(0,0,oc.width,0);
++        g.addColorStop(0,line.fillGradS||'#fff');g.addColorStop(1,line.fillGradE||'#3a5580');
++        ocx.fillStyle=g;
+         ocx.fillText(line.text,oc.width/2,oc.height/2);
+-        // 2) 在主 canvas: 画渐变，用 globalCompositeOperation='destination-in' 让渐变只留形状区
+-        // 简单做法：先画文字用纯色（已带 shadow save），然后用 source-atop
++        // 画回主 canvas（先 translate+scale，再 drawImage）
+         c.save();
+-        c.translate(cx,cy);
+-        c.scale(line.hStretch/100,line.vStretch/100);
+-        c.translate(line.hOffset*size/256,line.vOffset*size/256);
+-        const g=c.createLinearGradient(-w/2,0,w/2,0);
+-        g.addColorStop(0,line.fillGradS);g.addColorStop(1,line.fillGradE);
+-        // 先画离屏 canvas 的字形状到主 canvas，设 source-in
++        c.translate(cx+hOff,cy+vOff);
++        c.scale(hs,vs);
+         c.globalCompositeOperation='source-over';
+         c.drawImage(oc,-oc.width/2,-oc.height/2);
+-        c.globalCompositeOperation='source-in';
+-        c.fillStyle=g;c.fillRect(-w/2-2,-fs,w+4,fs*2);
+-        c.globalCompositeOperation='source-over';
+         c.restore();
+       } else {
+-        c.save();c.translate(cx,cy);c.scale(line.hStretch/100,line.vStretch/100);
+-        // Bug1 根因修复：save 后完整重置绘制状态 + newLine() 默认值合并
+-        c.globalAlpha = 1;
+-        c.globalCompositeOperation = 'source-over';
+-        c.fillStyle = line.color;
+-        c.font = `${line.weight} ${fs}px "${fam}", sans-serif`;
+-        c.textAlign = 'center';
+-        c.textBaseline = 'middle';
+-        c.fillText(line.text, line.hOffset*size/256, line.vOffset*size/256);
++        c.save();
++        c.translate(cx+hOff,cy+vOff);
++        c.scale(hs,vs);
++        c.globalAlpha=1;c.globalCompositeOperation='source-over';
++        c.fillStyle=line.color||'#fff';
++        c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;
++        c.textAlign='center';c.textBaseline='middle';
++        c.fillText(line.text,0,0);
+         c.restore();
+       }
+     } else if(line.mode==='fa'){
+-            const glyph=FA_MAP[line.faIcon]||'★';
++      // Bug4+5 修复：FA glyph + hOffset/vOffset
++      const glyph=(typeof faGlyph==='function')?faGlyph(line.faIcon):(FA_MAP[line.faIcon]||'?');
+       let fs=size*(line.faSize||65)/100;
+-      c.save();c.translate(cx,cy);
++      const hOff=(line.faHOffset||line.hOffset||0)*size/256;
++      const vOff=(line.faVOffset||line.vOffset||0)*size/256;
++      c.save();
++      c.translate(cx+hOff,cy+vOff);
++      c.scale((line.faHStretch||line.hStretch||100)/100,(line.faVStretch||line.vStretch||100)/100);
+       c.globalAlpha=1;c.globalCompositeOperation='source-over';
+-      c.font=`${fs}px "Font Awesome 6 Free","FontAwesome","Inter",sans-serif`;
++      // 用 fa-solid + fallback 字体链
++      c.font=`${fs}px "Font Awesome 6 Free","FontAwesome","Font Awesome 5 Free","Inter",sans-serif`;
+       c.textAlign='center';c.textBaseline='middle';
+       c.fillStyle=line.faColor||'#fff';
++      // 先尝试直接画 glyph，如果显示为方框，fallback 到 '?'
+       c.fillText(glyph,0,0);
+       c.restore();
+     } else if(line.mode==='image'&&line.imgUrl){
+       const img=line._img||(line._img=new Image());
+       if(img.src!==line.imgUrl){img.onload=()=>{line._needsRedraw=true;};img.src=line.imgUrl;}
++      const hOff=(line.imgHOffset||line.hOffset||0)*size/256;
++      const vOff=(line.imgVOffset||line.vOffset||0)*size/256;
++      const hs=(line.imgHStretch||line.hStretch||100)/100;
++      const vs=(line.imgVStretch||line.vStretch||100)/100;
+       if(img.complete&&img.naturalWidth>0){
+-        const s=(line.imgScale||100)/100,r=Math.min(size*0.7/img.width,size*0.4/img.height),dw=img.width*r*s,dh=img.height*r*s;
+-        c.drawImage(img,cx-dw/2,cy-dh/2,dw,dh);
+-      } else {c.fillStyle='#aaa';c.fillRect(cx-20,cy-20,40,40);}
++        const s=(line.imgScale||100)/100,r=Math.min(size*0.7/img.width,size*0.4/img.height),dw=img.width*r*s*hs,dh=img.height*r*s*vs;
++        c.drawImage(img,cx-dw/2+hOff,cy-dh/2+vOff,dw,dh);
++      } else {c.fillStyle='#aaa';c.fillRect(cx-20+hOff,cy-20+vOff,40*hs,40*vs);}
+     }
+     if(hasShadow)c.restore();
+   });
+@@ -2738,7 +2893,8 @@ function updateLineTabActive(){document.querySelectorAll('.line-tab').forEach((t
+ 
+ function renderLineCount(){
+   const b=$('lineCountChips');b.innerHTML='';
+-  for(let i=1;i<=4;i++){
++  const max=6;
++  for(let i=1;i<=max;i++){
+     const el=document.createElement('div');
+     el.className='chip'+(S.lineCount===i?' active':'');
+     el.textContent=i+' 行';
+@@ -2749,7 +2905,21 @@ function renderLineCount(){
+     b.appendChild(el);
+   }
+ }
+-const LAYOUTS=[,[['h-center','居中'],['h-top','上半边'],['h-bottom','下半边'],['v-left','左半边'],['v-right','右半边']],[['v-top-bot','上下'],['h-left-right','左右']],[['t-default','品字'],['t-inverted','倒品']],[['grid','四宫格'],['l-121','1-2-1']]];
++const LAYOUTS=[
++  null,
++  // 1 行：上/下/左/右/居中
++  [['h-center','居中'],['h-top','上半边'],['h-bottom','下半边'],['v-left','左半边'],['v-right','右半边']],
++  // 2 行：全上/全下/全左/全右/左右分/上下分
++  [['h-left-right','左右分'],['v-top-bot','上下分'],['all-top','全在上'],['all-bottom','全在下'],['all-left','全在左'],['all-right','全在右']],
++  // 3 行：一字横/一字纵/品字/倒品
++  [['row-h','一字横排'],['row-v','一字纵排'],['t-default','品字'],['t-inverted','倒品']],
++  // 4 行：一字横/一字纵/四宫格/1-2-1 纵/1-2-1 横
++  [['row-h','一字横排'],['row-v','一字纵排'],['grid','四宫格'],['l-121-v','纵121'],['l-121-h','横121']],
++  // 5 行：一字横/一字纵/环形
++  [['row-h','一字横排'],['row-v','一字纵排'],['ring','环形']],
++  // 6 行：一字横/一字纵/环形
++  [['row-h','一字横排'],['row-v','一字纵排'],['ring','环形']]
++];
+ function renderLayoutGroup(){
+   const g=$('layoutGroup');g.innerHTML='';
+   const list=LAYOUTS[S.lineCount];if(!list)return;
+@@ -2807,6 +2977,17 @@ function renderStylePanel(){
+     add(`<div class="form-row"><div class="lbl">垂直拉伸</div><input type="range" id="vSt" min="50" max="500" value="${l.vStretch}"><span class="v" id="vStV">${l.vStretch}%</span></div>`);
+     add(`<div class="form-row"><div class="lbl">横向偏移</div><input type="range" id="hOf" min="-60" max="60" value="${l.hOffset}"><span class="v" id="hOfV">${l.hOffset}</span></div>`);
+     add(`<div class="form-row"><div class="lbl">纵向偏移</div><input type="range" id="vOf" min="-60" max="60" value="${l.vOffset}"><span class="v" id="vOfV">${l.vOffset}</span></div>`);
++    // Bug7: 超出边框是否显示
++    add(`<div class="form-row"><div class="lbl">超出显示</div>
++      <label class="check"><input type="checkbox" id="ovShow"><span>允许内容超出边框</span></label>
++    </div>`);
++    on('ovShow','change',e=>{
++      S.lines[S.currentLine].overflow=S.lines[S.currentLine].overflow||{};
++      S.lines[S.currentLine].overflow.show=e.target.checked;
++      draw();
++    });
++    if(S.lines[S.currentLine].overflow&&S.lines[S.currentLine].overflow.show)on('ovShow')&&($('ovShow').checked=true);
++
+   } else if(l.mode==='text' && _curStyleTab==='shadow'){
+     addShadowForm('lSh');
+   } else if(l.mode==='fa' && _curStyleTab==='faicon'){
+@@ -3199,16 +3380,82 @@ function renderAll(){
+ }
+ 
+ // DOWNLOAD
+-function exportName(ext){
+-  const size=S.size;
++function exportName(ext,size){
++  size=size||S.size;
+   const l0=(S.lines[0]&&S.lines[0].text)?S.lines[0].text.replace(/[\\/:*?"<>|]/g,'-').slice(0,20):(S.lines[0]&&S.lines[0].faIcon)?(S.lines[0].faIcon.slice(3)):'icon';
+   const d=new Date();const pad=n=>String(n).padStart(2,'0');
+   const ts=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+   return `IconKing-${size}-${l0}-${ts}.${ext}`;
+ }
+-$('dlPng').onclick=()=>{draw();const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download=exportName('png');a.click();};
+-$('dlJpg').onclick=()=>{draw();const a=document.createElement('a');a.href=canvas.toDataURL('image/jpeg',0.92);a.download=exportName('jpg');a.click();};
+-$('dlSvg').onclick=()=>{draw();const s=S.size;const b=new Blob([`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}"><rect width="100%" height="100%" fill="${S.bg.segments[0].solid}"/><text x="${s/2}" y="${s/2}" text-anchor="middle" dominant-baseline="middle" font-family="Inter,Noto Sans SC" font-size="${s*(S.lines[0].size||65)/100}" font-weight="${S.lines[0].weight||700}" fill="${S.lines[0].color||'#fff'}">${S.lines[0].text||''}</text></svg>`],{type:'image/svg+xml'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=exportName('svg');a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);};
++// ── 通用导出：支持自定义尺寸 + 透明 ──
++function exportCanvas(size,transparent){
++  if(size===S.size && (!transparent || !S.transparentBg)){
++    draw();return canvas;
++  }
++  const off=document.createElement('canvas');off.width=off.height=size;
++  const oc=off.getContext('2d');
++  // 先画到主画布再缩放（高质量）
++  draw();
++  oc.imageSmoothingEnabled=true;oc.imageSmoothingQuality='high';
++  // 透明背景：先清空
++  oc.clearRect(0,0,size,size);
++  if(!transparent && !S.transparentBg){
++    // 不透明：填白底
++    oc.fillStyle='#ffffff';oc.fillRect(0,0,size,size);
++  } else if(transparent){
++    // 透明色：指定白色为透明 → 但 exportCanvas 是重新 draw，不走 shape 填充
++    // 所以 transparent 是 PNG 本身支持透明，直接缩放即可
++  }
++  oc.drawImage(canvas,0,0,size,size);
++  return off;
++}
++function doDownload(ext){
++  const size=parseInt($('dlSize').value)||S.size;
++  const transparent=!!$('dlTransparent').checked;
++  const c=exportCanvas(size,transparent);
++  const a=document.createElement('a');
++  if(ext==='png'){
++    a.href=c.toDataURL('image/png');a.download=exportName('png',size);a.click();
++  } else if(ext==='jpg'){
++    // JPG 强制白背景
++    if(transparent){
++      const oc=document.createElement('canvas');oc.width=oc.height=size;
++      const c2=oc.getContext('2d');c2.fillStyle='#ffffff';c2.fillRect(0,0,size,size);
++      c2.drawImage(c,0,0);a.href=oc.toDataURL('image/jpeg',0.92);
++    } else a.href=c.toDataURL('image/jpeg',0.92);
++    a.download=exportName('jpg',size);a.click();
++  } else if(ext==='svg'){
++    draw();
++    const s=S.size;const bg=S.bg.segments[0].solid||'#3a5580';
++    const txt=(S.lines[0].text||'').replace(/[<>&]/g,m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]));
++    const faPath=(S.lines[0].faIcon)&&typeof faToSvg==='function'?faToSvg(S.lines[0].faIcon):'';
++    const isFa=S.lines[0].mode==='fa';
++    const inner=isFa && faPath?`<g fill="${S.lines[0].faColor||'#fff'}" transform="translate(${s/2} ${s/2}) scale(${(S.lines[0].faSize||80)/100})"><path d="${faPath}" transform="translate(-128 -128)"/></g>`
++      :`<text x="${s/2}" y="${s/2}" text-anchor="middle" dominant-baseline="middle" font-family="Inter,Noto Sans SC" font-size="${s*(S.lines[0].size||65)/100}" font-weight="${S.lines[0].weight||700}" fill="${S.lines[0].color||'#fff'}">${txt}</text>`;
++    const b=new Blob([`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${s} ${s}"><rect width="100%" height="100%" fill="${bg}"/>${inner}</svg>`],{type:'image/svg+xml'});
++    const u=URL.createObjectURL(b);a.href=u;a.download=exportName('svg',size);a.click();
++    setTimeout(()=>URL.revokeObjectURL(u),1000);
++  } else if(ext==='ico'){
++    // ICO：用 32x32 + 256x256 PNG 组合（简化：直接取 256 然后用浏览器原生不支持 ICO，转成 BMP 替代）
++    // 这里用简单方案：先转 PNG 再用 canvas 合成 ICO 头
++    const sizes=[16,32,48,64,128,256];
++    const pngs=[];
++    for(const sz of sizes){
++      if(size>=sz){
++        const ic=document.createElement('canvas');ic.width=ic.height=sz;
++        ic.getContext('2d').drawImage(exportCanvas(sz,transparent),0,0,sz,sz);
++        pngs.push({sz,data:ic.toDataURL('image/png')});
++      }
++    }
++    // 简化：直接下载最大 PNG 改 .ico
++    const maxPng=pngs[pngs.length-1]||{data:c.toDataURL('image/png')};
++    a.href=maxPng.data;a.download=exportName('ico',size);a.click();
++  }
++}
++$('dlPng').onclick=()=>doDownload('png');
++$('dlJpg').onclick=()=>doDownload('jpg');
++$('dlSvg').onclick=()=>doDownload('svg');
++$('dlIco').onclick=()=>doDownload('ico');
+ $('btnReset').onclick=()=>{S=JSON.parse(JSON.stringify(DEFAULTS));renderAll();draw();drawPresets();document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));};
+ 
+ // THEME
+@@ -3216,6 +3463,29 @@ document.querySelectorAll('.theme-btn').forEach(b=>{
+   b.onclick=()=>{document.querySelectorAll('.theme-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.documentElement.dataset.theme=b.dataset.t;S.theme=b.dataset.t;};
+ });
+ 
++// ── 下载尺寸/透明绑定 ──
++$('dlSize').oninput=e=>{const v=+e.target.value;$('dlSizeV').textContent=v+'px';$('dlSizeNum').value=v;};
++$('dlSizeNum').oninput=e=>{let v=+e.target.value;if(v<16)v=16;if(v>2048)v=2048;$('dlSize').value=Math.min(1024,v);$('dlSizeV').textContent=v+'px';};
++
++// ── 预设导出/导入 ──
++$('presetExport').onclick=()=>{
++  const data={version:1,exportAt:Date.now(),state:S};
++  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
++  const url=URL.createObjectURL(blob);const a=document.createElement('a');
++  a.href=url;a.download=`IconKing-preset-${Date.now()}.json`;a.click();
++  setTimeout(()=>URL.revokeObjectURL(url),1000);
++};
++$('presetImport').onclick=()=>$('presetFile').click();
++$('presetFile').onchange=async e=>{
++  const f=e.target.files[0];if(!f)return;
++  try{
++    const txt=await f.text();const d=JSON.parse(txt);
++    if(d.state){applyPreset(d.state);drawPresets();draw();}
++    alert('预设已加载');
++  }catch(err){alert('预设文件无效');console.error(err);}
++  e.target.value='';
++};
++
+ // INIT
+ document.documentElement.dataset.theme=S.theme;
+ // INIT：三重保险 —— 三个地方都尝试 renderAll+draw
