@@ -51,13 +51,15 @@ body.lf-lock{overflow:hidden}
   --shadow:rgba(0,0,0,.4);
 }
 /* ── light 主题功能区额外浅蓝规则 ── */
-[data-theme="light"] .col-hd{background:#e8f0fa;border-bottom:1px solid #c5d4e6}
-[data-theme="light"] .col-bd .sec{background:#fafbfd;border:1px solid #e4e8ef;border-radius:8px;padding:6px 8px;margin-bottom:8px}
-[data-theme="light"] .col-bd .sec-t{background:#e8f0fa;color:#2d4570;border-bottom:1px solid #d8e1ee;font-weight:600}
-[data-theme="light"] .col-bd #outerSec{background:transparent;border:none;padding:0;margin-bottom:8px}
-[data-theme="light"] .col-bd #outerSec > .sec-t{background:#dce8f8;border:1px solid #c5d4e6;border-bottom:none;border-radius:8px 8px 0 0;color:#2d4570}
+[data-theme="light"] .col-hd{background:#e8f0fa;color:#2d4570}
+[data-theme="light"] .col-bd .sec{background:transparent;border:none;padding:0 0 4px 0;margin-bottom:0;border-bottom:1px dashed #d8e1ee}
+[data-theme="light"] .col-bd .sec:last-child{border-bottom:none}
+[data-theme="light"] .col-bd .sec-t{background:transparent;color:#2d4570;border:none;font-weight:600;padding:6px 4px 4px;font-size:11px;margin:0 -2px 2px}
+[data-theme="light"] .col-bd #outerSec{background:#e8f0fa;border:1px solid #c5d4e6;border-radius:8px;padding:4px}
+[data-theme="light"] .col-bd #outerSec > .sec-t{background:#dce8f8;border:none;border-radius:4px;color:#2d4570;margin:-4px -4px 4px;padding:4px 8px}
 [data-theme="light"] .sh-tabs{background:#f0f6ff;border-color:#c5d4e6}
-[data-theme="light"] .sh-tab.active{background:#b8d4f0;color:#1a3a60}
+[data-theme="light"] .sh-tab{background:#ffffff;color:#5a7090;border-radius:4px;border:1px solid #d8e1ee}
+[data-theme="light"] .sh-tab.active{background:#b8d4f0;color:#1a3a60;border-color:#3a5580;font-weight:600}
 [data-theme="light"] .sh-pane.active{background:#e8f0fa;border-color:#c5d4e6}
 [data-theme="light"] .col-bd .sec .line-tabs{background:#f0f6ff;border:1px solid #d8e1ee;border-radius:6px;padding:3px}
 [data-theme="light"] .preview-center{background:#f0f4f8;border:1px solid #d8e1ee;border-radius:8px}
@@ -66,6 +68,13 @@ body.lf-lock{overflow:hidden}
 [data-theme="light"] .btn{background:#f0f6ff;border:1px solid #c5d4e6;color:#2d4570}
 [data-theme="light"] .btn:hover{background:#dce8f8}
 [data-theme="light"] .btn-primary{background:#3a5580;color:#fff;border-color:#3a5580}
+/* 三行/多行功能区：浅蓝色整块 */
+[data-theme="light"] .col-bd .multi-block{background:#e8f5ff;border:1px solid #c5d4e6;border-radius:8px;padding:6px;margin-bottom:8px}
+/* 样式面板标签连参数区 */
+[data-theme="light"] .style-tabs{background:#e8f0fa;border-color:#c5d4e6}
+[data-theme="light"] .style-tab{background:#ffffff;border:1px solid #d8e1ee;color:#5a7090}
+[data-theme="light"] .style-tab.active{background:#b8d4f0;color:#1a3a60;border-color:#3a5580;font-weight:600}
+[data-theme="light"] #stylePanel{background:#e8f0fa;border-color:#c5d4e6}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%;background:var(--bg-page);color:var(--text);font-family:'Noto Sans SC','Inter',system-ui,sans-serif}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -111,8 +120,11 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
 .chip:hover{background:var(--bg-hover);color:var(--accent)}
 .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 /* ═══ LINE TABS — mode + 输入 二合一 ═══ */
-.line-tabs{display:flex;background:var(--bg-rail);border-radius:8px;padding:2px;margin-bottom:6px;flex-wrap:wrap;gap:2px}
-.line-tab{padding:2px;border-radius:6px;border:1px solid transparent;transition:.12s;display:flex;align-items:center;gap:4px;position:relative}
+.line-tabs{display:flex;flex-wrap:wrap;background:var(--bg-rail);border-radius:8px;padding:3px;margin-bottom:4px;gap:3px}
+.line-tab{flex:1 1 calc(50% - 3px);min-width:0;box-sizing:border-box}
+.line-tab{padding:2px;border-radius:6px;border:1px solid transparent;transition:.12s;display:flex;align-items:center;gap:4px;position:relative;outline:none;box-shadow:none}
+.line-tab:focus{outline:none}
+.line-tab *:focus{outline:none}
 /* Bug3 fix: mode span 不能冒泡, z-index 更高 */
 .line-tab .mode{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;font-size:10px;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;cursor:pointer;transition:.12s;user-select:none;flex-shrink:0;position:relative;z-index:2}
 .line-tab .mode.tmd{background:#4f7a4f}
@@ -253,21 +265,19 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
   <section class="col">
     <div class="col-hd"><i class="fa-solid fa-font"></i>内容参数</div>
     <div class="col-bd">
-      <div class="sec">
-        <div class="sec-t"><i class="fa-solid fa-list-ol"></i>文本行数</div>
-        <div class="chip-row" id="lineCountChips"></div>
-      </div>
-      <div class="sec">
-        <div class="sec-t"><i class="fa-solid fa-table-cells-large"></i>排版模式</div>
-        <div class="layout-group" id="layoutGroup"></div>
-      </div>
-      <div class="sec">
-        <div class="sec-t"><i class="fa-solid fa-pen"></i>各行（模式 + 输入 二合一）</div>
+      <!-- 多行设置功能区 -->
+      <div class="sec multi-block">
+        <div class="sec-t"><i class="fa-solid fa-list-ol"></i>多行设置
+          <span id="curLabel" style="float:right;font-size:10px;color:#5a7090;font-family:'JetBrains Mono',monospace">· 行1</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--text-sub)">行数</span>
+          <div class="chip-row" id="lineCountChips" style="margin:0"></div>
+          <span style="font-size:11px;color:var(--text-sub);margin-left:4px">排版</span>
+          <div class="layout-group" id="layoutGroup" style="margin:0"></div>
+        </div>
         <div class="line-tabs" id="lineTabs"></div>
-      </div>
-      <div class="sec">
-        <div class="sec-t"><i class="fa-solid fa-sliders"></i>当前行样式 <span id="curLabel" style="font-size:10px;color:var(--accent);font-family:'JetBrains Mono',monospace">· 行1</span></div>
-        <div class="style-tabs" id="styleTabs"></div>
+        <div class="style-tabs" id="styleTabs" style="margin-top:4px"></div>
         <div id="stylePanel"></div>
       </div>
     </div>
@@ -400,12 +410,6 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
 
 
 
-      <!-- 高级选项 -->
-      <div class="sec">
-        <div class="sec-t"><i class="fa-solid fa-sliders"></i>高级选项</div>
-        <div class="form-row"><label class="check"><input type="checkbox" id="transparentBg"><span>白色 → 透明（容差 30）</span></label></div>
-      </div>
-
     </div>
   </section>
 </div>
@@ -413,7 +417,7 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
 <script>
 (function(){
 'use strict';
-const $=id=>document.getElementById(id);
+const $=id=>{const e=document.getElementById(id);if(e)return e;console.warn('$() missing:',id);return {checked:false,value:'',textContent:'',classList:{toggle:()=>{},add:()=>{},remove:()=>{}},addEventListener:()=>{},dispatchEvent:()=>{},getContext:()=>null};};
 const canvas=$('icon'), ctx=canvas.getContext('2d');
 
 // ═══════ COLOR UTILS ═══════
@@ -2267,6 +2271,18 @@ const FA_MAP = {
   'fa-zap':'\uf0e7',
   'fa-zhihu':'\uf63f'
 };
+// FA 图标兜底：FA_MAP 找不到时自动尝试 solid/regular 变体 + 直接返回图标名让浏览器渲染
+function faResolve(name){
+  if(!name)return '\u2605';
+  if(FA_MAP[name])return FA_MAP[name];
+  // 尝试替换前缀
+  const alt1=name.replace(/^fa-/,'fa-solid '), alt2=name.replace(/^fa-/,'fa-regular ');
+  // 简化：去 fa- 前缀后尝试
+  const bare = name.replace(/^fa[srbld]?-/,'fa-');
+  if(FA_MAP[bare])return FA_MAP[bare];
+  // 全部失败 → 返回问号
+  return '\ufffd';
+}
 
 // ═══════ DEFAULTS ═══════
 function newSegment(){return{mode:'solid',solid:'#4f7a4f',gradient:{start:'#4f7a4f',end:'#1d3a2a',type:'linear',angle:135},image:{url:null,scale:100,pos:'center'}};}
@@ -2510,25 +2526,29 @@ function drawBg(c,size){
 
 function drawShapeOuter(c,size){
   if(S.shape==='none')return;
-  if(S.bgShadow&&S.bgShadow.on){
-    const sz=(S.bgShadow.size||100)/100;
-    const blur=Math.max(1,Math.round((S.bgShadow.b||8)*size/256*sz));
-    const ox=Math.round((S.bgShadow.x||0)*size/256*sz);
-    const oy=Math.round((S.bgShadow.y||3)*size/256*sz);
-    c.save();
-    c.shadowColor=S.bgShadow.color||'#000000';
-    c.shadowBlur=blur;
-    c.shadowOffsetX=ox;c.shadowOffsetY=oy;
-    shapePath(c,size);
-    c.fillStyle='rgba(0,0,0,0.05)';c.fill();
-    c.restore();
-  }
   if(S.border&&S.border.on){
     shapePath(c,size);
     c.lineWidth=Math.round((S.border.w||3)*size/256);
     c.strokeStyle=S.border.color||'#ffffff';
     c.stroke();
   }
+}
+// shadow 必须在 drawBg 之前调用（背景覆盖在 shadow 本体上，shadow 模糊边缘暴露在外部）
+function drawShapeShadow(c,size){
+  if(S.shape==='none')return;
+  if(!(S.bgShadow&&S.bgShadow.on))return;
+  const sz=(S.bgShadow.size||100)/100;
+  const blur=Math.max(2,Math.round((S.bgShadow.b||8)*size/256*sz));
+  const ox=Math.round((S.bgShadow.x||0)*size/256*sz);
+  const oy=Math.round((S.bgShadow.y||3)*size/256*sz);
+  c.save();
+  c.shadowColor=S.bgShadow.color||'rgba(0,0,0,0.5)';
+  c.shadowBlur=blur;
+  c.shadowOffsetX=ox;
+  c.shadowOffsetY=oy;
+  shapePath(c,size);
+  c.fillStyle='rgba(0,0,0,1)';c.fill();
+  c.restore();
 }
 
 // ═══════ LAYOUT ═══════
@@ -2592,11 +2612,7 @@ function drawContent(c,size){
       const fam=hasCJK?line.zhFont:line.font;
       let fs=size*line.size/100;
       c.textAlign='center';c.textBaseline='middle';
-      c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;
-      const maxW=size*0.72,a=0;
-      if(!overflow){
-        while(c.measureText(line.text).width>maxW&&fs>6&&a<80){fs-=2;c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;a++}
-      }
+      c.font=`${line.weight} ${Math.max(1,fs)}px "${fam}", sans-serif`;
       if(line.fillMode==='gradient'&&line.text){
         const w=c.measureText(line.text).width;
         const oc=document.createElement('canvas');
@@ -2622,7 +2638,7 @@ function drawContent(c,size){
         c.restore();
       }
     } else if(line.mode==='fa'){
-      const glyph=(FA_MAP&&FA_MAP[line.faIcon])||'★';
+      const glyph=faResolve(line.faIcon);
       let fs=size*(line.faSize||65)/100;
       c.save();c.translate(cx+hOff,cy+vOff);c.scale(hs,vs);
       c.globalAlpha=1;c.globalCompositeOperation='source-over';
@@ -2648,6 +2664,7 @@ function draw(cc,sz){
   const c=cc||ctx,size=sz||S.size;
   if(cc===undefined&&sz===undefined){canvas.width=size;canvas.height=size;c.clearRect(0,0,size,size);}
   else{c.clearRect(0,0,size,size);}
+  drawShapeShadow(c,size);
   drawBg(c,size);
   drawShapeOuter(c,size);
   drawContent(c,size);
@@ -2850,7 +2867,49 @@ function renderStyleTabs(){
 function renderStylePanel(){
   const p=$('stylePanel');p.innerHTML='';
   const l=S.lines[S.currentLine]||newLine();
-  const add=(html)=>{const d=document.createElement('div');d.innerHTML=html;p.appendChild(d.firstElementChild);};
+  // 全局联动辅助 —— 当某行某参数变时，把同 key 应用到其它所有行
+  const syncAll = (propPath, value)=>{
+    if(!S._syncAll) return; // 开关没开
+    S.lines.forEach((ln,i)=>{
+      if(i===S.currentLine) return;
+      try {
+        eval('ln.'+propPath+' = '+JSON.stringify(value));
+      } catch(e){}
+    });
+  };
+  const add=(html)=>{
+    const d=document.createElement('div');d.innerHTML=html;
+    // 自动给 form-row 末尾加联动 checkbox（非常简洁 ↔ 图标）
+    const fr=d.firstElementChild;
+    if(fr && fr.classList && fr.classList.contains('form-row')){
+      const cb=document.createElement('label');
+      cb.title='全局联动到其它行';
+      cb.style.cssText='margin-left:auto;cursor:pointer;font-size:12px;color:var(--text-muted);user-select:none';
+      cb.innerHTML=`<input type="checkbox" data-sync-onchange style="width:auto;accent-color:var(--accent)"> ↔`;
+      fr.appendChild(cb);
+    }
+    p.appendChild(fr);
+    // 给行内所有 change/input 事件绑定后追加 syncAll
+    requestAnimationFrame(()=>{
+      const row = fr;
+      if(!row) return;
+      const hasCb = row.querySelector('[data-sync-onchange]');
+      row.querySelectorAll('input,select').forEach(el=>{
+        if(el.id){
+          // 拦截 change 事件：先原逻辑，再 sync
+          const orig = el.onchange;
+          el.addEventListener('change', e=>{
+            if(hasCb && hasCb.checked){
+              // 推断 prop 名
+              const id = el.id;
+              const propMap = {ts:'size',th:'hStretch',tv:'vStretch',to:'hOffset',pv:'vOffset',fw:'weight',tc:'color',tb:'blur',tx:'shadow.x',ty:'shadow.y',tfa:'faSize',tfc:'faColor'};
+              if(propMap[id]) syncAll(propMap[id], ['ts','th','tv','to','pv','fw','tfa'].includes(id) ? +el.value : el.value);
+            }
+          });
+        }
+      });
+    });
+  };
   const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
   if(l.mode==='text' && _curStyleTab==='font'){
     add(`<div class="form-row"><div class="lbl">英文</div><select id="fEn"><option>Inter</option><option>Poppins</option><option>Orbitron</option><option>JetBrains Mono</option><option>Playfair Display</option><option>Arial</option></select></div>`);
@@ -3167,10 +3226,8 @@ $('bgShB').addEventListener('input',e=>{const v=+e.target.value;S.bgShadow.b=v;$
 $('bgShX').addEventListener('input',e=>{const v=+e.target.value;S.bgShadow.x=v;$('bgShXV').textContent=v+'px';draw();});
 $('bgShY').addEventListener('input',e=>{const v=+e.target.value;S.bgShadow.y=v;$('bgShYV').textContent=v+'px';draw();});
 $('bgShC').addEventListener('input',e=>{S.bgShadow.color=e.target.value;draw();});
-$('transparentBg').addEventListener('change',e=>{S.transparentBg=e.target.checked;draw();});
 
-// size chips
-  // size chips removed
+// size chips removed
 
 // ═══ PRESETS ═══
 const PRESETS=[
@@ -3260,7 +3317,6 @@ function renderAll(){
   $('bgShadowOn').checked=S.bgShadow.on;$('bgShadowBox').classList.toggle('hidden',!S.bgShadow.on);
   $('bgShS').value=S.bgShadow.size||100;$('bgShSV').textContent=(S.bgShadow.size||100)+'%';if($('bgShSNum'))$('bgShSNum').value=S.bgShadow.size||100;$('bgShB').value=S.bgShadow.b;$('bgShBV').textContent=S.bgShadow.b+'px';$('bgShX').value=S.bgShadow.x;$('bgShXV').textContent=S.bgShadow.x+'px';
   $('bgShY').value=S.bgShadow.y;$('bgShYV').textContent=S.bgShadow.y+'px';$('bgShC').value=S.bgShadow.color;
-  $('transparentBg').checked=S.transparentBg;
   $('splitBd').value=S.bg.borderShape;$('transW').value=S.bg.transWidth;$('transWV').textContent=S.bg.transWidth+'px';
 }
 
