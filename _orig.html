@@ -81,16 +81,6 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
 .theme-btn{flex:1;padding:6px;font-size:11px;text-align:center;border-radius:6px;cursor:pointer;color:var(--text-sub);font-family:'JetBrains Mono',monospace;transition:.12s;border:1px solid transparent}
 .theme-btn.active{background:var(--bg-input);color:var(--accent);font-weight:600;border-color:var(--border-strong)}
 .chip-row{display:flex;flex-wrap:wrap;gap:5px}
-/* 形状和外框 三标签 */
-.sh-tabs{display:flex;gap:2px;margin-bottom:6px;background:var(--bg-input);border-radius:6px;padding:2px;border:1px solid var(--border-strong)}
-.sh-tab{flex:1;text-align:center;padding:6px 4px;border-radius:4px;cursor:pointer;font-size:11px;color:var(--text);transition:.12s;background:transparent;user-select:none}
-.sh-tab.active{background:rgba(70,140,230,.25);color:var(--accent);font-weight:600}
-.sh-tab.tb-on .tb-content::after{content:' ✓';color:#4CAF50;font-weight:700}
-.sh-tab.tb-on.active{background:rgba(70,180,120,.18)}
-.sh-pane{display:none;padding:6px 2px}
-.sh-pane.active{display:block;background:rgba(70,140,230,.06);border-radius:6px;padding:8px 6px;border:1px solid rgba(70,140,230,.18)}
-.btn-fill{padding:2px 8px;border-radius:4px;border:1px solid var(--border-strong);background:var(--bg-input);color:var(--accent);cursor:pointer;font-size:11px;margin-left:4px}
-.btn-fill:hover{background:rgba(70,140,230,.15)}
 .chip{padding:4px 9px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg-card-solid);cursor:pointer;font-size:11px;color:var(--text-sub);transition:.12s;font-family:'JetBrains Mono',monospace}
 .chip:hover{background:var(--bg-hover);color:var(--accent)}
 .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -229,79 +219,69 @@ canvas#icon{border-radius:8px;box-shadow:0 4px 20px var(--shadow);background:#ff
     <div class="col-bd">
 
       <!-- ① 外框功能区 → 含形状参数 + 边框 + 背景阴影 -->
-            <!-- 形状和外框 -->
-      <div class="sec" id="outerSec">
-        <div class="sec-t"><i class="fa-solid fa-shapes"></i>形状和外框</div>
-        <!-- 需求：三标签 + 激活背景 -->
-        <div class="sh-tabs" id="shTabs">
-          <div class="sh-tab active" id="tabShape" data-shape="shape"><span class="tb-content">形状</span></div>
-          <div class="sh-tab" id="tabBorder" data-shape="border"><span class="tb-content">边框</span></div>
-          <div class="sh-tab" id="tabShadow" data-shape="shadow"><span class="tb-content">阴影</span></div>
+      <div class="sec">
+        <div class="sec-t"><i class="fa-solid fa-shapes"></i>形状</div>
+        <div class="chip-row" id="shapeChips"></div>
+        <div class="form-row" style="margin-top:6px">
+          <div class="lbl">尺寸</div>
+          <input type="range" id="shapeSize" min="30" max="120" value="100">
+          <span class="v" id="shapeSizeV">100%</span>
+          <input type="number" id="shapeSizeNum" min="30" max="120" value="100" class="num-input">
         </div>
-
-        <!-- 形状面板 -->
-        <div class="sh-pane active" id="shShape">
-          <div class="chip-row" id="shapeChips"></div>
-          <div class="form-row" style="margin-top:6px">
-            <div class="lbl">尺寸</div>
-            <input type="range" id="shapeSize" min="30" max="120" value="100">
-            <span class="v" id="shapeSizeV">100%</span>
-            <input type="number" id="shapeSizeNum" min="30" max="120" value="100" class="num-input">
-            <button type="button" class="btn-fill" id="btnFill" title="填满">填满</button>
-          </div>
-          <div class="form-row">
-            <div class="lbl">横向</div>
-            <input type="range" id="shapeHS" min="30" max="200" value="100">
-            <span class="v" id="shapeHSV">100%</span>
-            <input type="number" id="shapeHSNum" min="30" max="200" value="100" class="num-input">
-          </div>
-          <div class="form-row">
-            <div class="lbl">纵向</div>
-            <input type="range" id="shapeVS" min="30" max="200" value="100">
-            <span class="v" id="shapeVSV">100%</span>
-            <input type="number" id="shapeVSNum" min="30" max="200" value="100" class="num-input">
-          </div>
-          <div class="form-row" id="radiusWrap">
-            <div class="lbl">弧度</div>
-            <input type="range" id="radius" min="0" max="100" value="0">
-            <span class="v" id="radiusV">0%</span>
-            <input type="number" id="radiusNum" min="0" max="100" value="0" class="num-input">
-          </div>
-          <div class="form-row" id="directionWrap">
-            <div class="lbl">方向</div>
-            <input type="range" id="direction" min="0" max="360" value="0">
-            <span class="v" id="directionV">0°</span>
-            <input type="number" id="directionNum" min="0" max="360" value="0" class="num-input">
-          </div>
-          <div class="form-row" id="innerWrap">
-            <div class="lbl">内角</div>
-            <input type="range" id="shapeInner" min="0" max="180" value="0">
-            <span class="v" id="shapeInnerV">0°</span>
-            <input type="number" id="shapeInnerNum" min="0" max="180" value="0" class="num-input">
-          </div>
+        <div class="form-row">
+          <div class="lbl">横向</div>
+          <input type="range" id="shapeHS" min="30" max="200" value="100">
+          <span class="v" id="shapeHSV">100%</span>
+          <input type="number" id="shapeHSNum" min="30" max="200" value="100" class="num-input">
         </div>
-
-        <!-- 边框面板 -->
-        <div class="sh-pane" id="shBorder">
+        <div class="form-row">
+          <div class="lbl">纵向</div>
+          <input type="range" id="shapeVS" min="30" max="200" value="100">
+          <span class="v" id="shapeVSV">100%</span>
+          <input type="number" id="shapeVSNum" min="30" max="200" value="100" class="num-input">
+        </div>
+        <div class="form-row" id="radiusWrap">
+          <div class="lbl">弧度</div>
+          <input type="range" id="radius" min="0" max="100" value="0">
+          <span class="v" id="radiusV">0%</span>
+          <input type="number" id="radiusNum" min="0" max="100" value="0" class="num-input">
+        </div>
+        <div class="form-row" id="directionWrap">
+          <div class="lbl">方向</div>
+          <input type="range" id="direction" min="0" max="360" value="0">
+          <span class="v" id="directionV">0°</span>
+          <input type="number" id="directionNum" min="0" max="360" value="0" class="num-input">
+        </div>
+        <div class="form-row" id="innerWrap">
+          <div class="lbl">内角</div>
+          <input type="range" id="shapeInner" min="0" max="180" value="0">
+          <span class="v" id="shapeInnerV">0°</span>
+          <input type="number" id="shapeInnerNum" min="0" max="180" value="0" class="num-input">
+        </div>
+        <div class="bd-tabs" style="margin-top:8px">
+          <div class="bd-tab active" data-bd="border">边框</div>
+          <div class="bd-tab" data-bd="bgshadow">背景阴影</div>
+        </div>
+        <div id="bdBorder">
           <div class="form-row"><div class="lbl">启用</div><label class="check"><input type="checkbox" id="borderOn"><span>开启边框</span></label></div>
           <div id="borderBox" class="hidden">
             <div class="form-row"><div class="lbl">宽度</div><input type="range" id="borderW" min="1" max="20" value="3"><span class="v" id="borderWV">3px</span><input type="number" id="borderWNum" min="1" max="20" value="3" class="num-input"></div>
             <div class="form-row"><div class="lbl">颜色</div><input type="color" id="borderC" value="#ffffff"></div>
           </div>
         </div>
-
-        <!-- 阴影面板 -->
-        <div class="sh-pane" id="shShadow">
-          <div class="form-row"><div class="lbl">启用</div><label class="check"><input type="checkbox" id="bgShadowOn"><span>开启阴影</span></label></div>
+        <div id="bdShadow" class="hidden">
+          <div class="form-row"><div class="lbl">启用</div><label class="check"><input type="checkbox" id="bgShadowOn"><span>开启背景阴影</span></label></div>
           <div id="bgShadowBox" class="hidden">
-            <div class="form-row"><div class="lbl">大小</div><input type="range" id="bgShS" min="0" max="100" value="100"><span class="v" id="bgShSV">100%</span><input type="number" id="bgShSNum" min="0" max="100" value="100" class="num-input"></div>
             <div class="form-row"><div class="lbl">模糊</div><input type="range" id="bgShB" min="0" max="30" value="8"><span class="v" id="bgShBV">8px</span><input type="number" id="bgShBNum" min="0" max="30" value="8" class="num-input"></div>
             <div class="form-row"><div class="lbl">X</div><input type="range" id="bgShX" min="-30" max="30" value="0"><span class="v" id="bgShXV">0px</span><input type="number" id="bgShXNum" min="-30" max="30" value="0" class="num-input"></div>
             <div class="form-row"><div class="lbl">Y</div><input type="range" id="bgShY" min="-30" max="30" value="3"><span class="v" id="bgShYV">3px</span><input type="number" id="bgShYNum" min="-30" max="30" value="3" class="num-input"></div>
             <div class="form-row"><div class="lbl">颜色</div><input type="color" id="bgShC" value="#000000"></div>
           </div>
         </div>
-      </div><div class="sec" id="splitLayoutSec">
+      </div>
+
+      <!-- ② 填充布局 & 边界 -->
+      <div class="sec" id="splitLayoutSec">
         <div class="sec-t"><i class="fa-solid fa-object-group"></i>② 填充布局</div>
         <div class="form-row"><div class="lbl">角度</div><input type="range" id="splitAng" min="0" max="360" value="0"><span class="v" id="splitAngV">0°</span></div>
         <div id="splitRatios"></div>
@@ -2224,10 +2204,10 @@ function newLine(){return{mode:'text',text:'A',font:'Inter',zhFont:'Noto Sans SC
 
 const DEFAULTS={
   lines:[newLine()],lineCount:1,currentLine:0,layout:'h-center',
-  size:256,shape:'none',shapeSides:4,shapeStar:false,radius:0,direction:0,shapeSize:100,shapeHStretch:100,shapeVStretch:100,shapeInner:0,
+  size:256,shape:'polygon',shapeSides:4,shapeStar:false,radius:0,direction:0,shapeSize:100,shapeHStretch:100,shapeVStretch:100,shapeInner:0,
   bg:{segments:[newSegment()],numSegs:1,angle:0,ratios:[],borderShape:'line',transMode:'none',transWidth:0},
   border:{on:false,w:3,color:'#ffffff'},
-  bgShadow:{on:false,size:100,b:8,x:0,y:3,color:'#000000'},
+  bgShadow:{on:false,b:8,x:0,y:3,color:'#000000'},
   transparentBg:false,theme:'light'
 };
 let S=JSON.parse(JSON.stringify(DEFAULTS));
@@ -2244,59 +2224,24 @@ if(!CanvasRenderingContext2D.prototype.roundRect){
   };
 }
 
-// ═══════ SHAPE PATH V3 — none/rounded-rect/方向0下边水平/radius100圆/inner0消失 ═══════
+// ═══════ SHAPE PATH V2 — 尺寸/拉伸/内角/方向/弧度修复 ═══════
 function shapePath(c,size){
   c.beginPath();
   const sz=(S.shapeSize||100)/100, hs=(S.shapeHStretch||100)/100, vs=(S.shapeVStretch||100)/100;
   const base=size*0.5*sz, cx=size/2, cy=size/2;
-  // direction=0 时下边水平：起始角为 -π/2 + π/(2n) 使底边水平
-  // 但简单做法：direction=0 时使用初始角度 -π/2 但对偶数边形让底边水平
-  // 改为 direction 直接作为起始方向（0°→朝右），然后整体旋转使第一个顶点对准方向
   c.save();c.translate(cx,cy);c.scale(hs,vs);c.translate(-cx,-cy);
-  if(S.shape==='none'){ c.restore(); return; }
-  else if(S.shape==='circle'){ c.arc(cx,cy,base-Math.max(2,Math.round(size*0.02)),0,Math.PI*2); }
-  else if(S.shape==='rounded-rect'){
-    const x=cx-base,y=cy-base,w=base*2,h=base*2;
-    const maxR=Math.min(w,h)/2;
-    const r=maxR*(S.radius/100); // radius 0→直角方 100→圆形
-    rrRect(c,x,y,w,h,r);
-  }
+  if(S.shape==='circle'){ c.arc(cx,cy,base-Math.max(2,Math.round(size*0.02)),0,Math.PI*2); }
   else if(S.shape==='polygon'){
     const n=S.shapeSides||4;
     let rOut=base, rIn=rOut;
-    // 需求 1：direction=0 下边水平
-    // 策略：起始角 设为 π/2 - π/(2n) 时底边水平（偶数边），direction 从 0 开始旋转这个基础
-    // 简化：rot = direction° + 让偶数边形底边水平的偏移
-    // 对偶数边：偏移 -π/2 使顶点朝上 → 再加 direction
-    // 需求修正：让所有形状 direction=0 时下边水平
-    // 对 n=4（方形）：顶点在 top/right/bottom/left → rot=-π/2 让"第一个顶点"在上
-    // 但用户说"下边水平"——对正多边形所有边水平是不可能的，应该指底边那条边水平
-    // 让边 i=0 的方向 = 底边（向量 (1,0)）→ 计算旋转使边 (p0→p1) 或 (pn/2→pn/2+1) 水平
-    // 最简单可靠方案：rot = (S.direction||0)*Math.PI/180 - Math.PI/2 + ((n%2)?Math.PI/n:0)
-    // 测试：n=4(even, square): rot = dir - 90° + 0 → 边 1→2 (右边) 是垂直的... 底边是水平的 ✓
-    // n=3(triangle,odd): rot = dir - 90° + 60° = dir - 30° → 让底边水平
-    // 验证 n=4: p0(rot-90°), p1(rot), p2(rot+90°), p3(rot+180°)
-    //   edge p2→p3: angle (rot+180) - (rot+90) = 90° → 向量方向 π+rot+90 = rot+90 →
-    //   水平当 rot+90 = 0 或 π → rot=-90 → direction=0 时正好 ✓
-    // 验证 n=3: p0(-30°), p1(90°), p2(210°)
-    //   edge p2→p0: angle -30 - 210 = -240°, vec(1,0) 方向 0° → 210° 点到 -30° 点
-    //   vec = (cos(-30)-cos(210), sin(-30)-sin(210)) = (√3/2 - (-√3/2), -0.5-(-0.5)) = (√3, 0) → 水平 ✓
-    const rot=(S.direction||0)*Math.PI/180 - Math.PI/2 + ((n%2)?Math.PI/n:0);
+    const rot=(S.direction||0)*Math.PI/180 - Math.PI/2;
     const pts=[];
     if(S.shapeStar){
       const ang=Math.max(0,Math.min(180,S.shapeInner||0));
-      // 需求 3：内角 0 → 消失
-      if(ang<1){ c.restore(); return; }
       rIn = rOut * (0.05 + ang/180*0.90);
       for(let i=0;i<n*2;i++){const a=rot+i*Math.PI/n;pts.push([cx+Math.cos(a)*(i%2===0?rOut:rIn),cy+Math.sin(a)*(i%2===0?rOut:rIn)]);}
     } else {
       for(let i=0;i<n;i++){const a=rot+i*Math.PI*2/n;pts.push([cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut]);}
-    }
-    // 需求 2：radius=100 → 圆形（正多边形顶点都在同一个外接圆上，100% 倒角后就是圆弧）
-    if(S.radius>=100 && !S.shapeStar){
-      c.arc(cx,cy,base-Math.max(2,Math.round(size*0.02)),0,Math.PI*2);
-      c.restore();
-      return;
     }
     if(S.radius>0 && S.radius<100){
       let minDist=Infinity;
@@ -2304,7 +2249,7 @@ function shapePath(c,size){
         const v=pts[(i-1+pts.length)%pts.length],p=pts[i],q=pts[(i+1)%pts.length];
         minDist=Math.min(minDist,pointToSegDist(p,v,q));
       }
-      const r0 = minDist * (S.radius/100) * 0.95;
+      const r0 = minDist * (S.radius/100) * 0.85;
       if(r0>0.5){
         c.moveTo(pts[0][0],pts[0][1]);
         for(let i=0;i<pts.length;i++){
@@ -2323,24 +2268,6 @@ function shapePath(c,size){
   }
   c.restore();
 }
-
-// 圆角矩形辅助
-function rrRect(c,x,y,w,h,r){
-  r=Math.min(r,w/2,h/2);
-  if(r<=0){c.rect(x,y,w,h);return;}
-  c.beginPath();
-  c.moveTo(x+r,y);
-  c.lineTo(x+w-r,y);
-  c.arcTo(x+w,y,x+w,y+r,r);
-  c.lineTo(x+w,y+h-r);
-  c.arcTo(x+w,y+h,x+w-r,y+h,r);
-  c.lineTo(x+r,y+h);
-  c.arcTo(x,y+h,x,y+h-r,r);
-  c.lineTo(x,y+r);
-  c.arcTo(x,y,x+r,y,r);
-  c.closePath();
-}
-
 function pointToSegDist(p,v,q){
   const dx=q[0]-v[0],dy=q[1]-v[1];
   const len2=dx*dx+dy*dy;
@@ -2373,13 +2300,7 @@ function fillSegment(c,seg,x,y,w,h){
 // ═══════ DRAW BG ═══════
 function drawBg(c,size){
   c.save();
-  if(S.shape==='none'){
-    // 无形状时画整个画布
-    const m=Math.max(2,Math.round(size*0.02));
-    c.rect(m,m,size-m*2,size-m*2);c.clip();
-  } else {
-    shapePath(c,size);c.clip();
-  }
+  shapePath(c,size);c.clip();
   const m=Math.max(2,Math.round(size*0.02));
   const x=m,y=m,w=size-m*2,h=size-m*2;
   const segs=S.bg.segments;
@@ -2453,15 +2374,12 @@ function drawBg(c,size){
 }
 
 function drawShapeOuter(c,size){
-  // shape=none 时不绘制任何外框
-  if(S.shape==='none')return;
   if(S.bgShadow&&S.bgShadow.on){
-    const sz=(S.bgShadow.size||100)/100;
     c.save();
     c.shadowColor=(S.bgShadow.color||'#000000')+'73';
-    c.shadowBlur=Math.round((S.bgShadow.b||8)*size/256*sz);
-    c.shadowOffsetX=Math.round((S.bgShadow.x||0)*size/256*sz);
-    c.shadowOffsetY=Math.round((S.bgShadow.y||3)*size/256*sz);
+    c.shadowBlur=Math.round((S.bgShadow.b||8)*size/256);
+    c.shadowOffsetX=Math.round((S.bgShadow.x||0)*size/256);
+    c.shadowOffsetY=Math.round((S.bgShadow.y||3)*size/256);
     shapePath(c,size);c.fillStyle='rgba(0,0,0,.01)';c.fill();
     c.restore();
   }
@@ -2618,19 +2536,16 @@ function buildChips(id,items,key){
 
 function buildShapeChips(){
   const el=$('shapeChips');el.innerHTML='';
-  // 需求 8：三行布局
-  const rows=[
-    [{v:'none',l:'无'},{v:'circle',l:'圆'},{v:'rounded-rect',l:'圆角方'}],
-    [{v:'p3',l:'3边'},{v:'p4',l:'4边'},{v:'p5',l:'5边'},{v:'p6',l:'6边'},{v:'p8',l:'8边'}],
-    [{v:'s3',l:'★3'},{v:'s4',l:'★4'},{v:'s5',l:'★5'},{v:'s6',l:'★6'},{v:'s8',l:'★8'}],
+  const groups=[
+    {label:'基础',items:[['circle','圆']]},
+    {label:'多边形',items:[['p3','3边'],['p4','4边'],['p5','5边'],['p6','6边'],['p8','8边']]},
+    {label:'角星',items:[['s3','★3'],['s4','★4'],['s5','★5'],['s6','★6'],['s8','★8']]},
   ];
-  const rowTitles=['基础','多边形','角星'];
-  rows.forEach((items,gi)=>{
-    const lbl=document.createElement('div');lbl.style.cssText='font-size:10px;color:var(--text-muted);margin:4px 0 2px;font-family:"JetBrains Mono",monospace';lbl.textContent=rowTitles[gi];
-    el.appendChild(lbl);
+  groups.forEach(g=>{
+    const t=document.createElement('div');t.style.cssText='font-size:10px;color:var(--text-muted);margin:4px 0 2px;font-family:"JetBrains Mono",monospace';t.textContent=g.label;
+    el.appendChild(t);
     const row=document.createElement('div');row.className='chip-row';
-    items.forEach(it=>{
-      const v=it.v, l=it.l;
+    g.items.forEach(([v,l])=>{
       const d=document.createElement('div');
       d.className='chip'+(matchShape(v)?' active':'');
       d.textContent=l;
@@ -2641,46 +2556,20 @@ function buildShapeChips(){
   });
 }
 function matchShape(v){
-  if(v==='none')return S.shape==='none';
   if(v==='circle')return S.shape==='circle';
-  if(v==='rounded-rect')return S.shape==='rounded-rect';
   if(v.startsWith('p'))return S.shape==='polygon'&&!S.shapeStar&&S.shapeSides===+v.slice(1);
   if(v.startsWith('s'))return S.shape==='polygon'&&S.shapeStar&&S.shapeSides===+v.slice(1);
   return false;
 }
 function setShape(v){
-  if(v==='none')S.shape='none';
-  else if(v==='circle')S.shape='circle';
-  else if(v==='rounded-rect'){S.shape='rounded-rect';S.shapeSize=100;}
+  if(v==='circle')S.shape='circle';
   else{S.shape='polygon';S.shapeStar=v.startsWith('s');S.shapeSides=+v.slice(1);}
-  // 需求 5：圆角方形默认尺寸使长边=画布
-  if(v==='rounded-rect'){S.shapeSize=100;}
   updateShapeToggles();
-  updateTabBadges(); // 需求 9
 }
 function updateShapeToggles(){
-  const showParams = S.shape!=='none' && S.shape!=='circle';
-  $('radiusWrap').style.display=(showParams)?'':'none';
-  $('directionWrap').style.display=(S.shape==='polygon')?'':'none';
+  $('radiusWrap').style.display=S.shape==='polygon'?'':'none';
+  $('directionWrap').style.display=S.shape==='polygon'?'':'none';
   $('innerWrap').style.display=(S.shape==='polygon'&&S.shapeStar)?'':'none';
-  // 圆角方、多边形、角星显示弧度；circle/none 不显示
-  // 圆角方默认填满
-}
-// 需求 9：标签徽章
-function updateTabBadges(){
-  // 形状标签：显示形状类型短名
-  const shapeTab=$('tabShape');
-  if(shapeTab){
-    let n='无';
-    if(S.shape==='circle')n='圆';
-    else if(S.shape==='rounded-rect')n='圆角方';
-    else if(S.shape==='polygon')n=(S.shapeStar?'★':'')+S.shapeSides+'边';
-    shapeTab.querySelector('.tb-content').textContent='形状 · '+n;
-  }
-  // 边框/阴影标签：启用时显示绿色对号
-  const bdTab=$('tabBorder'), shTab=$('tabShadow');
-  if(bdTab){bdTab.classList.toggle('tb-on',!!S.border.on);bdTab.querySelector('.tb-content').textContent=S.border.on?'边框 ✓':'边框';}
-  if(shTab){shTab.classList.toggle('tb-on',!!S.bgShadow.on);shTab.querySelector('.tb-content').textContent=S.bgShadow.on?'阴影 ✓':'阴影';}
 }
 
 // 行 Tab — Bug3 fix: mode span 独立容器阻止冒泡
@@ -3057,46 +2946,27 @@ bindRN('shapeHS','shapeHSNum',v=>{S.shapeHStretch=v;$('shapeHSV').textContent=v+
 bindRN('shapeVS','shapeVSNum',v=>{S.shapeVStretch=v;$('shapeVSV').textContent=v+'%';},c200);
 bindRN('radius','radiusNum',v=>{S.radius=v;$('radiusV').textContent=v+'%';},c100);
 bindRN('direction','directionNum',v=>{S.direction=v;$('directionV').textContent=v+'°';},c360);
-// 需求 4: 填满按钮
-const bf=$('btnFill');
-if(bf)bf.onclick=()=>{S.shapeSize=100;S.shapeHStretch=100;S.shapeVStretch=100;
-  $('shapeSize').value=100;$('shapeSizeV').textContent='100%';$('shapeSizeNum').value=100;
-  $('shapeHS').value=100;$('shapeHSV').textContent='100%';$('shapeHSNum').value=100;
-  $('shapeVS').value=100;$('shapeVSV').textContent='100%';$('shapeVSNum').value=100;draw();};
 bindRN('shapeInner','shapeInnerNum',v=>{S.shapeInner=v;$('shapeInnerV').textContent=v+'°';},c180);
 bindRN('borderW','borderWNum',v=>{S.border.w=v;$('borderWV').textContent=v+'px';},c20);
 bindRN('bgShB','bgShBNum',v=>{S.bgShadow.b=v;$('bgShBV').textContent=v+'px';},c30);
 bindRN('bgShX','bgShXNum',v=>{S.bgShadow.x=v;$('bgShXV').textContent=v+'px';},cn30);
 bindRN('bgShY','bgShYNum',v=>{S.bgShadow.y=v;$('bgShYV').textContent=v+'px';},cn30);
-// 阴影大小
-if($('bgShS'))bindRN('bgShS','bgShSNum',v=>{S.bgShadow.size=v;$('bgShSV').textContent=v+'%';},v=>Math.max(0,Math.min(100,Math.round(v))));
 $('borderC').addEventListener('input',e=>{S.border.color=e.target.value;draw();});
 $('bgShC').addEventListener('input',e=>{S.bgShadow.color=e.target.value;draw();});
 
 // bd tabs
-  // 旧 bd-tab 兼容
-  // 三标签切换（形状/边框/阴影）
-  document.querySelectorAll('.sh-tab').forEach(tab=>{tab.onclick=()=>{
-    document.querySelectorAll('.sh-tab').forEach(x=>x.classList.remove('active'));
-    tab.classList.add('active');
-    const which=tab.dataset.shape;
-    document.getElementById('shShape').classList.toggle('active',which==='shape');
-    document.getElementById('shBorder').classList.toggle('active',which==='border');
-    document.getElementById('shShadow').classList.toggle('active',which==='shadow');
-  };});
-
-  document.querySelectorAll('.bd-tab').forEach(bt=>{bt.onclick=()=>{
+document.querySelectorAll('.bd-tab').forEach(t=>{
+  t.onclick=()=>{
     document.querySelectorAll('.bd-tab').forEach(x=>x.classList.remove('active'));
-    bt.classList.add('active');
-    const isB=bt.dataset.bd==='border';
-    const elB=document.getElementById('bdBorder'),elS=document.getElementById('bdShadow');
-    if(elB)elB.classList.toggle('hidden',!isB);
-    if(elS)elS.classList.toggle('hidden',isB);
-  };});
-$('borderOn').addEventListener('change',e=>{S.border.on=e.target.checked;$('borderBox').classList.toggle('hidden',!e.target.checked);updateTabBadges();draw();});
+    t.classList.add('active');
+    $('bdBorder').classList.toggle('hidden',t.dataset.bd!=='border');
+    $('bdShadow').classList.toggle('hidden',t.dataset.bd!=='bgshadow');
+  };
+});
+$('borderOn').addEventListener('change',e=>{S.border.on=e.target.checked;$('borderBox').classList.toggle('hidden',!e.target.checked);draw();});
 $('borderW').addEventListener('input',e=>{const v=+e.target.value;S.border.w=v;$('borderWV').textContent=v+'px';draw();});
 $('borderC').addEventListener('input',e=>{S.border.color=e.target.value;draw();});
-$('bgShadowOn').addEventListener('change',e=>{S.bgShadow.on=e.target.checked;$('bgShadowBox').classList.toggle('hidden',!e.target.checked);updateTabBadges();draw();});
+$('bgShadowOn').addEventListener('change',e=>{S.bgShadow.on=e.target.checked;$('bgShadowBox').classList.toggle('hidden',!e.target.checked);draw();});
 $('bgShB').addEventListener('input',e=>{const v=+e.target.value;S.bgShadow.b=v;$('bgShBV').textContent=v+'px';draw();});
 $('bgShX').addEventListener('input',e=>{const v=+e.target.value;S.bgShadow.x=v;$('bgShXV').textContent=v+'px';draw();});
 $('bgShY').addEventListener('input',e=>{const v=+e.target.value;S.bgShadow.y=v;$('bgShYV').textContent=v+'px';draw();});
@@ -3124,11 +2994,6 @@ function applyPreset(p){
   if(p.shapeSides!==undefined)S.shapeSides=p.shapeSides;
   if(p.shapeStar!==undefined)S.shapeStar=p.shapeStar;
   S.radius=p.radius!==undefined?p.radius:0;
-  // 旧 shape 迁移
-  if(p.shape==='rect')S.shape='rounded-rect';
-  else if(p.shape==='diamond'||p.shape==='pills')S.shape='polygon';
-  else if(p.shape&&p.shape!=='circle'&&p.shape!=='polygon'&&p.shape!=='rounded-rect'){S.shape='none';}
-  if(p.shape!==undefined && ['none','circle','polygon','rounded-rect'].includes(p.shape))S.shape=p.shape;
   if(p.direction!==undefined)S.direction=p.direction;else if(p.shapeAngle!==undefined)S.direction=p.shapeAngle;
   if(p.shapeSize!==undefined)S.shapeSize=p.shapeSize;
   if(p.shapeHStretch!==undefined)S.shapeHStretch=p.shapeHStretch;
@@ -3162,12 +3027,7 @@ function drawPresets(){
     if(p.shapeSides!==undefined)S.shapeSides=p.shapeSides;
     if(p.shapeStar!==undefined)S.shapeStar=p.shapeStar;
     S.radius=p.radius!==undefined?p.radius:0;
-    // 旧 shape 迁移
-  if(p.shape==='rect')S.shape='rounded-rect';
-  else if(p.shape==='diamond'||p.shape==='pills')S.shape='polygon';
-  else if(p.shape&&p.shape!=='circle'&&p.shape!=='polygon'&&p.shape!=='rounded-rect'){S.shape='none';}
-  if(p.shape!==undefined && ['none','circle','polygon','rounded-rect'].includes(p.shape))S.shape=p.shape;
-  if(p.direction!==undefined)S.direction=p.direction;else if(p.shapeAngle!==undefined)S.direction=p.shapeAngle;
+    if(p.direction!==undefined)S.direction=p.direction;else if(p.shapeAngle!==undefined)S.direction=p.shapeAngle;
   if(p.shapeSize!==undefined)S.shapeSize=p.shapeSize;
   if(p.shapeHStretch!==undefined)S.shapeHStretch=p.shapeHStretch;
   if(p.shapeVStretch!==undefined)S.shapeVStretch=p.shapeVStretch;
@@ -3192,7 +3052,7 @@ function renderAll(){
   $('borderOn').checked=S.border.on;$('borderBox').classList.toggle('hidden',!S.border.on);
   $('borderW').value=S.border.w;$('borderWV').textContent=S.border.w+'px';$('borderC').value=S.border.color;
   $('bgShadowOn').checked=S.bgShadow.on;$('bgShadowBox').classList.toggle('hidden',!S.bgShadow.on);
-  $('bgShS').value=S.bgShadow.size||100;$('bgShSV').textContent=(S.bgShadow.size||100)+'%';if($('bgShSNum'))$('bgShSNum').value=S.bgShadow.size||100;$('bgShB').value=S.bgShadow.b;$('bgShBV').textContent=S.bgShadow.b+'px';$('bgShX').value=S.bgShadow.x;$('bgShXV').textContent=S.bgShadow.x+'px';
+  $('bgShB').value=S.bgShadow.b;$('bgShBV').textContent=S.bgShadow.b+'px';$('bgShX').value=S.bgShadow.x;$('bgShXV').textContent=S.bgShadow.x+'px';
   $('bgShY').value=S.bgShadow.y;$('bgShYV').textContent=S.bgShadow.y+'px';$('bgShC').value=S.bgShadow.color;
   $('transparentBg').checked=S.transparentBg;
   $('splitBd').value=S.bg.borderShape;$('transW').value=S.bg.transWidth;$('transWV').textContent=S.bg.transWidth+'px';

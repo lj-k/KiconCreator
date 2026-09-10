@@ -1,0 +1,368 @@
+ATH V2 — 尺寸/拉伸/内角/方向/弧度修复 ═══════
+function shapePath(c,size){
+  c.beginPath();
+  const sz=(S.shapeSize||100)/100, hs=(S.shapeHStretch||100)/100, vs=(S.shapeVStretch||100)/100;
+  const base=size*0.5*sz, cx=size/2, cy=size/2;
+  c.save();c.translate(cx,cy);c.scale(hs,vs);c.translate(-cx,-cy);
+  if(S.shape==='circle'){ c.arc(cx,cy,base-Math.max(2,Math.round(size*0.02)),0,Math.PI*2); }
+  else if(S.shape==='polygon'){
+    const n=S.shapeSides||4;
+    let rOut=base, rIn=rOut;
+    const rot=(S.direction||0)*Math.PI/180 - Math.PI/2;
+    const pts=[];
+    if(S.shapeStar){
+      const ang=Math.max(0,Math.min(180,S.shapeInner||0));
+      rIn = rOut * (0.05 + ang/180*0.90);
+      for(let i=0;i<n*2;i++){const a=rot+i*Math.PI/n;pts.push([cx+Math.cos(a)*(i%2===0?rOut:rIn),cy+Math.sin(a)*(i%2===0?rOut:rIn)]);}
+    } else {
+      for(let i=0;i<n;i++){const a=rot+i*Math.PI*2/n;pts.push([cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut]);}
+    }
+    if(S.radius>0 && S.radius<100){
+      let minDist=Infinity;
+      for(let i=0;i<pts.length;i++){
+        const v=pts[(i-1+pts.length)%pts.length],p=pts[i],q=pts[(i+1)%pts.length];
+        minDist=Math.min(minDist,pointToSegDist(p,v,q));
+      }
+      const r0 = minDist * (S.radius/100) * 0.85;
+      if(r0>0.5){
+        c.moveTo(pts[0][0],pts[0][1]);
+        for(let i=0;i<pts.length;i++){
+          const p1=pts[i],p2=pts[(i+1)%pts.length],p3=pts[(i+2)%pts.length];
+          const ang1=Math.atan2(p1[1]-p2[1],p1[0]-p2[0]);
+          const ang2=Math.atan2(p3[1]-p2[1],p3[0]-p2[0]);
+          const d1=Math.hypot(p1[0]-p2[0],p1[1]-p2[1]);
+          const d2=Math.hypot(p3[0]-p2[0],p3[1]-p2[1]);
+          const k=Math.min(r0/(d1/2||1),r0/(d2/2||1),1);
+          c.lineTo(p2[0]+Math.cos(ang1)*d1*k,p2[1]+Math.sin(ang1)*d1*k);
+          c.quadraticCurveTo(p2[0],p2[1],p2[0]+Math.cos(ang2)*d2*k,p2[1]+Math.sin(ang2)*d2*k);
+        }
+        c.closePath();
+      } else { pts.forEach(([x,y],i)=>{c[i?'lineTo':'moveTo'](x,y);}); c.closePath(); }
+    } else { pts.forEach(([x,y],i)=>{c[i?'lineTo':'moveTo'](x,y);}); c.closePath(); }
+  }
+  c.restore();
+}
+function pointToSegDist(p,v,q){
+  const dx=q[0]-v[0],dy=q[1]-v[1];
+  const len2=dx*dx+dy*dy;
+  if(len2<1e-9)return Math.hypot(p[0]-v[0],p[1]-v[1]);
+  let t=((p[0]-v[0])*dx+(p[1]-v[1])*dy)/len2; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p[0]-v[0]-t*dx,p[1]-v[1]-t*dy);
+}
+
+// ═══════ FILL SEGMENT ═══════
+function fillSegment(c,seg,x,y,w,h){
+  if(seg.mode==='solid'){ c.fillStyle=seg.solid; c.fillRect(x,y,w,h); }
+  else if(seg.mode==='gradient'){
+    let g;
+    if(seg.gradient.type==='radial') g=c.createRadialGradient(x+w/2,y+h/2,0,x+w/2,y+h/2,Math.max(w,h)/2);
+    else g=c.createLinearGradient(x,y,x+Math.cos(seg.gradient.angle*Math.PI/180)*w,y+Math.sin(seg.gradient.angle*Math.PI/180)*h);
+    g.addColorStop(0,seg.gradient.start);g.addColorStop(1,seg.gradient.end);
+    c.fillStyle=g;c.fillRect(x,y,w,h);
+  } else if(seg.mode==='image' && seg.image.url){
+    const img=seg._img||(seg._img=new Image());
+    if(img.src!==seg.image.url){img.onload=()=>{};img.src=seg.image.url;}
+    if(img.complete&&img.naturalWidth>0){
+      const s=seg.image.scale/100,r=Math.min(w/img.width,h/img.height),dw=img.width*r*s,dh=img.height*r*s;
+      let dy=y+h/2-dh/2;
+      if(seg.image.pos==='top')dy=y;if(seg.image.pos==='bottom')dy=y+h-dh;
+      c.drawImage(img,x+w/2-dw/2,dy,dw,dh);
+    } else c.fillStyle='#eee',c.fillRect(x,y,w,h);
+  }
+}
+
+// ═══════ DRAW BG ═══════
+function drawBg(c,size){
+  c.save();
+  shapePath(c,size);c.clip();
+  const m=Math.max(2,Math.round(size*0.02));
+  const x=m,y=m,w=size-m*2,h=size-m*2;
+  const segs=S.bg.segments;
+  const n=segs.length;
+  // Bug2 fix: overlap 1px 消除抗锯齿缝
+  const OL=1.5;
+  // 累计比例（空值均分）
+  const ratios = (()=>{
+    if(!S.bg.ratios||S.bg.ratios.length<n) return Array(n).fill(100/n);
+    const arr = S.bg.ratios.slice(0,n);
+    return arr.map(v=>isFinite(v)?v:100/n);
+  })();
+  // 归一化
+  const sum = ratios.reduce((a,b)=>a+b,0);
+  const nr = ratios.map(r=>r/sum);
+
+  if(n===1){
+    fillSegment(c,segs[0],x,y,w,h);
+  } else if(n===2){
+    // 垂直切分 + 角度旋转
+    const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
+    c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
+    const R=nr[0];
+    // 左右切，y 方向 overlap
+    fillSegment(c,segs[0],x,y,w*R+OL,h);
+    fillSegment(c,segs[1],x+w*R-OL,y,w*(1-R)+OL,h);
+    c.restore();
+  } else if(n===3){
+    const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
+    c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
+    const R=nr[0];
+    fillSegment(c,segs[0],x,y,w,h*R+OL);
+    fillSegment(c,segs[1],x,y+h*R-OL,w/2+OL,h*(1-R)+OL);
+    fillSegment(c,segs[2],x+w/2-OL,y+h*R-OL,w/2+OL,h*(1-R)+OL);
+    c.restore();
+  } else if(n===4){
+    const R1=nr[0]/(nr[0]+nr[1]); // 横向切分比例
+    const R2=nr[0]/(nr[0]+nr[2]); // 纵向切分比例（左上占比）
+    fillSegment(c,segs[0],x,y,w*R1+OL,h*R2+OL);
+    fillSegment(c,segs[1],x+w*R1-OL,y,w*(1-R1)+OL,h*R2+OL);
+    fillSegment(c,segs[2],x,y+h*R2-OL,w*R1+OL,h*(1-R2)+OL);
+    fillSegment(c,segs[3],x+w*R1-OL,y+h*R2-OL,w*(1-R1)+OL,h*(1-R2)+OL);
+  }
+  // Bug4 fix: 过渡边界 (transMode)
+  if(S.bg.transMode&&S.bg.transMode!=='none'&&n>1){
+    const tw = Math.max(1,S.bg.transWidth||8)*size/256;
+    const cx=x+w/2,cy=y+h/2,ang=S.bg.angle*Math.PI/180;
+    c.save();c.translate(cx,cy);c.rotate(ang);c.translate(-cx,-cy);
+    c.globalCompositeOperation='destination-in';
+    const bd = S.bg.borderShape||'line';
+    c.strokeStyle='#000';
+    c.lineWidth=tw;
+    c.beginPath();
+    if(n===2){
+      if(bd==='curve'){
+        c.moveTo(x+w/2,y);c.quadraticCurveTo(x+w/2+tw*2,y+h/2,x+w/2,y+h);
+      } else {
+        c.moveTo(x+w/2,y);c.lineTo(x+w/2,y+h);
+      }
+    } else if(n===3){
+      c.moveTo(x,y+h*nr[0]);c.lineTo(x+w,y+h*nr[0]);
+      c.moveTo(x+w/2,y+h*nr[0]);c.lineTo(x+w/2,y+h);
+    } else if(n===4){
+      c.moveTo(x+w*R1,y);c.lineTo(x+w*R1,y+h);
+      c.moveTo(x,y+h*R2);c.lineTo(x+w,y+h*R2);
+    }
+    c.stroke();
+    c.restore();
+  }
+  c.restore();
+}
+
+function drawShapeOuter(c,size){
+  if(S.bgShadow&&S.bgShadow.on){
+    c.save();
+    c.shadowColor=(S.bgShadow.color||'#000000')+'73';
+    c.shadowBlur=Math.round((S.bgShadow.b||8)*size/256);
+    c.shadowOffsetX=Math.round((S.bgShadow.x||0)*size/256);
+    c.shadowOffsetY=Math.round((S.bgShadow.y||3)*size/256);
+    shapePath(c,size);c.fillStyle='rgba(0,0,0,.01)';c.fill();
+    c.restore();
+  }
+  if(S.border&&S.border.on){
+    shapePath(c,size);
+    c.lineWidth=Math.round((S.border.w||3)*size/256);
+    c.strokeStyle=S.border.color||'#ffffff';
+    c.stroke();
+  }
+}
+
+// ═══════ LAYOUT ═══════
+function computeLayout(lc,layout,size){
+  const cx=size/2,cy=size/2,m=size*0.14,W=size-m*2,H=size-m*2,pos=[];
+  if(lc===1){
+    if(layout==='h-top')pos.push([cx,m+H*0.18]);else if(layout==='h-bottom')pos.push([cx,m+H*0.82]);
+    else if(layout==='v-left')pos.push([m+W*0.18,cy]);else if(layout==='v-right')pos.push([m+W*0.82,cy]);
+    else pos.push([cx,cy]);
+  } else if(lc===2){
+    if(layout==='v-top-bot'){pos.push([cx,cy-H*0.22]);pos.push([cx,cy+H*0.22])}
+    else{pos.push([cx-W*0.22,cy]);pos.push([cx+W*0.22,cy])}
+  } else if(lc===3){
+    if(layout==='t-inverted'){pos.push([cx,cy+H*0.28]);pos.push([cx-W*0.25,cy-H*0.12]);pos.push([cx+W*0.25,cy-H*0.12])}
+    else{pos.push([cx,cy-H*0.28]);pos.push([cx-W*0.25,cy+H*0.12]);pos.push([cx+W*0.25,cy+H*0.12])}
+  } else if(lc===4){
+    if(layout==='l-121'){pos.push([cx,cy-H*0.30]);pos.push([cx-W*0.25,cy]);pos.push([cx+W*0.25,cy]);pos.push([cx,cy+H*0.30])}
+    else{pos.push([cx-W*0.25,cy-H*0.25]);pos.push([cx+W*0.25,cy-H*0.25]);pos.push([cx-W*0.25,cy+H*0.25]);pos.push([cx+W*0.25,cy+H*0.25])}
+  }
+  return pos;
+}
+
+// ═══════ DRAW CONTENT — Bug4 fix: 渐变离屏 canvas 修复 ═══════
+function drawContent(c,size){
+  const pos=computeLayout(S.lineCount,S.layout,size);
+  pos.forEach((p,i)=>{
+    const line=S.lines[i];if(!line)return;
+    const cx=p[0],cy=p[1];
+    // shadow
+    let hasShadow=false;
+    if(line.shadow&&line.shadow.on){
+      c.save();
+      c.shadowColor=line.shadow.color;
+      c.shadowBlur=Math.round(line.shadow.blur*size/256);
+      c.shadowOffsetX=Math.round(line.shadow.x*size/256);
+      c.shadowOffsetY=Math.round(line.shadow.y*size/256);
+      hasShadow=true;
+    }
+    if(line.mode==='text'){
+      const hasCJK=/[\u4e00-\u9fff]/.test(line.text);
+      const fam=hasCJK?line.zhFont:line.font;
+      let fs=size*line.size/100;
+      c.textAlign='center';c.textBaseline='middle';
+      c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;
+      // auto fit
+      const maxW=size*0.72,a=0;
+      while(c.measureText(line.text).width>maxW&&fs>6&&a<80){fs-=2;c.font=`${line.weight} ${fs}px "${fam}", sans-serif`;a++}
+      // Bug4 fix: 渐变填充 —— 正确的 source-in 顺序
+      if(line.fillMode==='gradient'&&line.text){
+        const w=c.measureText(line.text).width;
+        // 1) 画离屏 canvas: 黑色形状（蒙版）
+        const oc=document.createElement('canvas');
+        oc.width=Math.ceil(w)+4;oc.height=Math.ceil(fs*1.4)+4;
+        const ocx=oc.getContext('2d');
+        ocx.font=c.font;ocx.textAlign='center';ocx.textBaseline='middle';
+        ocx.fillStyle='#000';
+        ocx.fillText(line.text,oc.width/2,oc.height/2);
+        // 2) 在主 canvas: 画渐变，用 globalCompositeOperation='destination-in' 让渐变只留形状区
+        // 简单做法：先画文字用纯色（已带 shadow save），然后用 source-atop
+        c.save();
+        c.translate(cx,cy);
+        c.scale(line.hStretch/100,line.vStretch/100);
+        c.translate(line.hOffset*size/256,line.vOffset*size/256);
+        const g=c.createLinearGradient(-w/2,0,w/2,0);
+        g.addColorStop(0,line.fillGradS);g.addColorStop(1,line.fillGradE);
+        // 先画离屏 canvas 的字形状到主 canvas，设 source-in
+        c.globalCompositeOperation='source-over';
+        c.drawImage(oc,-oc.width/2,-oc.height/2);
+        c.globalCompositeOperation='source-in';
+        c.fillStyle=g;c.fillRect(-w/2-2,-fs,w+4,fs*2);
+        c.globalCompositeOperation='source-over';
+        c.restore();
+      } else {
+        c.save();c.translate(cx,cy);c.scale(line.hStretch/100,line.vStretch/100);
+        // Bug1 根因修复：save 后完整重置绘制状态 + newLine() 默认值合并
+        c.globalAlpha = 1;
+        c.globalCompositeOperation = 'source-over';
+        c.fillStyle = line.color;
+        c.font = `${line.weight} ${fs}px "${fam}", sans-serif`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(line.text, line.hOffset*size/256, line.vOffset*size/256);
+        c.restore();
+      }
+    } else if(line.mode==='fa'){
+            const glyph=FA_MAP[line.faIcon]||'★';
+      let fs=size*(line.faSize||65)/100;
+      c.save();c.translate(cx,cy);
+      c.globalAlpha=1;c.globalCompositeOperation='source-over';
+      c.font=`${fs}px "Font Awesome 6 Free","FontAwesome","Inter",sans-serif`;
+      c.textAlign='center';c.textBaseline='middle';
+      c.fillStyle=line.faColor||'#fff';
+      c.fillText(glyph,0,0);
+      c.restore();
+    } else if(line.mode==='image'&&line.imgUrl){
+      const img=line._img||(line._img=new Image());
+      if(img.src!==line.imgUrl){img.onload=()=>{line._needsRedraw=true;};img.src=line.imgUrl;}
+      if(img.complete&&img.naturalWidth>0){
+        const s=(line.imgScale||100)/100,r=Math.min(size*0.7/img.width,size*0.4/img.height),dw=img.width*r*s,dh=img.height*r*s;
+        c.drawImage(img,cx-dw/2,cy-dh/2,dw,dh);
+      } else {c.fillStyle='#aaa';c.fillRect(cx-20,cy-20,40,40);}
+    }
+    if(hasShadow)c.restore();
+  });
+}
+
+// ═══════ MAIN DRAW ═══════
+function draw(cc,sz){
+  const c=cc||ctx,size=sz||S.size;
+  if(cc===undefined&&sz===undefined){canvas.width=size;canvas.height=size;c.clearRect(0,0,size,size);}
+  else{c.clearRect(0,0,size,size);}
+  drawBg(c,size);
+  drawShapeOuter(c,size);
+  drawContent(c,size);
+  // Bug1 fix: transparentBg —— 只把近白色像素换成透明，不是整个背景消失
+  if(S.transparentBg){
+    const d=c.getImageData(0,0,size,size);
+    const data=d.data;const tol=30;
+    for(let i=0;i<data.length;i+=4){
+      const r=data[i],g=data[i+1],b=data[i+2],a=data[i+3];
+      if(a>0 && r>=255-tol && g>=255-tol && b>=255-tol){
+        data[i+3]=0;
+      }
+    }
+    c.putImageData(d,0,0);
+  }
+}
+
+// ═══════ UI RENDER ═══════
+function buildChips(id,items,key){
+  const el=$(id);if(!el)return;el.innerHTML='';
+  const cur = key.includes('.')?(()=>{const p=key.split('.');return S[p[0]][p[1]];})():S[key];
+  items.forEach(([v,l])=>{
+    const d=document.createElement('div');
+    d.className='chip'+(String(cur)===String(v)?' active':'');
+    d.textContent=l;
+    d.onclick=()=>{
+      if(key.includes('.')){const p=key.split('.');S[p[0]][p[1]]=typeof v==='string'?v:parseInt(v,10);}
+      else{S[key]=typeof v==='string'?v:parseInt(v,10);}
+      buildChips(id,items,key);draw();
+    };
+    el.appendChild(d);
+  });
+}
+
+function buildShapeChips(){
+  const el=$('shapeChips');el.innerHTML='';
+  const groups=[
+    {label:'基础',items:[['circle','圆']]},
+    {label:'多边形',items:[['p3','3边'],['p4','4边'],['p5','5边'],['p6','6边'],['p8','8边']]},
+    {label:'角星',items:[['s3','★3'],['s4','★4'],['s5','★5'],['s6','★6'],['s8','★8']]},
+  ];
+  groups.forEach(g=>{
+    const t=document.createElement('div');t.style.cssText='font-size:10px;color:var(--text-muted);margin:4px 0 2px;font-family:"JetBrains Mono",monospace';t.textContent=g.label;
+    el.appendChild(t);
+    const row=document.createElement('div');row.className='chip-row';
+    g.items.forEach(([v,l])=>{
+      const d=document.createElement('div');
+      d.className='chip'+(matchShape(v)?' active':'');
+      d.textContent=l;
+      d.onclick=()=>{setShape(v);buildShapeChips();updateShapeToggles();draw();};
+      row.appendChild(d);
+    });
+    el.appendChild(row);
+  });
+}
+function matchShape(v){
+  if(v==='circle')return S.shape==='circle';
+  if(v.startsWith('p'))return S.shape==='polygon'&&!S.shapeStar&&S.shapeSides===+v.slice(1);
+  if(v.startsWith('s'))return S.shape==='polygon'&&S.shapeStar&&S.shapeSides===+v.slice(1);
+  return false;
+}
+function setShape(v){
+  if(v==='circle')S.shape='circle';
+  else{S.shape='polygon';S.shapeStar=v.startsWith('s');S.shapeSides=+v.slice(1);}
+  updateShapeToggles();
+}
+function updateShapeToggles(){
+  $('radiusWrap').style.display=S.shape==='polygon'?'':'none';
+  $('directionWrap').style.display=S.shape==='polygon'?'':'none';
+  $('innerWrap').style.display=(S.shape==='polygon'&&S.shapeStar)?'':'none';
+}
+
+// 行 Tab — Bug3 fix: m
+
+=====HTML=====
+
+.seg-item .seg-idx{position:absolute;bottom:1px;right:2px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#fff;background:rgba(0,0,0,.4);padding:0 3px;border-radius:3px}
+.seg-mode-tabs{display:flex;background:var(--bg-rail);border-radius:6px;padding:2px;margin-bottom:8px}
+.seg-mode-tab{flex:1;padding:5px 4px;font-size:10px;text-align:center;border-radius:4px;cursor:pointer;color:var(--text-sub);font-family:'JetBrains Mono',monospace;border:1px solid transparent}
+.seg-mode-tab.active{background:var(--bg-input);color:var(--accent);font-weight:600;border-color:var(--border-strong)}
+.bd-tabs{display:flex;background:var(--bg-rail);border-radius:8px;padding:2px;margin-bottom:8px}
+.bd-tab{flex:1;padding:7px 4px;font-size:10px;text-align:center;border-radius:6px;cursor:pointer;color:var(--text-sub);font-family:'JetBrains Mono',monospace;border:1px solid transparent;letter-spacing:.06em}
+.bd-tab.active{background:var(--bg-input);color:var(--accent);font-weight:600;border-color:var(--border-strong)}
+.dropzone{border:2px dashed var(--border-strong);border-radius:8px;padding:10px;text-align:center;background:var(--bg-rail);cursor:pointer;font-size:11px;color:var(--text-sub);transition:.12s}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--bg-hover)}
+.hidden{display:none!important}
+.check{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg-card-solid);font-size:11px;color:var(--text-sub);cursor:pointer}
+.check input{margin:0;accent-color:var(--accent);width:13px;height:13px;cursor:pointer}
+.suggest-row{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.suggest-chip{width:20px;height:20px;border-radius:4px;cursor:pointer;border:1px solid var(--border-strong);transition:.1s;position:relative}
+.suggest-chip:hover{transform:scale(1.15)}
+.suggest-chip::after{content:attr(title);position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-size:10px;c
