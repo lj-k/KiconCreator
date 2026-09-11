@@ -294,8 +294,8 @@ main.js ─┬─ schema.js
   /* —— session 字段：结构示意 + 运行时资源，**不参与 undo/redo 快照序列化** ——
      session.images 的完整 base64 数据由 ImageRepo（独立 Map，见第六节）持有；
      state JSON 中 session.images 只保留 imageId → { name, refCount } 的轻量索引。
-     快照序列化仅包含业务字段（canvas / content / background / theme / version 等），
-     不包含 session.*。 */
+     快照序列化仅包含业务字段（canvas / content / background / version 等），
+     不包含 session.*。**theme 属于 UI 视图状态，不进快照**（见第十五节）。 */
   "session": {
     "images": {
       "img_xxx": { "name": "photo.png" /* **轻量索引，无 base64** */ }
@@ -352,34 +352,46 @@ const State = {
 
 #### **可联动参数注册表（P1 补充，不限于 content.lines）**
 
-参数联动的设计初衷是"跨行同步同参数值"，但需求三 2.3 也要求背景边界参数有"重置"能力。架构抽象为统一注册表，**不仅限于 content.lines**：
+参数联动的设计初衷是"跨行同步同参数值"。**需求 V2.02 仅针对内容参数栏各行参数**，架构不能超范围扩展（豆包评审 P0 #2：超范围设计会引入多余字段、JSON 体积膨胀、预设文件产生多余字段）。
 
 ```javascript
-const LINKABLE_PARAMS = {
-  // —— 内容行参数（跨行同步，最核心）——
-  'content.lines.*.size',         // 所有 9 行的 size 可联动
-  'content.lines.*.angle',
-  'content.lines.*.scaleX', 'content.lines.*.scaleY',
-  'content.lines.*.offsetX', 'content.lines.*.offsetY',
-  'content.lines.*.clipToShape',
-  'content.lines.*.color.mode', 'content.lines.*.color.color1',
-  'content.lines.*.color.color2', 'content.lines.*.color.gradientAngle',
-  'content.lines.*.shadow.enabled', 'content.lines.*.shadow.color',
-  'content.lines.*.shadow.size', 'content.lines.*.shadow.blur',
-  'content.lines.*.shadow.offX', 'content.lines.*.shadow.offY',
-  
-  // —— 背景参数（跨色块 / 跨层数同步，可选启用）——
-  'background.fills.*.color',         // 所有色块的纯色值可联动
-  'background.layout.directions.*',    // 所有层的旋转方向可联动
-  'background.boundary.params.A',      // 边界参数全局同步（A/ω/φ/k）
-  'background.boundary.params.ω',
-  'background.boundary.params.φ',
-  'background.boundary.params.k',
-  'background.shape.direction',        // 形状方向
+// —— V2 必实现：仅 content.lines.* 可联动（需求原文范围）——
+const LINKABLE_LINE_PARAMS = {
+  // 注：links 字段存储在行对象上（每行一份）
+  'size': true, 'angle': true,
+  'scaleX': true, 'scaleY': true,
+  'offsetX': true, 'offsetY': true,
+  'clipToShape': true,                  // 布尔类型也可联动
+  'color.mode': true,                   // 枚举类型也可联动
+  'color.color1': true, 'color.color2': true,
+  'color.gradientAngle': true,
+  'color.gradientType': true,           // 渐变模式类型也可联动（deepseek #17 补充）
+  'shadow.enabled': true, 'shadow.color': true,
+  'shadow.size': true, 'shadow.blur': true,
+  'shadow.offX': true, 'shadow.offY': true,
+  // —— 以下为内容参数，但**需求未要求联动**，暂不列入 ——
+  // 'fontSize', 'weight', 'italic', 'fontFamily', 'textLayout'
+  // （内容参数联动如果后续有需求再加）
+}
+
+// —— P2 后续版本扩展：背景参数联动（V2.02 不启用）——
+// 需求三 2.3 有"重置"能力但未要求联动链条 UI。
+// V2 不在 _fillDef / shape / layout / boundary 对象上序列化 links 字段，
+// 避免预设/快照产生冗余字段。P2 启用时再给 schema 加 links。
+const LINKABLE_PARAMS_P2 = {
+  'background.fills.*.color',
+  'background.layout.directions.*',
+  'background.boundary.params.A', 'ω', 'φ', 'k',
+  'background.shape.direction',
 }
 ```
 
-**注意**：background.* 的联动在架构层只定义了"注册表"，UI 上的联动链条图标是否显示、是否启用，由各模块详细设计时决定。核心联动逻辑（两阶段状态机）不变，只是 path 匹配范围从 `content.lines.i.X` 扩展到上述所有路径。
+**V2 架构强约束**：
+- 只有 `content.lines[i].links` 存在并参与 JSON 序列化
+- `_fillDef` / `shape` / `layout` / `boundary` 对象 **没有 links 字段**
+- 联动链条图标只出现在内容参数栏对应参数后面
+- 顶部工具栏"全部联动/全部不联动"只作用于内容参数栏
+- 核心联动逻辑（两阶段状态机）不变，作用域限定为 `content.lines.i.{paramKey}`
 
 #### 参数联动两阶段状态机（**P0 修正**）
 
@@ -437,23 +449,29 @@ function set(path, value, opts = { history: true }) {
   emit('state:changed', path);
 }
 
-// 新增行时 links 继承：全局有任何联动标记 → 新行全部可联动参数 links=true
+// 新增行时 links 继承：**按参数继承**，而非全部参数（deepseek 评审指出原逻辑过宽）
+//   对每个可联动参数，若已有行该参数 links=true → 新行该参数 links=true
+//   这样只继承已勾选的那些参数，不会让新行全部参数都联动
 // **注意：content.lines 是固定 9 个元素的常驻数组，增减 lineCount = 修改对应行的 enabled 标记，
-//   不 push/pop 新行对象。需求 3.3 "行数减少参数不必重置，联动状态保留"。**
+//   不 push/pop 新行对象。需求 3.3 "行数减少参数不必重置，联动状态保留"。
+//   行数减少时仅 enabled=false，**不 deref 图片引用**（ImageRepo 计数不改变），
+//   否则 5s 延迟释放后图片丢失（deepseek #19 + GLM5.3 M3）。**
 function setLineCount(newCount) {
   for (let i = 0; i < 9; i++) {
     if (i < newCount) {
       // 启用该行：如果该行从未被初始化过（默认 enabled=false），
-      // 则按 DEFAULT_LINE 初始化，同时继承联动状态
+      // 则按 DEFAULT_LINE 初始化，同时按参数继承联动状态
       if (!state.content.lines[i].__initialized) {
         state.content.lines[i] = { ...DEFAULT_LINE, id: nextLineId++ };
-        const anyLinked = state.content.lines.some(l =>
-          Object.values(l.links).some(v => v === true)
-        );
-        if (anyLinked) {
-          Object.keys(state.content.lines[i].links)
-            .forEach(k => state.content.lines[i].links[k] = true);
-        }
+        // 按参数继承：对每个可联动参数，检查已有行是否有该行 links=true
+        LINKABLE_LINE_PARAMS.forEach(paramKey => {
+          const anyRowHas = state.content.lines.some(l =>
+            l.enabled && l.links && l.links[paramKey] === true
+          );
+          if (anyRowHas) {
+            state.content.lines[i].links[paramKey] = true;
+          }
+        });
         state.content.lines[i].__initialized = true;
       }
       state.content.lines[i].enabled = true;
@@ -480,7 +498,7 @@ function setLineCount(newCount) {
 │   FIFO 淘汰最旧快照时 deref 其 imageIds                    │
 │                                                             │
 │ 快照 = JSON.parse(JSON.stringify(state))                   │
-│   **仅序列化业务字段**（canvas/content/background/theme）   │
+│   **仅序列化业务字段**（canvas/content/background）   │
 │   **不序列化 session.* 和 ImageRepo**（base64 始终在 ImageRepo）│
 │   - imageId 保留字符串引用（不复制 base64）                │
 │   - 快照入栈时对所有 imageIds 调用 ImageRepo.ref()          │
@@ -627,8 +645,10 @@ const Colors = {
     // 返回每个色块建议；UI 显示在色块标签颜色选择器下方
   
   // type: 'complementary' | 'analogous' | 'soft' | 'bright'
-  // 单色一键填充：直接设置 fills[i].mode='solid', fills[i].color=color
-  // 渐变填充：设置 fills[i].mode='gradient', fills[i].gradient={color1, color2, ...}
+  // **纯色一键填充**（需求 3.2.4 明确"一键填充仅限制纯色"）：
+  //   直接设置 fills[i].mode='solid', fills[i].color=color
+  //   渐变颜色建议 → 仅作为颜色选择器候选项展示，**不直接切换 mode**
+  //   用户在渐变模式下点某个建议色 → 只替换 color1 或 color2（UI 弹窗让用户选）
   
   // —— 渐变生成 ——
   makeGradient(ctx, type, angle, color1, color2, size),
@@ -881,18 +901,34 @@ const Images = {
   
   whiteToTransparent(imageData, threshold=128),
   
-  // —— 引用规则明确（需求 2.8：更换图片解除旧引用；**切换行和模式不解除引用**）——
+  // —— **引用规则明确**（需求 2.8：更换图片解除旧引用；切换行和模式不解除引用）——
+  // **GLM5.3 M2 修正：引用计数总账模型 = 当前 state 占 1 份 + 每份快照各占 1 份**
+  // 任何时刻，一张图的 refCount = 1（被当前 state 引用）+ N（被 N 条历史快照引用）
+  // 生命周期的正确行为链：
+  //   图片上传 → refCount = 1（当前 state）
+  //   pushUndo → refCount += 1（快照持有引用）
+  //   undo → 把当前快照推到 redoStack，refCount += 1
+  //        → 从 undoStack 取前一快照，apply 到 state（对覆盖的旧快照 deref）
+  //   redo → 把当前推 undo，对 redo 弹出的 +1
+  //   clearRedoWithDeref → redoStack 全部 deref
+  //   FIFO 淘汰最旧 undo → deref 被淘汰快照
+  //   更换图片 → deref 旧 imageId（当前 state 的那 1 份）+ ref 新 imageId
+  //   切换行数（enabled=false）→ **不 deref**，state 中 imageId 保持（deepseek #19 + GLM5.3 M3）
+  //   历史/预设删除 → deref 其持有引用
+  //
   // ✅ 增减 ref 的场景（只有这些！）：
-  //   - 行 mode=image 更换 imageId → deref 旧 id + ref 新 id
-  //   - 背景 fill.mode=image 更换 imageId → deref 旧 + ref 新
-  //   - 快照入 undoStack/redoStack → ref 快照内所有 imageIds
-  //   - 快照淘汰 / redo 清空 / undo → deref 对应快照 imageIds
+  //   - 行 mode=image 更换 imageId → deref 旧 id（减 1）+ ref 新 id（加 1）
+  //   - 背景 fill.mode=image 更换 imageId → 同上
+  //   - pushUndo → 对快照内所有 imageIds 各 +1
+  //   - clearRedoWithDeref → 对 redoStack 所有快照内 imageIds 各 -1
+  //   - undo/redo 栈间转移 → 转出方栈 -1 + 转入方栈 +1
+  //   - FIFO 淘汰最旧 undo → 对被淘汰快照 imageIds 各 -1
   //   - history/presets 新增 → ref；删除 → deref
-  //   - 行删除（content.lineCount 减少，该行 enabled=false 并移除）→ deref 该行 imageIds
   // ❌ 不增减 ref 的场景：
   //   - 切换选中行（仅改 UI 选中态）
   //   - 切换 mode（text↔image↔fa）：旧 imageId 保留在 state 中，ref 不变
   //     （需求原文"切换行和模式不解除引用"）
+  //   - enabled=false（行隐藏）：state 中 imageId 保持，引用不变
 }
 ```
 
@@ -1170,19 +1206,40 @@ undoStack → [old, current]
 undoStack 大小超 20          ← FIFO 淘汰最旧快照
   → deref 被淘汰快照 imageIds
 
-新操作后清空 redo（clearRedoWithDeref）：
-  redoStack.forEach(snap → snap.imageIds.forEach(id → deref(id)))
+undo() / redo() **栈间转移不增减 ref**（只是把"持有引用"从 undoStack 转到 redoStack 或反过来）：
+  undo()：
+    currentSnap = JSON.parse(JSON.stringify(state))  // 当前 state 的快照 → 推入 redoStack
+    undoStack.pop(previousSnap)
+    redoStack.push(currentSnap)  // 从 state 转移到 redoStack，ref 不变
+    // 关键：apply previousSnap 到 state 时
+    //   - previousSnap 原来的 undoStack 那份引用（+1）现在变成 state 的引用（+1）—— 引用数不变
+    //   - currentSnap 里有而 previousSnap 里没有的 imageIds → deref（state 不再持有它们的那 1 份）
+    //     （currentSnap 已推入 redoStack，redoStack 那份引用由它自己持有）
+    ImageRepo.derefOnlyIn(currentSnap, previousSnap)  // currentSnap 独有的 imageIds → -1
+    state = previousSnap
+    emit('state:changed')
+
+  redo()：对称操作
+    currentSnap = JSON.parse(JSON.stringify(state))
+    redoStack.pop(targetSnap)
+    undoStack.push(currentSnap)
+    ImageRepo.derefOnlyIn(currentSnap, targetSnap)
+    state = targetSnap
+    emit('state:changed')
+
+**pushUndo 入栈**：
+  snap = JSON.parse(JSON.stringify(state))
+  if (undoStack.length >= MAX_UNDO) {
+    const oldest = undoStack.shift()
+    oldest.imageIds.forEach(id => ImageRepo.deref(id))  // FIFO 淘汰
+  }
+  undoStack.push(snap)
+  // 对 snap 内 imageIds 各 +1（快照新增持有）
+  snap.imageIds.forEach(id => ImageRepo.ref(id))
+
+**clearRedoWithDeref 清空 redo**：
+  redoStack.forEach(snap => snap.imageIds.forEach(id => ImageRepo.deref(id)))
   redoStack = []
-
-undo()：
-  current = undoStack.pop()
-  redoStack.push(current)    → 对 current 的 imageIds 全部 ref()
-  apply previous 到 state    → 对 previous 的 imageIds 全部 ref()
-
-redo()：
-  current = redoStack.pop()
-  undoStack.push(current)    → 对 current 的 imageIds 全部 ref()
-  apply current 到 state     → 对覆盖掉的 previous 快照 deref imageIds
 ```
 
 ---
@@ -1375,8 +1432,8 @@ KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
 ## 十七、快照 Schema 边界
 
 ### undo/redo 快照
-- **包含**：canvas, content（含全部 9 行参数）, background（shape/fills/layout/boundary/border/shadow）, theme, version
-- **不包含**：session.*, ImageRepo（base64）, 字体缓存, UI 视图状态, 预设计数器, 下次行 id
+- **包含**：canvas, content（含全部 9 行参数）, background（shape/fills/layout/boundary/border/shadow）, version
+- **不包含**：theme（UI 视图状态）, session.*, ImageRepo（base64）, 字体缓存, UI 视图状态, 预设计数器, 下次行 id
 - **体积控制**：快照 = JSON.parse(JSON.stringify(businessFields))，通常 <5KB/条
 
 ### history 快照
