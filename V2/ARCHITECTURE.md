@@ -40,7 +40,8 @@
 |----|------|------|
 | **渲染引擎** | HTML5 Canvas 2D | 所有形状/渐变/阴影统一绘制，导出与预览一致 |
 | **前端框架** | 原生 ES6+（无框架） | 单文件零依赖即可运行，保持轻量化 |
-| **CSS** | Tailwind CSS 3.x 预编译双 CDN（jsDelivr + unpkg） | 双 CDN 回退避免网络不可达 |
+| **CSS** | Tailwind CSS 3.x 预编译双 CDN（jsDelivr + unpkg）+ 本地部署同一份 | 双 CDN 回退；**最小本地兜底**（CDN 全失效时可用） |
+| **JS 加载策略** | 普通 `<script>` 标签按序加载（不走 ES modules） | **file:// 协议兼容**：ES modules 在 file:// 下因 CORS 失败，普通 script 双击 index.html 可用 |
 | **图标库** | FontAwesome 6 Free + fa_map.js | 本地打包图标数据（含 unicode、aliases、category），fa6.css 103KB |
 | **ZIP 打包** | JSZip（CDN） | 多尺寸打包导出 |
 | **ICO 格式** | 手写 ICO 二进制（20字节头 + 目录项 + PNG 块） | 内置 16/32/48/64/128/256 六档，不受导出尺寸影响 |
@@ -277,6 +278,11 @@ main.js ─┬─ schema.js
     "border": {
       "enabled": false, "width": 2, "color": "#000000"
       /* 边框从形状边框向外延伸 */
+      /* **实现策略**：Canvas stroke 默认线宽一半内一半外。
+         完全向外需要：用 Path2D.offset(border.width/2) 外扩路径 → stroke 外扩路径。
+         如果 offset 在浏览器不支持，则退而用 stroke 时线宽 = 2×border.width
+         + 先 fill 形状 + 再 stroke（线宽内外各半 → 视觉上向外半部分盖在形状外）。
+         架构层标注为风险点，详细设计时选定策略。 */
     },
     "shadow": {
       "enabled": false, "size": 10, "blur": 10, "offX": 0, "offY": 0
@@ -284,13 +290,25 @@ main.js ─┬─ schema.js
   },
   
   "presets_builtin": [ /* JS 常量数组，6~10 个典型预设 */ ],
+  
+  /* —— session 字段：结构示意 + 运行时资源，**不参与 undo/redo 快照序列化** ——
+     session.images 的完整 base64 数据由 ImageRepo（独立 Map，见第六节）持有；
+     state JSON 中 session.images 只保留 imageId → { name, refCount } 的轻量索引。
+     快照序列化仅包含业务字段（canvas / content / background / theme / version 等），
+     不包含 session.*。 */
   "session": {
     "images": {
-      "img_xxx": { "data": "<base64>", "refCount": 3, "name": "photo.png" }
+      "img_xxx": { "name": "photo.png" /* **轻量索引，无 base64** */ }
     },
-    "presets": [],
-    "history": []
-  }
+    "presets": [ /* 仅会话级，刷新丢失 */ ],
+    "history": [ /* 仅会话级，刷新丢失 */ ]
+  },
+  
+  /* —— **不进入快照的运行时资源**（独立 Map，不在 state JSON 中）——
+     - ImageRepo: 持有 imageId → { data: base64, refCount, name, disposeTimer }
+     - UI 视图状态: preview.view, modal.open, tab.active 等（见 UI 状态隔离章节）
+     - 这些资源的生命周期由 state.js 内部管理，不由 JSON 快照驱动
+  */
 }
 ```
 
@@ -298,7 +316,7 @@ main.js ─┬─ schema.js
 
 | 字段 | 类型 | 范围 | 截断规则 | 默认 |
 |------|------|------|---------|------|
-| `canvas.size` | int | 16~8192 | <0→16, >10000→8192 | 256 |
+| `canvas.size` | int | 16~10000 | **分段**：`<0→16；>10000→8192；16~10000 clamp(值, 16, 10000)` | 256 |
 | `content.lineCount` | int | 1~9 | clamp | 2 |
 | `background.fillCount` | int | 1~6 | clamp | 2 |
 | `background.shape.innerAngle` | int | 0~90 | clamp | 60 |
@@ -331,6 +349,37 @@ const State = {
   }
 }
 ```
+
+#### **可联动参数注册表（P1 补充，不限于 content.lines）**
+
+参数联动的设计初衷是"跨行同步同参数值"，但需求三 2.3 也要求背景边界参数有"重置"能力。架构抽象为统一注册表，**不仅限于 content.lines**：
+
+```javascript
+const LINKABLE_PARAMS = {
+  // —— 内容行参数（跨行同步，最核心）——
+  'content.lines.*.size',         // 所有 9 行的 size 可联动
+  'content.lines.*.angle',
+  'content.lines.*.scaleX', 'content.lines.*.scaleY',
+  'content.lines.*.offsetX', 'content.lines.*.offsetY',
+  'content.lines.*.clipToShape',
+  'content.lines.*.color.mode', 'content.lines.*.color.color1',
+  'content.lines.*.color.color2', 'content.lines.*.color.gradientAngle',
+  'content.lines.*.shadow.enabled', 'content.lines.*.shadow.color',
+  'content.lines.*.shadow.size', 'content.lines.*.shadow.blur',
+  'content.lines.*.shadow.offX', 'content.lines.*.shadow.offY',
+  
+  // —— 背景参数（跨色块 / 跨层数同步，可选启用）——
+  'background.fills.*.color',         // 所有色块的纯色值可联动
+  'background.layout.directions.*',    // 所有层的旋转方向可联动
+  'background.boundary.params.A',      // 边界参数全局同步（A/ω/φ/k）
+  'background.boundary.params.ω',
+  'background.boundary.params.φ',
+  'background.boundary.params.k',
+  'background.shape.direction',        // 形状方向
+}
+```
+
+**注意**：background.* 的联动在架构层只定义了"注册表"，UI 上的联动链条图标是否显示、是否启用，由各模块详细设计时决定。核心联动逻辑（两阶段状态机）不变，只是 path 匹配范围从 `content.lines.i.X` 扩展到上述所有路径。
 
 #### 参数联动两阶段状态机（**P0 修正**）
 
@@ -389,15 +438,31 @@ function set(path, value, opts = { history: true }) {
 }
 
 // 新增行时 links 继承：全局有任何联动标记 → 新行全部可联动参数 links=true
-function addLine() {
-  const newLine = { ...DEFAULT_LINE, id: nextLineId };
-  const anyLinked = state.content.lines.some(l => 
-    Object.values(l.links).some(v => v === true)
-  );
-  if (anyLinked) {
-    Object.keys(newLine.links).forEach(k => newLine.links[k] = true);
+// **注意：content.lines 是固定 9 个元素的常驻数组，增减 lineCount = 修改对应行的 enabled 标记，
+//   不 push/pop 新行对象。需求 3.3 "行数减少参数不必重置，联动状态保留"。**
+function setLineCount(newCount) {
+  for (let i = 0; i < 9; i++) {
+    if (i < newCount) {
+      // 启用该行：如果该行从未被初始化过（默认 enabled=false），
+      // 则按 DEFAULT_LINE 初始化，同时继承联动状态
+      if (!state.content.lines[i].__initialized) {
+        state.content.lines[i] = { ...DEFAULT_LINE, id: nextLineId++ };
+        const anyLinked = state.content.lines.some(l =>
+          Object.values(l.links).some(v => v === true)
+        );
+        if (anyLinked) {
+          Object.keys(state.content.lines[i].links)
+            .forEach(k => state.content.lines[i].links[k] = true);
+        }
+        state.content.lines[i].__initialized = true;
+      }
+      state.content.lines[i].enabled = true;
+    } else {
+      state.content.lines[i].enabled = false;
+    }
   }
-  state.content.lines.push(newLine);
+  pushUndo();
+  emit('lines:changed');
 }
 ```
 
@@ -405,25 +470,28 @@ function addLine() {
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│ undoStack: [snapshot_1, snapshot_2, ... snapshot_20]        │
+│ undoStack: [snapshot_1, snapshot_2, ... snapshot_N]        │
 │   ↑ oldest                                             ↑ newest│
 │                                                             │
 │ redoStack: [] (被新操作清空时必须 deref redo 栈所有快照)      │
 │                                                             │
-│ 快照 = JSON.parse(JSON.stringify(state))                     │
-│   - content.lines[].imageId 保留字符串引用（不复制 base64）    │
-│   - session.presets[].imageIds / session.history[].imageIds  │
-│   - imageIds 数组 → 新快照入栈时对每个 id 调用 ImageRepo.ref() │
+│ **动态上限策略**（根据 navigator.deviceMemory 感知，需求四.2）：│
+│   ≤4GB → 10 条，≤8GB → 15 条，>8GB → 20 条                │
+│   FIFO 淘汰最旧快照时 deref 其 imageIds                    │
+│                                                             │
+│ 快照 = JSON.parse(JSON.stringify(state))                   │
+│   **仅序列化业务字段**（canvas/content/background/theme）   │
+│   **不序列化 session.* 和 ImageRepo**（base64 始终在 ImageRepo）│
+│   - imageId 保留字符串引用（不复制 base64）                │
+│   - 快照入栈时对所有 imageIds 调用 ImageRepo.ref()          │
 │                                                             │
 │ clearRedoWithDeref() 新操作覆盖 redo 时：                      │
-│   redoStack.forEach(snap => {                                  │
+│   redoStack.forEach(snap → {                                  │
 │     collectImageIds(snap).forEach(id => ImageRepo.deref(id));   │
 │   });                                                         │
 │   redoStack = [];                                              │
 │                                                             │
-│ undo() 执行后：                                               │
-│   - 把当前快照推入 redoStack（对该快照 ImageRepo.ref）         │
-│   - 从 undoStack 取出前一快照（ImageRepo.deref 最旧快照）      │
+│ undo() / redo()：执行栈间转移 + 同步对转移快照 ImageRepo.ref/deref │
 │                                                             │
 │ 入栈时机：                                                     │
 │   ✅ 参数变更（滑块 mouseup / 输入框 blur）                     │
@@ -546,14 +614,21 @@ const Fillers = {
 const Colors = {
   hexToRgb(hex), rgbToHsl(r,g,b), hslToRgb(h,s,l),
   
-  // —— 颜色方案生成 ——
-  // baseColor: 可切换的基准色；返回 N 个颜色数组
-  // 背景色修改后要触发 colors:changed 事件 → UI 重新调用 suggestions
-  suggestions(baseColor, type, n=6) {
-    // type: 'complementary' | 'analogous' | 'soft' | 'bright'
-    // 单色一键填充：直接设置 fills[i].mode='solid', fills[i].color=color
-    // 渐变填充：设置 fills[i].mode='gradient', fills[i].gradient={color1, color2, ...}
-  },
+  // —— **颜色方案生成（双向基准，避免做反）**——
+  // 需求 3.4：内容（每行）颜色建议基准 = 背景填充色
+  // 需求三 2.4：背景填充颜色建议基准 = 内容文本颜色（多行拼接取第一个）
+  // 两个独立入口 + 各自触发事件
+  suggestContentColors(backgroundColor, type='complementary', n=9)
+    // 触发：背景色变更 → event 'colors:contentBaseChanged'
+    // 返回每行独立建议；UI 显示在内容行颜色标签下方
+  
+  suggestFillColors(textColor, type='complementary', n=6)
+    // 触发：内容文本颜色变更 → event 'colors:fillBaseChanged'
+    // 返回每个色块建议；UI 显示在色块标签颜色选择器下方
+  
+  // type: 'complementary' | 'analogous' | 'soft' | 'bright'
+  // 单色一键填充：直接设置 fills[i].mode='solid', fills[i].color=color
+  // 渐变填充：设置 fills[i].mode='gradient', fills[i].gradient={color1, color2, ...}
   
   // —— 渐变生成 ——
   makeGradient(ctx, type, angle, color1, color2, size),
@@ -647,7 +722,8 @@ const Export = {
   toWebP(size) → blob('image/webp', 0.92)  // 不支持时隐藏按钮（能力检测）
   toICO()      → makeICO([16,32,48,64,128,256])  // **固定尺寸，不受 canvas.size 影响**
   toCanvas()   → 生成 `<canvas width=N height=N><script>DPI=1</script>` 文本
-  toJSON()     → JSON.stringify(state, 剥离 imageId 的 base64)
+  toJSON()     → **复用 Presets.export(state)**（剪裁量化 + 图片数据一同导出）
+                  需求 3.3 明确 "json 格式 = 导出预设"，故两者统一为同一函数
   // **HTML 与 presets.copyHTML() 是同一个函数**
   toHTML()     → 生成 `<link rel="icon" href=".../favicon.ico" sizes="...">
                           <link rel="apple-touch-icon" ...>` 等完整网页标签
@@ -805,11 +881,18 @@ const Images = {
   
   whiteToTransparent(imageData, threshold=128),
   
-  // —— 引用规则明确 ——
-  // 行 mode=image 的 imageId → 行切换时 deref 旧 ref 新
-  // 切换行（选中行变了）但两行都引用自己的 imageId → 不解除任何引用
-  // 切换 mode（text↔image↔fa）→ 解除旧 mode 引用，如有新 imageId 则 ref 新
-  // 动态增删行 → 移除行时 deref 该行所有可能的 imageId
+  // —— 引用规则明确（需求 2.8：更换图片解除旧引用；**切换行和模式不解除引用**）——
+  // ✅ 增减 ref 的场景（只有这些！）：
+  //   - 行 mode=image 更换 imageId → deref 旧 id + ref 新 id
+  //   - 背景 fill.mode=image 更换 imageId → deref 旧 + ref 新
+  //   - 快照入 undoStack/redoStack → ref 快照内所有 imageIds
+  //   - 快照淘汰 / redo 清空 / undo → deref 对应快照 imageIds
+  //   - history/presets 新增 → ref；删除 → deref
+  //   - 行删除（content.lineCount 减少，该行 enabled=false 并移除）→ deref 该行 imageIds
+  // ❌ 不增减 ref 的场景：
+  //   - 切换选中行（仅改 UI 选中态）
+  //   - 切换 mode（text↔image↔fa）：旧 imageId 保留在 state 中，ref 不变
+  //     （需求原文"切换行和模式不解除引用"）
 }
 ```
 
@@ -1244,3 +1327,74 @@ KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
 2. **填充色块标签标题规格**（原需求三3.1 "宽度与高度相同为方向"）— 经确认，**填充色块标签标题为正方形**：宽高相同，都 = 2×文本高度；底色为该色块 canvas 预览色。架构 ui.js 新增 createFillTabTitle 组件。
 
 3. **边界 params A、ω、φ、k 的合法数值范围** — 需求说"按函数安全给定范围"但未给具体数值。**架构暂定：A ∈ [-0.5, 0.5]，ω ∈ [0.01, 10]**。实现后可根据实际视觉效果调整。
+
+4. **命名规则 FA 代号与空文本兜底** — 需求写"FA 使用 FA 代号"，架构确认 = `fa_map.js` 中的 iconName（如 'heart'），不是 unicode。**全部图片/FA、无文本场景，文件名中间片段兜底为 "icon"**。
+
+5. **命名截断长度** — 需求只说"做总长度截断"，架构暂定 30 字符（超出截取）。
+
+6. **HTML 下载 vs 复制 HTML** — 需求 3.3 写"点击即下载对应格式的文件"，需求 2.1 又写"复制 HTML 到剪贴板"。架构确认：**HTML 下载 = 生成 .html 文件下载**（内含 link 标签套组）；**复制 HTML = 复制 link 标签文本到剪贴板**。两者接口参数化，同一底层实现。
+
+7. **FA 图标范围** — 需求写"FontAwesome6 全部图标"。架构确认 = **FontAwesome 6 Free**（约 2000+ 图标）。Pro 版本图标不在范围内，不支持商用版权合规的需求需后续评估。
+
+---
+
+## 十五、UI 视图状态 vs 业务 State 隔离
+
+| 状态类型 | 示例 | 是否进 undo 快照 | 是否导出预设/历史 | 刷新后 |
+|---------|------|:----:|:----:|:------:|
+| **业务 State** | canvas.size, content.lines[].text/color/angle, background.shape, fills, layout, boundary | ✅ | ✅ | ✅（持久化） |
+| **运行时资源** | ImageRepo（独立 Map）、字体加载缓存 | ❌ | ❌ | ❌（内存） |
+| **UI 视图状态** | 预览 zoomFactor/offsetX/offsetY、辅助线类型、安全边距%、标签激活、剪裁器弹窗、模态开关、滚动位置、主题选择 | ❌ | ❌ | ❌（瞬时） |
+
+**关键约束**：
+- UI 视图状态 **不得写入 state JSON**，单独由各模块内存维护
+- 响应式重布局（三栏→两栏→单栏）**只修改 DOM 视图，不修改 state 数据**
+- 标签激活状态 **独立维护**，不因重布局丢失
+- 辅助线/安全边距 **不导出**（preview 层绘制，render 导出层跳过）
+- 字体加载状态 **三种**：未加载 / 加载中 / 加载失败回退 — UI 必须全部处理
+
+---
+
+## 十六、架构风险与防护清单
+
+| # | 风险 | 来源 | 防护策略 |
+|---|------|------|---------|
+| 1 | **图片 ref/deref 不对称** | 多处增减引用（行/快照/历史/预设），任何一处漏写都会内存泄露或误释放 | ✅ 只在 6 个场景增减（见 images.js 引用规则）；详细设计阶段编写引用检查清单；实现时成对调用；单元测试覆盖 |
+| 2 | **Canvas clip 累积状态残留** | Canvas 2D clip 是累积的，save 后不 restore 会永久影响后续绘制 | ✅ 架构层强制约束：所有 clip 必须包裹在 save/clip/restore 范式中；禁止全局持久 clip |
+| 3 | **边界曲线数学崩溃** | 用户输入 ω=0、超范围参数，sin/tan 可产生无穷大 | ✅ 两层防护：schema 参数范围校验；render 渲染阶段二次截断兜底（ω=0 返回直线，超 10×canvas 截断） |
+| 4 | **撤销快照内存压力** | 全量 JSON 快照 20 条，state 对象本身含 lines[9]/fills[6] 多层嵌套 | ✅ 动态上限：deviceMemory ≤4GB→10, ≤8GB→15, >8GB→20；**快照不序列化 base64**（只存 imageId）；base64 始终在 ImageRepo |
+| 5 | **预设导出图片剪裁量化后不可还原** | 导出预设时图片被剪裁量化，导入后原始完整图片丢失 | ✅ 架构契约明确：预设 JSON 内图片数据是剪裁后片段，导入时注册进 ImageRepo；UI 在预设缩略图下可标注"图片裁剪版本" |
+| 6 | **字体加载异步竞态** | 字体加载与渲染线程不同步，首次显示可能用占位字符 | ✅ 三种状态 UI：未加载/加载中/失败回退；render 遇到未就绪字体时绘制占位 + 预览层提示 |
+| 7 | **响应式重布局丢失激活状态** | 三栏→两栏→单栏切换时标签组重新 DOM 渲染，原激活标签丢失 | ✅ 激活状态独立 DOM 属性维护（不属于 state）；重布局只改容器排列，不重建标签 |
+| 8 | **大尺寸预览 canvas 超浏览器上限** | canvas.size=8192、DPR=2 时预览 canvas 理论上 16384² 超多数浏览器 16K 上限 | ✅ 预览 canvas = 容器显示尺寸 × DPR，与导出彻底解耦；绘制时统一 scale；仅导出 canvas 是真实 1:1 尺寸 |
+| 9 | **双 CDN 全失效** | Tailwind/JSZip/字体都走 CDN，双 CDN 同时失效时整个 UI 不可用 | ✅ 最小本地兜底：预编译 Tailwind CSS 同时本地部署一份；JSZip 失败时禁用 ZIP 按钮并提示 |
+| 10 | **file:// 协议 CORS** | ES modules 在 file:// 下因 CORS 加载失败 | ✅ **架构决策**：所有 JS 用普通 `<script>` 标签按序加载（不走 ES modules）；双击 index.html 核心场景可用 |
+
+---
+
+## 十七、快照 Schema 边界
+
+### undo/redo 快照
+- **包含**：canvas, content（含全部 9 行参数）, background（shape/fills/layout/boundary/border/shadow）, theme, version
+- **不包含**：session.*, ImageRepo（base64）, 字体缓存, UI 视图状态, 预设计数器, 下次行 id
+- **体积控制**：快照 = JSON.parse(JSON.stringify(businessFields))，通常 <5KB/条
+
+### history 快照
+- 同 undo/redo 快照的业务字段集合
+- 额外带：缩略图（≤50px canvas blob）, 下载 mode, 下载时间戳
+
+### preset 快照（导出）
+- **包含**：完整业务字段 + **剪裁量化后的图片 base64**（Presets.export 处理）
+- JSON 体积：纯文字预设 <10KB；含图片的可能数百 KB
+
+### 事务式预设导入
+```
+importPresets(jsonText):
+  1. JSON.parse → 遍历所有 imageId → 对每个执行：
+     a. 解析剪裁区域
+     b. 从 ImageRepo 或 preset.base64 取数据
+     c. 剪裁量化 → 注册到 ImageRepo → 得到新 imageId
+  2. 参数合法性校验：多余参数抛弃，缺失补默认值
+  3. **原子替换**：全部成功才入列，失败不破坏 state、ImageRepo、现有 presets
+  4. 返回 { success[], warnings[], failures[] }
+```
