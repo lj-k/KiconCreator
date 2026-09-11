@@ -106,9 +106,13 @@ main.js ─┬─ schema.js
          │                └─ ui.js (模态)
          ├─ presets.js ──┬─ state.js
          │                ├─ images.js
+         │                ├─ render.js   /* **GLM5.3 P1-7 补边**：renderList 缩略图走 render → toBlob */
          │                └─ utils.js
          ├─ history.js ──┬─ state.js
+         │                ├─ render.js   /* **GLM5.3 P1-7 补边**：record/restore 缩略图 render → toBlob */
+         │                └─ utils.js
          ├─ export.js ──┬─ state.js
+         │                ├─ presets.js /* **GLM5.3 P1-7 补边**：export 复用 Presets.toJSON，toHTML 与 Presets.copyHTML 同一实现 */
          │                ├─ render.js
          │                ├─ colors.js
          │                └─ utils.js
@@ -137,14 +141,24 @@ main.js ─┬─ schema.js
   "version": "2.02",
   "canvas": {
     "size": 256,        /* 默认 256；<0→16, >10000→8192；快速下拉+自定义 */
-    "transparent": false /* 语义：白色键控透明（不是"是否填白"）；JPG 不支持透明 */
+    "transparent": false /* **统一语义**：画布背景是否透明（shape=none 时决定"按白导出还是透明导出"）；
+       白色键控透明是**导出层独立后处理**（getImageData 把接近白色像素 alpha 置 0），
+       不依赖此开关，shape 非 none 时导出层始终做白色键控；
+       行图片白色转透明 = line.whiteToTransparent（行级独立参数），
+       三者正交，互不替代；JPG 不支持透明 → 强制 opaque 并提示 */
   },
   "theme": "bright",     /* bright | retro | dark */
   
   "content": {
     "lineCount": 2,
     "arrangement": "top-bottom",   /* 见 layouts.js 完整枚举 */
-    "layerOrder": "9-to-1",        /* 9-to-1 = 绘制顺序 9→8→…→1，行1 最顶层 */
+    "layerOrder": "9-to-1",        /* **GLM5.3 P1-8 补方向映射**：枚举值描述绘制方向（先画→后画）
+       | state 值 | 绘制顺序（先→后） | 行 1 位置 | 需求 UI 文案 |
+       |----------|-----------------|----------|------------|
+       | '9-to-1' | 9→8→7→…→1 | 最后画 = 最顶层（覆盖其他） | "1行最前" / "1→9" |
+       | '1-to-9' | 1→2→3→…→9 | 最先画 = 最底层（被覆盖） | "9行最前" / "9→1" |
+       枚举描述"先画→后画"方向；UI 显示"顶层/底层"概念；两者**方向相反**，
+       实现必须按此映射表做转换，不能直接把枚举当成 UI 文案显示 */
     "lines": [
       /* 9 个完整 line 对象（无论 lineCount 多少都常驻）
          显示由 enabled 控制；增减 lineCount 时 links 初始化：
@@ -201,7 +215,7 @@ main.js ─┬─ schema.js
       "size": false, "angle": false, "scaleX": false, "scaleY": false,
       "offsetX": false, "offsetY": false, "clipToShape": false,
       "color.mode": false, "color.color1": false, "color.color2": false,
-      "color.gradientAngle": false,
+      "color.gradientAngle": false, "color.gradientType": false,  /* **GLM5.3 P1-4 补齐：LINKABLE_LINE_PARAMS 与 _lineDef.links 对齐** */
       "shadow.enabled": false, "shadow.color": false,
       "shadow.size": false, "shadow.blur": false,
       "shadow.offX": false, "shadow.offY": false
@@ -215,7 +229,7 @@ main.js ─┬─ schema.js
       "size": 100,        /* 1~300%；默认值使长边=画布尺寸 */
       "stretchX": 100, "stretchY": 100, /* **形状独立拉伸（P0 新增）** */
       "direction": 0,     /* **方向=0 时最下边水平**；pie 多层方向存 layout.directions[] */
-      "arc": 22,          /* 圆角方形: 0=直角, 100=圆; 边形弧度: 100=圆 */
+      "arc": 0,             /* **需求 1.1.2 默认值=0**；圆角方形: 0=直角, 100=圆; 边形弧度: 100=圆 */
       "innerAngle": 60    /* 角星 0~90°；=0 时形状消失（UI 红字提示） */
     },
     "fillCount": 2,       /* 1~6；fills 数组常驻 6 项，增减数量时不重置未显示项 */
@@ -251,8 +265,11 @@ main.js ─┬─ schema.js
       /* 层间比例：层数-1 个，均分按钮重置为 1/layers
          层内比例：按层分配，每块色-1 个分界线
          无法均分时分配最外层/最上层 */
-      "layerRatios": [0.5],
-      "ratios": [0.5, 0.5],
+      "layerRatios": [0.5],   /* 层间比例：layers-1 个 */
+      /* **P0 修正：按层分组**（deepseek 评审指出扁平数组无法表达每层独立分界线）
+         二维数组，长度=层数；第 i 层内部有 (每层色块数-1) 个分界线值；
+         每层分界线数量 = (该层色块数-1)，不是全层统一 */
+      "ratios": [[0.33, 0.66], [0.5]],
       "directions": [0],      /* **P0 修正：数组，长度=层数**
                                  matrix type → 整个填充旋转
                                  pie type + layers≥2 → 每层独立方向
@@ -421,24 +438,24 @@ function toggleLink(lineIdx, subPath, isLink, { propagate: true }) {
   updateLinkIcons();
 }
 
-// set 值同步阶段（与原架构相比，标记处理移到 toggleLink 中）
+// set 值同步阶段（GLM5.3 P0-3 修正：联动同步与 history 解耦）
+// 需求："调整任意行，所有勾选联动的行同步变化" — 同步必须实时，与是否入栈无关
 function set(path, value, opts = { history: true }) {
   const oldVal = get(path);
   if (oldVal === value) return;
   // 1. 修改当前行
   setDirect(path, value);
   
-  if (opts.history) {
-    // 2. 同步所有标记了联动的其它行
-    const lineIdx = parseInt(path.split('.')[2]);
-    const subPath = path.split('.').slice(3).join('.');
-    state.content.lines.forEach((line, i) => {
-      if (i === lineIdx) return;
-      if (line.links[subPath]) {
+  // 2. **始终同步所有标记了联动的其它行**（拖动中 history=false 也要实时联动！）
+  //    GLM5.3 评审指出原逻辑把同步放在 if (opts.history) 里 → 拖动中不联动
+  const lineIdx = parseInt(path.split('.')[2]);
+  const subPath = path.split('.').slice(3).join('.');
+  state.content.lines.forEach((line, i) => {
+    if (i === lineIdx) return;
+    if (line.links[subPath]) {
         setDirect(`content.lines.${i}.${subPath}`, value);
       }
     });
-  }
   
   // 3. 快照 + 清空 redo
   if (opts.history) {
@@ -449,35 +466,29 @@ function set(path, value, opts = { history: true }) {
   emit('state:changed', path);
 }
 
-// 新增行时 links 继承：**按参数继承**，而非全部参数（deepseek 评审指出原逻辑过宽）
-//   对每个可联动参数，若已有行该参数 links=true → 新行该参数 links=true
-//   这样只继承已勾选的那些参数，不会让新行全部参数都联动
-// **注意：content.lines 是固定 9 个元素的常驻数组，增减 lineCount = 修改对应行的 enabled 标记，
-//   不 push/pop 新行对象。需求 3.3 "行数减少参数不必重置，联动状态保留"。
-//   行数减少时仅 enabled=false，**不 deref 图片引用**（ImageRepo 计数不改变），
-//   否则 5s 延迟释放后图片丢失（deepseek #19 + GLM5.3 M3）。**
+// **GLM5.3 P1-10 修正：删除 __initialized 懒初始化**
+// content.lines 是**固定 9 个完整 line 对象的常驻数组**（初始化时一次性创建），
+// 增减 lineCount = 仅修改对应行的 enabled 标记，不 push/pop。
+// 需求 3.3 "行数减少参数不必重置，联动状态保留"。
+// 行数减少时仅 enabled=false，**不 deref 图片引用**（ImageRepo 计数不改变），
+// 否则 5s 延迟释放后图片丢失（deepseek #19 + GLM5.3 M3）。
+function initLines9() {
+  // 初始化 state.content.lines = 9 个完整对象（每个深拷贝 DEFAULT_LINE）
+  // 按参数继承联动：对每个可联动参数，若已有行该参数 links=true → 新行该参数 links=true
+  const lines = [];
+  for (let i = 0; i < 9; i++) {
+    lines.push({ ...DEFAULT_LINE, id: nextLineId++, enabled: i < defaultLineCount });
+  }
+  // 后处理联动继承（从 enabled 行传播到 disabled 行）
+  LINKABLE_LINE_PARAMS.forEach(paramKey => {
+    const anyEnabledRowHas = lines.some(l => l.enabled && l.links[paramKey]);
+    lines.forEach(l => { if (!l.enabled && anyEnabledRowHas) l.links[paramKey] = true; });
+  });
+  return lines;
+}
 function setLineCount(newCount) {
   for (let i = 0; i < 9; i++) {
-    if (i < newCount) {
-      // 启用该行：如果该行从未被初始化过（默认 enabled=false），
-      // 则按 DEFAULT_LINE 初始化，同时按参数继承联动状态
-      if (!state.content.lines[i].__initialized) {
-        state.content.lines[i] = { ...DEFAULT_LINE, id: nextLineId++ };
-        // 按参数继承：对每个可联动参数，检查已有行是否有该行 links=true
-        LINKABLE_LINE_PARAMS.forEach(paramKey => {
-          const anyRowHas = state.content.lines.some(l =>
-            l.enabled && l.links && l.links[paramKey] === true
-          );
-          if (anyRowHas) {
-            state.content.lines[i].links[paramKey] = true;
-          }
-        });
-        state.content.lines[i].__initialized = true;
-      }
-      state.content.lines[i].enabled = true;
-    } else {
-      state.content.lines[i].enabled = false;
-    }
+    state.content.lines[i].enabled = i < newCount;
   }
   pushUndo();
   emit('lines:changed');
@@ -713,7 +724,7 @@ render(canvas, state, { mode: 'export' })
   │     │     │         textLayout=ring → 环形向心（直径=canvasSize，fonts.js）
   │     │     │         textLayout=vertical → 纵排（每字换行）
   │     │     │       mode=image → images.drawClipped()
-  │     │     │         image.whiteToTransparent → 逐像素白色转透明
+  │     │     │         **GLM5.3 P1-11 修正路径**：line.whiteToTransparent（行级顶层字段，不是 image 子对象下的）→ 逐像素白色转透明
   │     │     │       mode=fa → fonts.drawFA()
   │     │     │     ctx.restore();
   │     │     ├─ ctx.restore();
@@ -741,7 +752,12 @@ const Export = {
   toJPG(size)  → blob('image/jpeg', 0.92)  // 强制不透明
   toWebP(size) → blob('image/webp', 0.92)  // 不支持时隐藏按钮（能力检测）
   toICO()      → makeICO([16,32,48,64,128,256])  // **固定尺寸，不受 canvas.size 影响**
-  toCanvas()   → 生成 `<canvas width=N height=N><script>DPI=1</script>` 文本
+  toCanvas()   → 生成**完整自包含 HTML 页面**（GLM5.3 P0-4 补全）：
+                包含 `<canvas width=N height=N>` + 内联 `<script>`
+                脚本内序列化当前 state（base64 图片数据内嵌）
+                + 嵌入简化版绘制逻辑（从 render.js 裁剪可序列化子集）
+                DPI 固定 1x，画布尺寸 = canvas.size 参数值
+                页面保存后可离线独立运行，双击打开显示生成的图标
   toJSON()     → **复用 Presets.export(state)**（剪裁量化 + 图片数据一同导出）
                   需求 3.3 明确 "json 格式 = 导出预设"，故两者统一为同一函数
   // **HTML 与 presets.copyHTML() 是同一个函数**
@@ -760,7 +776,7 @@ const Export = {
     const textContent = collectAllContentText(state);
     // textContent 拼接规则：
     //   text 模式 → 实际文本
-    //   FA 模式 → faMap[faIcon].unicode 或 iconName（FA 代号）
+    //   FA 模式 → 直接使用 faIcon（= fa_map.js 中的 iconName，如 'heart'；不是 unicode）
     //   image 模式 → image.name（原文件名，去扩展名）
     //   多行 → 直接拼接无分隔符
     const filtered = textContent.replace(/[\/\\:*?"<>|]/g, '').slice(0, 30);
@@ -865,7 +881,8 @@ const Preview = {
   
   // —— 模态查看器 ——
   openModal(),
-  closeModal(),   // ESC / 关闭按钮 / 模态内双击复位 zoom+offset
+  closeModal(),   // **仅 ESC / 关闭按钮**退出模态。模态内双击 = resetZoomOffset()（只复位 zoom+offset，不关闭模态）
+  resetZoomOffset() // 模态内双击触发；需求 1.4 明确区分"复位"与"关闭"
   
   // —— **放大按钮**（多栏模式专用）——
   // ui.js 把左栏 width 从 1/3 → 50vw
@@ -916,15 +933,20 @@ const Images = {
   //   切换行数（enabled=false）→ **不 deref**，state 中 imageId 保持（deepseek #19 + GLM5.3 M3）
   //   历史/预设删除 → deref 其持有引用
   //
-  // ✅ 增减 ref 的场景（只有这些！）：
-  //   - 行 mode=image 更换 imageId → deref 旧 id（减 1）+ ref 新 id（加 1）
+  // ✅ 增减 ref 的场景（只有这些！总账模型：当前 state 1 份 + 每份快照 1 份）：
+  //   - 行 mode=image 更换 imageId → deref 旧 id（减 1，state 的那份）+ ref 新 id（加 1）
   //   - 背景 fill.mode=image 更换 imageId → 同上
-  //   - pushUndo → 对快照内所有 imageIds 各 +1
+  //   - pushUndo → 对新快照内所有 imageIds 各 +1
   //   - clearRedoWithDeref → 对 redoStack 所有快照内 imageIds 各 -1
-  //   - undo/redo 栈间转移 → 转出方栈 -1 + 转入方栈 +1
   //   - FIFO 淘汰最旧 undo → 对被淘汰快照 imageIds 各 -1
   //   - history/presets 新增 → ref；删除 → deref
-  // ❌ 不增减 ref 的场景：
+  //   - 历史 recover / 预设 apply → 对目标独有的 ref，对旧 state 独有的 deref
+  // ❌ **不是"不增减 ref"，而是净变化为 0！**（GLM5.3 P0-1 勘误后最终口径）：
+  //   - undo() 拍 currentSnap 入 redoStack → **必须 +1**（redoStack 新增持有）
+  //   - redo() 拍 currentSnap 入 undoStack → **必须 +1**（undoStack 新增持有）
+  //   - 同时 state 变了（不再持有原 state 的图片）→ deref 原 state 独有的（-1）
+  //   - 净变化 = 0（+1-1），所以看起来"不增减"，但**两步都要做**
+  //     这就是第九节伪代码 ref(currentSnap.imageIds) + derefOnlyIn 的作用
   //   - 切换选中行（仅改 UI 选中态）
   //   - 切换 mode（text↔image↔fa）：旧 imageId 保留在 state 中，ref 不变
   //     （需求原文"切换行和模式不解除引用"）
@@ -964,8 +986,35 @@ const Presets = {
   
   // —— 保存当前为预设 ——
   saveCurrent(name) {
-    // 等同于 export → push 到 state.session.presets
-    // 【UI 细节】保存按钮 hover 提示文案："保存仅本次有效，刷新页面丢失"
+    // **P0 修正：会话内预设只存 imageId 引用，不存 base64**（deepseek 评审）
+    // 1. 遍历当前 state 的所有 imageId → 对每张图片：
+    //    a. 如果有裁剪 → 剪裁量化（canvas.drawImage + toDataURL）→ 注册进 ImageRepo → 得到新 imageId
+    //    b. 如果全图可见 → 直接 ImageRepo.ref 现 imageId
+    // 2. 组装预设 JSON（**只有业务参数 + imageId，没有 base64**）
+    // 3. push 到 state.session.presets
+    // 4. 对新增的 imageId 各 +1（ImageRepo 引用）
+    // 【UI 细节】保存按钮 hover 提示："保存仅本次有效，刷新页面丢失"
+  },
+  
+  // —— **导入与应用分离**（deepseek 评审）——
+  importPresets(jsonText) {
+    // 只做：JSON.parse → 单条事务原子解析图片剪裁片段 → 注册 ImageRepo → 加入预设列表
+    // **不替换当前 state**（那是 applyPreset 的事）
+    // 返回 { success[], warnings[], failures[] } — 单条事务原子，批量允许部分成功
+    //   success[i] = 导入成功的预设条目（带新 imageId）
+    //   warnings[i] = 参数差异的预设（返回差异参数路径列表）
+    //   failures[i] = 导入失败的预设（返回失败原因）
+    // UI 必须展示：成功数量、差异数量+具体参数、失败数量+名称+原因
+  },
+  
+  applyPreset(presetId) {
+    // 替换当前 state + 处理图片引用转移
+    // 1. 获取目标预设的 imageIds 列表
+    // 2. 对当前 state 的旧 imageIds → 如果目标预设没有这些 id → deref（减 1）
+    // 3. 对目标预设的 imageIds → 如果当前 state 没有 → ref（加 1）
+    // 4. state = deepClone(preset.businessFields)
+    // 5. pushUndo()
+    // 6. emit('state:changed')
   },
   
   // —— 复制 JSON 到剪贴板 ——
@@ -997,7 +1046,16 @@ const History = {
   },
   
   recover(id) {
-    // 恢复到 state → 触发 render
+    // **P0 补充：引用转移总账**（deepseek 评审）
+    // 类似 undo/redo：当前 state 占 1 份，历史条目占 1 份，恢复只改"持有者"
+    // 1. oldImageIds = collectImageIds(state)
+    //    newImageIds = collectImageIds(history[id])
+    // 2. 对 old 独有 → deref（state 不再持有）
+    //    对 new 独有 → ref（state 新增持有）
+    //    对交集 → 不变（历史条目那份引用保留，state 也持有 → 引用翻倍）
+    // 3. state = deepClone(history[id].businessFields)
+    // 4. pushUndo() + emit('state:changed')
+    // 5. 历史条目本身继续持有引用（history 列表永久持有，直到删除）
   },
   
   // —— 交互：右键/长按显示删除按钮 ——
@@ -1114,7 +1172,7 @@ const ImageRepo = {
   
   // —— 引用来源清单 ——
   //   content.lines[i].imageId → +1
-  //   content.lines[i].image.whiteToTransparent 不产生新引用（是派生）
+  //   content.lines[i].whiteToTransparent **GLM5.3 P1-11 修正**：行级顶层字段，不是 image 子对象；不产生新引用（是派生）
   //   background.fills[j].image.imageId → +1
   //   undoStack 每条快照 → 对所有 imageIds +1（入栈时 ref）
   //   redoStack 每条快照 → 对所有 imageIds +1（入栈时 ref）
@@ -1206,25 +1264,26 @@ undoStack → [old, current]
 undoStack 大小超 20          ← FIFO 淘汰最旧快照
   → deref 被淘汰快照 imageIds
 
-undo() / redo() **栈间转移不增减 ref**（只是把"持有引用"从 undoStack 转到 redoStack 或反过来）：
+undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）：
   undo()：
-    currentSnap = JSON.parse(JSON.stringify(state))  // 当前 state 的快照 → 推入 redoStack
+    currentSnap = JSON.parse(JSON.stringify(state))  // 拍新快照 → 推入 redoStack
     undoStack.pop(previousSnap)
-    redoStack.push(currentSnap)  // 从 state 转移到 redoStack，ref 不变
-    // 关键：apply previousSnap 到 state 时
-    //   - previousSnap 原来的 undoStack 那份引用（+1）现在变成 state 的引用（+1）—— 引用数不变
-    //   - currentSnap 里有而 previousSnap 里没有的 imageIds → deref（state 不再持有它们的那 1 份）
-    //     （currentSnap 已推入 redoStack，redoStack 那份引用由它自己持有）
-    ImageRepo.derefOnlyIn(currentSnap, previousSnap)  // currentSnap 独有的 imageIds → -1
-    state = previousSnap
+    redoStack.push(currentSnap)
+    // **关键：新快照入栈必须 ref +1**（redoStack 新增持有）
+    currentSnap.imageIds.forEach(id => ImageRepo.ref(id))
+    state = previousSnap  // state 变了
+    // 对 currentSnap 独有的图片做 deref -1（原 state 不再持有）
+    // 净变化 = ref +1（redoStack 持有） - deref 1（state 不再持有）= 0
+    ImageRepo.derefOnlyIn(currentSnap, previousSnap)
     emit('state:changed')
 
   redo()：对称操作
     currentSnap = JSON.parse(JSON.stringify(state))
     redoStack.pop(targetSnap)
     undoStack.push(currentSnap)
-    ImageRepo.derefOnlyIn(currentSnap, targetSnap)
+    currentSnap.imageIds.forEach(id => ImageRepo.ref(id))  // +1
     state = targetSnap
+    ImageRepo.derefOnlyIn(currentSnap, targetSnap)          // -1 对独有
     emit('state:changed')
 
 **pushUndo 入栈**：
@@ -1285,7 +1344,7 @@ undo() / redo() **栈间转移不增减 ref**（只是把"持有引用"从 undoS
 **命名规则（所有格式 + ZIP 内部成员统一走 makeName()）：**
 ```
 KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
-  canvas/ico/json/html/canvas/zip → 去 {size}
+  canvas/ico/json/html/zip → 去 {size}
   text 模式 → 实际文本
   FA 模式 → iconName（FA 代号）
   image 模式 → 原文件名（去扩展名）
@@ -1452,6 +1511,10 @@ importPresets(jsonText):
      b. 从 ImageRepo 或 preset.base64 取数据
      c. 剪裁量化 → 注册到 ImageRepo → 得到新 imageId
   2. 参数合法性校验：多余参数抛弃，缺失补默认值
-  3. **原子替换**：全部成功才入列，失败不破坏 state、ImageRepo、现有 presets
+  3. **单条事务原子、批量允许部分成功**（GLM5.3 P0-2 修正，与 4.12 importPresets 返回 { success[], warnings[], failures[] } 对齐）：
+     每条预设独立事务：全部成功才入列；该条失败不入列但出现在失败报告中；
+     成功条目立即入 state.session.presets 列表并注册 ImageRepo；
+     失败条目不破坏 state、ImageRepo、现有 presets；
+     UI 必须展示：成功数量、差异数量+具体参数路径、失败数量+名称+原因
   4. 返回 { success[], warnings[], failures[] }
 ```

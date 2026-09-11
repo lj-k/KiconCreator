@@ -88,3 +88,74 @@
 经产品方确认两条需求歧义后补齐：
 - 旋转中心双轨明确化（content = 本行内容中心；background = 形状中心）
 - 填充色块标签 UI 规格明确化（正方形 2×文本高度 + canvas 预览底色 + "纯/渐/图"三态按钮）
+
+---
+
+## v0.01 第四轮遗漏修复（2026-09-11）
+
+系统回溯三份评审所有条目，发现 5 个真遗漏（前三轮修订中漏掉的）。
+
+### deepseek 内部矛盾
+11. **closeModal 注释混入"模态内双击"**（deepseek 内部矛盾 #5）：closeModal() 仅处理 ESC/关闭按钮退出；模态内双击 = 新增 resetZoomOffset()（只复位 zoom+offset 不关闭）。需求 1.4 明确区分
+
+### GLM5.3 P1：文档内部不一致
+12. **依赖图缺 3 条边**（GLM5.3 P1-7）：
+    - presets.js → render.js：renderList 缩略图
+    - history.js → render.js：record/restore 缩略图
+    - export.js → presets.js：export 复用 Presets.toJSON
+13. **layerOrder 枚举方向无映射**（GLM5.3 P1-8）：枚举描述绘制方向（先→后），UI 描述"顶层/底层"概念，方向相反。加显式映射表
+14. **whiteToTransparent 路径写错 image 子对象**（GLM5.3 P1-11）：schema L183 确认是行级顶层字段；render.js L727 和 images.js L1168 错写为 line.image.whiteToTransparent → 修正为 line.whiteToTransparent
+15. **FA makeName 写 unicode 或 iconName**（GLM5.3 M9）：L764 makeName 注释与十四节歧义确认矛盾 → 统一为 iconName（不是 unicode）
+
+### 一致性校验
+- whiteToTransparent 全文档 5 处：schema L147/L183、render L727、images 模块 L914、引用清单 L1168 → 全部 line.whiteToTransparent ✅
+- closeModal / resetZoomOffset 分离：L879-880 ✅
+- FA iconName 统一：schema L184、makeName L774、歧义清单 L1439 → 全部 iconName ✅
+- 依赖图 3 条补边：L109/L112/L115 ✅
+- layerOrder 映射表：L155-161 ✅
+---
+
+## v0.01 自我评审勘误（2026-09-11）
+
+8 维度系统扫：schema 字段 / 伪代码自洽 / 引用记账配平 / 渲染路径 / 模块边界 / 歧义清单覆盖 / typo。
+
+### P0：undo/redo 引用记账自相矛盾（最严重，会导致 redo 丢图）
+
+4.11 L922 白名单已写"undo/redo 入栈 ref +1"，但 L939-942 又写"栈间转移不增减 ref"，第九节伪代码只做了 derefOnlyIn 漏了 ref +1。三处互斥。
+
+用总账模型配平（refCount = state 1 份 + 每份快照 1 份）：
+- undo() 拍 currentSnap 入 redoStack → **必须 ref +1**（redoStack 新增持有）
+- state 从 C 变 B → 对原 state 独有图片 deref -1
+- 净变化 = 0
+
+如果只做 deref -1 不做 ref +1，currentSnap 独有的图片会归 0 引用进入 5s 延迟释放，redo 回来丢图。
+
+修正：
+- 4.11 "不增减 ref" 注释改为"净变化为 0，但两步都要做"
+- 第九节 undo() 伪代码补 currentSnap.imageIds.forEach(id => ImageRepo.ref(id))
+- redo() 对称补
+
+### P1：toCanvas 描述太简（GLM5.3 P0-4 遗留）
+
+原 L755 只写 <canvas width=N><script>DPI=1</script> 一行。需求是完整自包含 HTML 页面，需：
+- 自包含 state 序列化（base64 图片内嵌）
+- 简化版绘制逻辑（从 render.js 裁剪可序列化子集）
+
+已补完整说明。
+
+### P1：命名规则 typo
+
+L1342 重复 canvas（canvas/ico/json/html/canvas/zip）→ 去重为 canvas/ico/json/html/zip。
+
+### 8 维度扫结论
+
+| 维度 | 扫的点 | 结果 |
+|------|--------|------|
+| schema 字段一致性 | line vs fill 的 imageId 路径 | ✅ line 顶层 imageId / fill.image.imageId |
+| LINKABLE_LINE_PARAMS vs _lineDef.links | 键集合 | ✅ 各 18 个完全对齐 |
+| undo/redo 引用记账 | 总账配平 | ✅ 已修净变化为 0 |
+| 渲染图片路径 | line/fill 图片绘制 | ✅ 路径正确 |
+| 模块依赖图 | 14 模块 3 条补边 | ✅ presets→render / history→render / export→presets |
+| 歧义清单 7 条 | 经确认的正文覆盖 | ✅ 全部覆盖 |
+| typo | 重复 canvas | ✅ 去重 |
+| 默认值一致性 | direction=0 / arc=0 | ✅ 两处 schema 统一 |
