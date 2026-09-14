@@ -12,7 +12,6 @@
   --shadow-lg:0 12px 34px rgba(16,24,40,.12);
   --topbar-h: 54px;
   --merge-tabs-h: 44px;
-  --preview-max-h: 33vh; /* 由 JS 动态更新 */
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 html[data-theme="light"]{
@@ -236,19 +235,17 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .btn.icon svg{width:14px;height:14px}
 
 /* ============================================================
-   预览 —— 高度由 CSS 变量 --preview-max-h 控制（JS 动态计算）
-   规则：
-   - 栏内空间充足：尽量大（不超过栏高 55%）
-   - 栏内空间不足：不超过栏高 1/3
+   预览模块
+   —— 高度由 JS 动态设置：
+      · 三栏/两栏：高度 = 宽度（正方形），画布充分利用
+      · 单栏：受栏高限制（不超过 1/3 或可用空间 55%）
    ============================================================ */
 .module-preview{
-  height: var(--preview-max-h, 33vh);
   min-height: 160px;
-  max-height: var(--preview-max-h, 33vh);
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
-  transition: height .18s ease-out, max-height .18s ease-out;
+  transition: height .18s ease-out;
 }
 .module-preview .module-body{
   flex:1 1 auto;min-height:0;
@@ -257,7 +254,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .preview-stage{
   position:relative; display:flex; align-items:center; justify-content:center;
   padding:12px; border-radius:var(--radius-sm);
-  border:1px solid var(--border); min-height:100px;
+  border:1px solid var(--border); min-height:80px;
   flex:1 1 auto; min-height:0;
   background-color:var(--checker-a);
   background-image:
@@ -311,6 +308,27 @@ html[data-layout="two"] .merge-tabs{display:flex}
   padding:2px 7px;border-radius:6px;
 }
 .dot-sep{opacity:.5}
+.hint-text{margin-left:auto}
+
+/* 三栏/两栏下，压缩 head/body/stage 内边距，让 stage 更接近正方形 */
+html[data-layout="three"] .module-preview .module-head,
+html[data-layout="two"] .module-preview .module-head{
+  padding:6px 10px;
+  min-height:34px;
+}
+html[data-layout="three"] .module-preview .module-body,
+html[data-layout="two"] .module-preview .module-body{
+  padding:8px 10px 10px;
+  gap:5px;
+}
+html[data-layout="three"] .module-preview .preview-stage,
+html[data-layout="two"] .module-preview .preview-stage{
+  padding:8px;
+}
+html[data-layout="three"] .module-preview .hint-text,
+html[data-layout="two"] .module-preview .hint-text{
+  display:none; /* 三栏/两栏空间紧凑，隐藏提示 */
+}
 
 .preview-placeholder{display:none;flex:0 0 auto}
 
@@ -831,7 +849,7 @@ input[type=range]::-moz-range-thumb{
           <label class="mini-check"><input type="checkbox" id="safeChk" checked> 安全边距</label>
           <input class="num" id="safePct" value="10" style="width:36px;flex:0 0 36px;height:20px">
           <span>%</span>
-          <span style="margin-left:auto">滚轮缩放 · 双击复位 / 模态预览</span>
+          <span class="hint-text">滚轮缩放 · 双击复位 / 模态预览</span>
         </div>
       </div>
     </section>
@@ -1234,69 +1252,84 @@ function syncPreviewLayout(){
 }
 
 /* ============================================================
-   预览高度自适应
+   预览高度自适应（核心）
    ------------------------------------------------------------
-   规则：
-   - 先测量栏内「其他模块」总高度（预览不参与，防止循环依赖）
-   - 计算剩余可用空间
-   - 空间充足 → 预览尽量大（不超过栏高 55%，也不超过可用空间）
-   - 空间不足 → 预览不超过栏高 1/3
-   - 结果写入 CSS 变量 --preview-max-h
+   三栏 / 两栏：预览模块高度 = 宽度（正方形）
+      → 使模块内部 stage 尽量接近正方形，画布充分利用
+      → 上限保护：不超过栏高的 90%（避免极端窄高视口）
+      → 下限保护：不小于 180px
+   单栏：受栏内可用空间约束
+      → 空间充足：不超过可用空间，也不超过栏高 55%
+      → 空间不足：不超过栏高 1/3
+      → 上下限：150px ~ 栏高 70%
    ============================================================ */
 function updatePreviewHeight(){
   const preview = $('.module-preview');
   if (!preview) return;
   const mode = document.documentElement.dataset.layout;
 
-  /* 找到预览所在栏容器 */
-  let col;
   if (mode === 'one'){
-    col = $('.layout');
-  } else {
-    col = preview.parentElement; /* .col-left */
+    updatePreviewHeightSingle(preview);
+    return;
   }
-  if (!col) return;
 
-  /* 栏可用高度 */
-  let colH = col.clientHeight;
-  if (mode === 'one'){
-    const topbarH = parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')
-    ) || 54;
-    colH = Math.max(col.clientHeight, window.innerHeight - topbarH - 20);
+  /* 三栏/两栏：预览模块 = 正方形 */
+  const rect = preview.getBoundingClientRect();
+  const w = rect.width;
+  if (w <= 0) return;
+
+  let targetH = w;
+
+  /* 上限保护：极端比例视口下防止预览撑爆整个栏 */
+  const col = preview.parentElement;
+  const colH = col ? col.clientHeight : window.innerHeight;
+  const maxAllowed = Math.max(180, colH * 0.9);
+  targetH = Math.min(targetH, maxAllowed);
+  targetH = Math.max(targetH, 180);
+
+  preview.style.height = Math.round(targetH) + 'px';
+
+  /* 若预览浮动，同步占位高度 */
+  if (document.body.classList.contains('preview-float')){
+    document.documentElement.style.setProperty('--preview-placeholder-h', Math.round(targetH) + 'px');
   }
+}
+
+/* 单栏：受可用空间限制 */
+function updatePreviewHeightSingle(preview){
+  const col = $('.layout');
+  if (!col) return;
+  const topbarH = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')
+  ) || 54;
+  const colH = Math.max(col.clientHeight, window.innerHeight - topbarH - 20);
   if (colH <= 0) return;
 
-  /* 测量其他模块（除预览和占位）的总高度 */
+  /* 测量其他模块总高度（排除预览与占位） */
   const siblings = Array.from(col.children).filter(el =>
     el.classList.contains('module') && !el.classList.contains('module-preview')
   );
   const cs = getComputedStyle(col);
-  const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 14;
+  const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 12;
 
   let otherH = 0;
-  siblings.forEach(m => {
-    otherH += m.getBoundingClientRect().height;
-  });
+  siblings.forEach(m => { otherH += m.getBoundingClientRect().height; });
   if (siblings.length > 0) otherH += (siblings.length - 1) * gap;
 
-  /* 剩余可用空间（留一点余量，避免刚好卡在临界点） */
-  const padding = 20;
-  const available = colH - otherH - padding;
-
+  const available = colH - otherH - 20;
   let maxH;
   if (available >= 320){
-    /* 空间充足：预览尽量大，但不超过栏高 55% */
     maxH = Math.min(available, colH * 0.55);
   } else {
-    /* 空间不足：不超过栏高 1/3 */
     maxH = colH / 3;
   }
-
-  /* 上下限保护 */
   maxH = Math.max(150, Math.min(maxH, colH * 0.7));
 
-  document.documentElement.style.setProperty('--preview-max-h', Math.round(maxH) + 'px');
+  preview.style.height = Math.round(maxH) + 'px';
+
+  if (document.body.classList.contains('preview-float')){
+    document.documentElement.style.setProperty('--preview-placeholder-h', Math.round(maxH) + 'px');
+  }
 }
 
 /* ============================================================
@@ -1358,13 +1391,13 @@ function checkTabExpansion(){
 }
 
 /* ============================================================
-   统一刷新：严格顺序，避免循环依赖
+   统一刷新：严格顺序
    1. 顶栏高度
    2. 布局模式
    3. 合并标签栏位置
    4. 标签展开/折叠（决定各模块高度）
-   5. 预览高度（基于其他模块高度 + 栏高度）
-   6. 预览浮动（基于栏是否滚动）
+   5. 预览高度（正方形 / 受空间约束）
+   6. 预览浮动（检测栏滚动条）
    ============================================================ */
 function refreshLayout(){
   updateTopbarHeight();
@@ -1373,9 +1406,6 @@ function refreshLayout(){
   checkTabExpansion();
   updatePreviewHeight();
   checkPreviewFloat();
-  if (document.body.classList.contains('preview-float')){
-    requestAnimationFrame(syncPreviewLayout);
-  }
 }
 
 /* ============================================================
@@ -2487,7 +2517,7 @@ function init() {
   const S = iconSize;
   $('#safeBox').style.inset = (S * 0.1) + 'px';
 
-  /* 首次刷新：布局 → 展开决策 → 预览高度 → 预览浮动 */
+  /* 首次刷新 */
   requestAnimationFrame(refreshLayout);
 
   /* 视口变化 */
