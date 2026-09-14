@@ -155,7 +155,7 @@ input,select{font-family:inherit}
 
 /* ================= 预览 ================= */
 .preview-stage{
-  position:relative; display:grid; place-items:center;
+  position:relative; display:flex; align-items:center; justify-content:center;
   padding:16px; border-radius:var(--radius-sm);
   border:1px solid var(--border); min-height:190px;
   background-color:var(--checker-a);
@@ -169,12 +169,17 @@ input,select{font-family:inherit}
   overflow:hidden;
 }
 .preview-canvas-wrap{
-  display:grid;place-items:center; position:relative;
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  max-width:100%; max-height:100%;
   transition:transform .12s ease-out;
   transform-origin:center center;
 }
 #iconCanvas{
-  display:block; max-width:100%; max-height:min(32vh,262px);
+  display:block;
+  width:auto; height:auto;
+  max-width:100%;
+  max-height:min(32vh,262px);
   border-radius:16px;
   box-shadow:0 10px 26px rgba(18,26,48,.20), 0 2px 6px rgba(18,26,48,.10);
   cursor:zoom-in;
@@ -206,6 +211,60 @@ input,select{font-family:inherit}
   padding:2px 7px;border-radius:6px;
 }
 .dot-sep{opacity:.5}
+
+/* ============================================================
+   滚动条出现时：预览模块 fixed 悬浮在视口顶部
+   —— 由 JS 在 <body> 上加 .has-vscroll，并同步 left / width
+   —— 用 .col-left::before 占位保持文档流不塌陷
+   ============================================================ */
+body.has-vscroll .col-left{position:relative}
+body.has-vscroll .col-left::before{
+  content:"";
+  display:block;
+  flex:0 0 auto;
+  height:var(--preview-placeholder-h, 220px);
+  margin-bottom:14px;
+}
+body.has-vscroll .module-preview{
+  position:fixed;
+  top:var(--topbar-h);
+  z-index:45;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  max-height:33vh;
+  border-radius:var(--radius);
+  box-shadow:
+    0 16px 38px rgba(16,24,40,.22),
+    0 4px 10px rgba(16,24,40,.10);
+  /* left / width 由 JS 同步 */
+}
+body.has-vscroll .module-preview .module-head{flex:0 0 auto}
+body.has-vscroll .module-preview .module-body{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+body.has-vscroll .module-preview .preview-stage{
+  flex:1 1 auto;
+  min-height:0;
+  padding:8px;
+}
+body.has-vscroll .module-preview .preview-canvas-wrap{
+  max-width:100%;
+  max-height:100%;
+}
+body.has-vscroll .module-preview #iconCanvas{
+  max-height:100%;
+  max-width:100%;
+}
+body.has-vscroll .module-preview .preview-foot{
+  flex:0 0 auto;
+  margin-top:6px;
+}
 
 /* ================= 标签页 ================= */
 .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
@@ -593,88 +652,17 @@ input[type=range]::-moz-range-thumb{
   }
   .col-right .module{margin-bottom:0}
 }
-
-/* ============================================================
-   竖屏单栏：预览模块 fixed 一直悬浮于视口顶部
-   —— 使用 position:fixed + .col-left::before 占位
-   ============================================================ */
 @media (max-width:860px){
   .layout{grid-template-columns:1fr;gap:10px;padding:10px}
   .col-left,.col-mid,.col-right{grid-column:1/-1}
   .col-right{grid-template-columns:1fr}
 
-  /* 用伪元素给 .col-left 首个位置预留与 fixed 预览等高的占位空间 */
-  .col-left{position:relative}
-  .col-left::before{
-    content:"";
-    display:block;
-    flex:0 0 auto;
-    height: calc(33vh + 8px);
-    min-height: 182px;
-    max-height: 42vh;
-  }
-
-  /* 预览模块：fixed 悬浮，一直可见 */
-  .module-preview{
-    position: fixed;
-    top: var(--topbar-h);
-    left: 10px;
-    right: 10px;
-    z-index: 45;
-    height: calc(33vh - 6px);
-    min-height: 168px;
-    max-height: calc(42vh - 8px);
-    display: flex;
-    flex-direction: column;
-    background: var(--panel);
-    border-radius: 12px;
-    box-shadow:
-      0 16px 38px rgba(16,24,40,.22),
-      0 4px 10px rgba(16,24,40,.10);
-    margin: 0;
-    overflow: hidden;
-    transition: box-shadow .2s;
-  }
-  .module-preview .module-head{
-    flex: 0 0 auto;
-    padding: 6px 10px;
-    min-height: 34px;
-  }
-  .module-preview .module-body{
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 6px 8px 8px;
-    overflow: hidden;
-  }
-  .module-preview .preview-stage{
-    flex: 1;
-    min-height: 0;
-    padding: 6px;
-    border-radius: 10px;
-  }
-  .module-preview .preview-canvas-wrap{max-width:100%;max-height:100%}
-  .module-preview #iconCanvas{
-    max-width:100%;
-    max-height:100%;
-    width: auto;
-    height: auto;
-    border-radius: 12px;
-  }
-  .module-preview .preview-foot{
-    flex: 0 0 auto;
-    margin-top: 4px;
-    font-size: 10px;
-    gap: 5px;
-  }
-  .module-preview .preview-foot .k{padding:1px 6px;font-size:10px}
-  /* 隐藏放大按钮（单栏时无意义） */
-  .module-preview #enlargeBtn{display:none}
-
   .topbar{padding:8px 12px;gap:9px}
   .brand-text p{display:none}
   .vtab-list{width:min(52%,170px)}
+
+  /* 单栏时放大按钮无意义 */
+  body.has-vscroll .module-preview #enlargeBtn{display:none}
 }
 @media (max-width:520px){
   .format-grid{grid-template-columns:repeat(3,1fr)}
@@ -1089,12 +1077,45 @@ function updateTopbarHeight(){
   const h = Math.round(tb.getBoundingClientRect().height);
   document.documentElement.style.setProperty('--topbar-h', h + 'px');
 }
-updateTopbarHeight();
-window.addEventListener('resize', updateTopbarHeight);
-window.addEventListener('orientationchange', () => setTimeout(updateTopbarHeight, 120));
-/* 字体加载完成后高度可能变化，再测一次 */
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(updateTopbarHeight);
+
+/* ============================================================
+   纵向滚动检测 + 预览 fixed 布局同步
+   需求：只要页面出现纵向滚动条，就把预览模块 fixed 悬浮
+   ============================================================ */
+function syncPreviewLayout(){
+  const colLeft = document.querySelector('.col-left');
+  const preview = document.querySelector('.module-preview');
+  if (!colLeft || !preview) return;
+  const cr = colLeft.getBoundingClientRect();
+  const pr = preview.getBoundingClientRect();
+  /* 让 fixed 预览对齐左栏的水平位置和宽度 */
+  preview.style.left = cr.left + 'px';
+  preview.style.width = cr.width + 'px';
+  /* 占位高度取 fixed 预览的实际渲染高度 */
+  document.documentElement.style.setProperty('--preview-placeholder-h', pr.height + 'px');
+}
+
+function checkScroll(){
+  const doc = document.documentElement;
+  const hasScroll = doc.scrollHeight > window.innerHeight + 2;
+  const was = document.body.classList.contains('has-vscroll');
+
+  if (hasScroll) {
+    if (!was) document.body.classList.add('has-vscroll');
+    /* 加类后下帧再测高度，避免读到未更新的布局 */
+    requestAnimationFrame(syncPreviewLayout);
+  } else {
+    /* 内容不足一屏时撤销 fixed；留 60px 缓冲避免来回震荡 */
+    if (was && doc.scrollHeight < window.innerHeight - 60) {
+      document.body.classList.remove('has-vscroll');
+      doc.style.removeProperty('--preview-placeholder-h');
+      const preview = document.querySelector('.module-preview');
+      if (preview){
+        preview.style.removeProperty('left');
+        preview.style.removeProperty('width');
+      }
+    }
+  }
 }
 
 /* ============================================================
@@ -1280,6 +1301,8 @@ function renderRowCount() {
       /* 单行时隐藏「多行排列层次」 */
       $('#layerParam').style.display = rowCount > 1 ? '' : 'none';
       drawIcon();
+      /* 内容变化后可能影响滚动条 */
+      requestAnimationFrame(checkScroll);
     };
     box.appendChild(b);
   }
@@ -2067,6 +2090,7 @@ $('#enlargeBtn').addEventListener('click', () => {
     layout.style.gridTemplateColumns = '';
     toast('已恢复三栏布局');
   }
+  requestAnimationFrame(syncPreviewLayout);
 });
 
 /* ============================================================
@@ -2271,6 +2295,52 @@ function init() {
   $('#safeBox').classList.add('show');
   const S = iconSize;
   $('#safeBox').style.inset = (S * 0.1) + 'px';
+
+  /* 首次检测滚动条，决定是否 fixed 预览 */
+  checkScroll();
+
+  /* 滚动时检查是否仍旧存在滚动条 */
+  window.addEventListener('scroll', checkScroll, { passive: true });
+
+  /* 视口变化：更新顶栏高度、重测滚动、同步 fixed 预览 */
+  window.addEventListener('resize', () => {
+    updateTopbarHeight();
+    if (document.body.classList.contains('has-vscroll')){
+      requestAnimationFrame(syncPreviewLayout);
+    }
+    checkScroll();
+  });
+
+  /* 方向切换 */
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      updateTopbarHeight();
+      checkScroll();
+    }, 150);
+  });
+
+  /* 字体加载完成后顶栏可能变高，重测 */
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      updateTopbarHeight();
+      if (document.body.classList.contains('has-vscroll')){
+        requestAnimationFrame(syncPreviewLayout);
+      }
+    });
+  }
+
+  /* 用 ResizeObserver 监听左栏宽度变化，实时同步 fixed 预览宽度 */
+  if (window.ResizeObserver) {
+    const colLeft = document.querySelector('.col-left');
+    if (colLeft){
+      const ro = new ResizeObserver(() => {
+        if (document.body.classList.contains('has-vscroll')){
+          syncPreviewLayout();
+        }
+      });
+      ro.observe(colLeft);
+    }
+  }
 
   /* 快捷键：输入框内交给浏览器原生撤销 */
   document.addEventListener('keydown', e => {
