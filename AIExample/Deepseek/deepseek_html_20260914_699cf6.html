@@ -16,24 +16,23 @@ html[data-theme="light"]{
   --bg:#eef1f7; --panel:#ffffff; --panel-2:#f8fafd; --field:#f4f6fb;
   --border:#e3e8f1; --border-strong:#d3dae7; --text:#1d2333; --muted:#7c8698;
   --accent:#4d6ef5; --accent-2:#7c5cff; --accent-soft:#eef2ff; --tag-bg:#f5f8fd;
-  --ok:#2fbf71; --warn:#e0603a;
+  --ok:#2fbf71; --warn:#e0603a; --err:#f04a4a;
   --checker-a:#ffffff; --checker-b:#e8ecf3;
 }
 html[data-theme="retro"]{
   --bg:#eadfc2; --panel:#fdf7e6; --panel-2:#f9f1da; --field:#f3e7c9;
   --border:#dcc99b; --border-strong:#c9b183; --text:#4a3a1c; --muted:#8d7a52;
   --accent:#c07a1d; --accent-2:#a1601a; --accent-soft:#f6e6c1; --tag-bg:#f7eed7;
-  --ok:#3f8f4f; --warn:#b3491f;
+  --ok:#3f8f4f; --warn:#b3491f; --err:#c04a2a;
   --checker-a:#fdf7e6; --checker-b:#e6d8b4;
 }
 html[data-theme="dark"]{
   --bg:#0e1015; --panel:#171a22; --panel-2:#1c1f29; --field:#1f2330;
   --border:#2a2f3c; --border-strong:#3a4152; --text:#e7eaf3; --muted:#8b93a7;
   --accent:#6c8cff; --accent-2:#9b7cff; --accent-soft:#1e2438; --tag-bg:#1f2330;
-  --ok:#3ddc84; --warn:#ff7a59;
+  --ok:#3ddc84; --warn:#ff7a59; --err:#ff5f5f;
   --checker-a:#20242e; --checker-b:#171a22;
 }
-
 /* ================= 基础 ================= */
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -45,6 +44,7 @@ body{
     radial-gradient(900px 380px at 12% -6%, color-mix(in srgb,var(--accent) 9%, transparent), transparent 70%),
     radial-gradient(760px 340px at 92% 4%, color-mix(in srgb,var(--accent-2) 8%, transparent), transparent 70%);
   background-attachment:fixed;
+  transition:background .25s,color .25s;
 }
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;border:2px solid transparent;background-clip:content-box}
@@ -101,6 +101,7 @@ input,select{font-family:inherit}
 .linkage-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);box-shadow:0 0 0 3px color-mix(in srgb,var(--muted) 18%,transparent)}
 .linkage-btn.partial .dot{background:#f5a623;box-shadow:0 0 0 3px rgba(245,166,35,.18)}
 .linkage-btn.all .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
+.linkage-btn.none .dot{background:var(--muted)}
 
 /* ================= 布局 ================= */
 .layout{
@@ -148,6 +149,8 @@ input,select{font-family:inherit}
   box-shadow:0 5px 14px color-mix(in srgb,var(--accent) 34%,transparent);
 }
 .btn.primary:hover{color:#fff;filter:brightness(1.06)}
+.btn.icon{padding:5px 7px;display:grid;place-items:center}
+.btn.icon svg{width:14px;height:14px}
 
 /* ================= 预览 ================= */
 .preview-stage{
@@ -165,7 +168,7 @@ input,select{font-family:inherit}
   overflow:hidden;
 }
 .preview-canvas-wrap{
-  display:grid;place-items:center;
+  display:grid;place-items:center; position:relative;
   transition:transform .12s ease-out;
   transform-origin:center center;
 }
@@ -175,6 +178,25 @@ input,select{font-family:inherit}
   box-shadow:0 10px 26px rgba(18,26,48,.20), 0 2px 6px rgba(18,26,48,.10);
   cursor:zoom-in;
 }
+/* 安全边距 */
+.safe-box{
+  position:absolute; pointer-events:none;
+  border:1px dashed color-mix(in srgb,var(--muted) 70%, transparent);
+  display:none; border-radius:4px;
+}
+.safe-box.show{display:block}
+/* 辅助线 SVG 层 */
+.guides-layer{
+  position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; display:none;
+}
+.guides-layer.show{display:block}
+.guides-layer line{stroke:color-mix(in srgb,var(--muted) 55%, transparent); stroke-width:1}
+.g-guide{display:none}
+.guides-layer[data-mode="cross"] .g-cross,
+.guides-layer[data-mode="star"] .g-star,
+.guides-layer[data-mode="thirds"] .g-thirds{display:block}
+
 .preview-foot{
   display:flex;align-items:center;gap:7px;flex-wrap:wrap;
   margin-top:9px;font-size:10.5px;color:var(--muted);
@@ -215,17 +237,19 @@ input,select{font-family:inherit}
 .badge-ok{
   font-size:9px;color:#fff;background:var(--ok);
   width:13px;height:13px;border-radius:50%;display:grid;place-items:center;line-height:1;
+  visibility:hidden;
 }
+.tab.enabled .badge-ok{visibility:visible}
 
-/* ================= 参数行 ================= */
-.param{display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0}
+/* ================= 参数行（统一封装） ================= */
+.param{display:flex;align-items:center;gap:8px;padding:5px 0;min-width:0}
 .param>.pname{
-  flex:0 0 68px;font-size:11.5px;color:var(--muted);
+  flex:0 0 72px;font-size:11.5px;color:var(--muted);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .param>.pctrl{flex:1;display:flex;align-items:center;gap:6px;min-width:0}
 .param.stacked{flex-direction:column;align-items:stretch;gap:6px}
-.param.stacked>.pname{flex:none;font-weight:600;color:var(--text);opacity:.8}
+.param.stacked>.pname{flex:none;font-weight:600;color:var(--text);opacity:.85}
 .param+.param{border-top:1px dashed color-mix(in srgb,var(--border) 70%,transparent)}
 .param.stacked+.param.stacked{border-top:none}
 
@@ -254,6 +278,14 @@ input[type=range]::-moz-range-thumb{
 .num.wide{width:62px;flex:0 0 62px}
 .unit{font-size:10px;color:var(--muted);flex:none;min-width:10px}
 
+/* 非法输入闪烁 */
+@keyframes flashInvalid{
+  0%,100%{background:var(--field);border-color:var(--border)}
+  25%,75%{background:color-mix(in srgb,var(--err) 22%,var(--field));border-color:var(--err)}
+  50%{background:color-mix(in srgb,var(--err) 34%,var(--field));border-color:var(--err)}
+}
+.num.invalid{animation:flashInvalid .6s ease 1}
+
 .chain{
   flex:0 0 22px;width:22px;height:22px;border-radius:7px;padding:0;
   border:1px solid var(--border);background:var(--field);color:var(--muted);
@@ -266,6 +298,13 @@ input[type=range]::-moz-range-thumb{
   border-color:transparent;color:#fff;
   box-shadow:0 3px 9px color-mix(in srgb,var(--accent) 34%,transparent);
 }
+.rst{
+  flex:0 0 22px;width:22px;height:22px;border-radius:7px;padding:0;
+  border:1px solid transparent;background:transparent;color:var(--muted);
+  font-size:13px;line-height:1;cursor:pointer;transition:.15s;
+  display:grid;place-items:center;
+}
+.rst:hover{color:var(--accent);background:var(--field);border-color:var(--border)}
 
 /* ================= 选择控件 ================= */
 .sel,.mini-input{
@@ -273,7 +312,7 @@ input[type=range]::-moz-range-thumb{
   border-radius:7px;padding:4px 7px;font-size:11px;font-weight:600;
   cursor:pointer;transition:.15s;min-width:0;
 }
-.sel:focus,.mini-input:focus{outline:none;border-color:var(--accent)}
+.sel:focus,.mini-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
 .mini-select{
   background:var(--field);border:1px solid var(--border);color:var(--muted);
   border-radius:7px;padding:3px 5px;font-size:10.5px;cursor:pointer;max-width:92px;
@@ -292,7 +331,7 @@ input[type=range]::-moz-range-thumb{
 .check-row input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex:none}
 .check-row .hint{font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap}
 
-/* ================= 小徽章按钮组 ================= */
+/* ================= 小徽章/胶囊按钮 ================= */
 .pill-row{display:flex;gap:4px;flex-wrap:wrap}
 .pill{
   width:25px;height:25px;border-radius:7px;padding:0;
@@ -306,7 +345,6 @@ input[type=range]::-moz-range-thumb{
   border-color:transparent;color:#fff;
   box-shadow:0 4px 10px color-mix(in srgb,var(--accent) 34%,transparent);
 }
-
 .chip-row{display:flex;gap:5px;flex-wrap:wrap}
 .chip{
   border:1px solid var(--border);background:var(--field);color:var(--muted);
@@ -319,7 +357,6 @@ input[type=range]::-moz-range-thumb{
   border-color:transparent;color:#fff;
   box-shadow:0 4px 10px color-mix(in srgb,var(--accent) 30%,transparent);
 }
-
 .divider{height:1px;background:var(--border);margin:10px 0}
 
 /* ================= 预设 ================= */
@@ -337,14 +374,20 @@ input[type=range]::-moz-range-thumb{
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);pointer-events:none;
 }
 
-.history-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.history-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
 .history-item{
   display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:9px;
   border:1px solid var(--border);background:var(--field);cursor:pointer;transition:.15s;
 }
 .history-item:hover{border-color:var(--accent);background:var(--accent-soft)}
 .history-item canvas{width:26px;height:26px;border-radius:6px;flex:none}
-.history-item .hname{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history-item .hname{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.history-item .hdel{
+  opacity:0;border:0;background:transparent;color:var(--muted);cursor:pointer;
+  font-size:12px;padding:2px 4px;transition:.15s;
+}
+.history-item:hover .hdel{opacity:1}
+.history-item .hdel:hover{color:var(--err)}
 
 /* ================= 下载 ================= */
 .format-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -365,15 +408,16 @@ input[type=range]::-moz-range-thumb{
 }
 
 /* ============================================================
-   内容竖向标签组 —— 激活与未激活标签底色明显不同
+   内容竖向标签组 —— 每行只占一行：[序号] [文/图/F] [输入框]
+   激活标签与右侧内容区连成一体，底色明显不同
    ============================================================ */
-.vtab-group{display:flex; align-items:flex-start; gap:0; min-width:0}
+.vtab-group{display:flex; align-items:stretch; gap:0; min-width:0}
 .vtab-list{
   flex:0 0 auto;
-  width:min(46%,196px); min-width:116px;
+  width:min(46%,200px); min-width:120px;
   display:flex; flex-direction:column;
-  max-height:360px; overflow-y:auto; overflow-x:hidden;
-  padding-left:1px; padding-top:1px;
+  max-height:400px; overflow-y:auto; overflow-x:hidden;
+  padding-top:1px;
 }
 .vtab{
   display:flex; align-items:center; gap:5px;
@@ -381,7 +425,7 @@ input[type=range]::-moz-range-thumb{
   cursor:pointer;
   border:1px solid var(--border); border-right:0;
   border-radius:10px 0 0 10px;
-  background:var(--panel-2);          /* 未激活：近白 / 近 panel-2 */
+  background:var(--panel-2);
   color:var(--muted);
   margin-bottom:-1px;
   position:relative;
@@ -393,23 +437,19 @@ input[type=range]::-moz-range-thumb{
   color:var(--text);
 }
 .vtab.active{
-  background:color-mix(in srgb, var(--accent) 16%, var(--panel));  /* 激活：浅蓝底 */
+  background:color-mix(in srgb, var(--accent) 16%, var(--panel));
   color:var(--text);
   border-color:color-mix(in srgb, var(--accent) 30%, var(--border));
   box-shadow:inset 4px 0 0 var(--accent);
   z-index:2;
 }
-
 .rownum{
   width:16px;height:16px;border-radius:5px;flex:none;
   background:var(--panel);border:1px solid var(--border);
   display:grid;place-items:center;
   font-size:9.5px;font-weight:800;color:var(--muted);
 }
-.vtab.active .rownum{
-  background:var(--accent);border-color:transparent;color:#fff;
-}
-
+.vtab.active .rownum{background:var(--accent);border-color:transparent;color:#fff}
 .mode-mini{
   display:flex;gap:1px;background:var(--panel);
   border:1px solid var(--border);border-radius:6px;padding:1px;flex:none;
@@ -420,7 +460,6 @@ input[type=range]::-moz-range-thumb{
   padding:2px 4px;border-radius:4px;cursor:pointer;line-height:1.1;
 }
 .mode-mini button.on{background:var(--accent);color:#fff}
-
 .vtab-input{
   flex:1 1 auto; min-width:30px; height:20px;
   border:1px solid var(--border); background:var(--panel);
@@ -433,19 +472,17 @@ input[type=range]::-moz-range-thumb{
   outline:none;border-color:var(--accent);
   box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent);
 }
-.vtab-input[readonly]{opacity:.72;cursor:default;text-align:left;font-weight:500}
-.vtab.active .vtab-input{
-  border-color:color-mix(in srgb, var(--accent) 30%, var(--border));
-}
+.vtab-input[readonly]{opacity:.75;cursor:default;text-align:left;font-weight:500}
+.vtab.active .vtab-input{border-color:color-mix(in srgb, var(--accent) 30%, var(--border))}
 
 .vtab-body{
   flex:1; min-width:0;
-  background:color-mix(in srgb, var(--accent) 16%, var(--panel));   /* 与激活标签同色，连成一体 */
+  background:color-mix(in srgb, var(--accent) 16%, var(--panel));
   border:1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
   border-left:0;
   border-radius:0 10px 10px 10px;
   padding:10px 11px;
-  min-height:150px;
+  min-height:170px;
 }
 
 .cp-label{font-size:10.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
@@ -466,13 +503,22 @@ input[type=range]::-moz-range-thumb{
   background:var(--panel);color:var(--text);font-size:11px;padding:0 9px;margin-bottom:8px;
 }
 .fa-search:focus{outline:none;border-color:var(--accent)}
-.fa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:5px;max-height:132px;overflow-y:auto}
+.fa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:5px;max-height:140px;overflow-y:auto}
 .fa-cell{
   aspect-ratio:1;border-radius:8px;border:1px solid var(--border);
   background:var(--panel);display:grid;place-items:center;
   font-size:14px;cursor:pointer;transition:.14s;color:var(--text);
 }
 .fa-cell:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);transform:translateY(-1px)}
+
+/* ================= 颜色建议 ================= */
+.suggest-legend{display:flex;gap:12px;font-size:10px;color:var(--muted);margin:8px 0 4px}
+.suggest-row{display:flex;gap:6px;flex-wrap:wrap}
+.sw{
+  width:22px;height:22px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--border-strong);transition:.15s;
+}
+.sw:hover{transform:scale(1.15);border-color:var(--accent)}
 
 /* ================= 填充色块 ================= */
 .fill-group{display:flex;gap:9px;align-items:flex-start}
@@ -490,12 +536,53 @@ input[type=range]::-moz-range-thumb{
   border:1px solid var(--border);border-radius:10px;padding:9px 10px;
 }
 
-/* ================= 底部 ================= */
+/* ================= 底部 & Toast ================= */
 .footer{
   text-align:center;font-size:10.5px;color:var(--muted);
   padding:6px 18px 22px;line-height:1.7;
 }
 .footer a{color:var(--accent);text-decoration:none}
+
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:var(--text);color:var(--panel);padding:8px 18px;
+  border-radius:99px;font-size:12px;font-weight:600;
+  opacity:0;transition:.25s;z-index:200;pointer-events:none;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ================= 模态查看器 ================= */
+.modal{
+  position:fixed;inset:0;background:rgba(8,10,18,.62);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:none;place-items:center;z-index:100;
+}
+.modal.open{display:grid;animation:fade .18s ease}
+.modal-box{
+  background:var(--panel);border-radius:14px;padding:12px;
+  box-shadow:0 24px 60px rgba(0,0,0,.45);
+  max-width:92vw;max-height:92vh;display:flex;flex-direction:column;
+}
+.modal-head{
+  display:flex;align-items:center;gap:8px;padding:2px 4px 10px;
+  font-size:12.5px;font-weight:700;
+}
+.modal-body{
+  flex:1;min-height:0;overflow:auto;
+  background-color:var(--checker-a);
+  background-image:
+    linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),
+    linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),
+    linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);
+  background-size:18px 18px;
+  background-position:0 0,0 9px,9px -9px,-9px 0;
+  border:1px solid var(--border);border-radius:10px;
+  padding:16px;display:grid;place-items:center;cursor:grab;
+}
+.modal-body:active{cursor:grabbing}
+.modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
 
 /* ================= 自适应 ================= */
 @media (max-width:1180px){
@@ -507,55 +594,27 @@ input[type=range]::-moz-range-thumb{
   }
   .col-right .module{margin-bottom:0}
 }
-
-/* ============================================================
-   竖屏单栏：预览模块浮动固定于视口上方，最大高度 ≤ 视口 1/3
-   ============================================================ */
 @media (max-width:860px){
   .layout{grid-template-columns:1fr;gap:10px;padding:10px}
   .col-left,.col-mid,.col-right{grid-column:1/-1}
   .col-right{grid-template-columns:1fr}
 
   .module-preview{
-    position:sticky;
-    top:54px;                             /* 顶栏高度之下 */
-    z-index:40;
-    height:33vh;                          /* 最大高度不超过视口 1/3 */
-    min-height:170px;
-    display:flex;
-    flex-direction:column;
+    position:sticky; top:54px; z-index:40;
+    height:33vh; min-height:170px;
+    display:flex; flex-direction:column;
     background:var(--panel);
-    box-shadow:
-      0 14px 34px rgba(16,24,40,.18),
-      0 2px 8px rgba(16,24,40,.08);
-    margin-bottom:12px;
-    overflow:hidden;
+    box-shadow:0 14px 34px rgba(16,24,40,.18), 0 2px 8px rgba(16,24,40,.08);
+    margin-bottom:12px; overflow:hidden;
   }
   .module-preview .module-head{flex:0 0 auto}
   .module-preview .module-body{
-    flex:1;
-    min-height:0;
-    display:flex;
-    flex-direction:column;
-    padding:8px 10px 10px;
-    overflow:hidden;
+    flex:1; min-height:0; display:flex; flex-direction:column;
+    padding:8px 10px 10px; overflow:hidden;
   }
-  .preview-stage{
-    flex:1;
-    min-height:0;
-    padding:8px;
-    border-radius:10px;
-  }
-  #iconCanvas{
-    max-width:100%;
-    max-height:calc(33vh - 108px);        /* 头部+底部+内边距预留 */
-  }
-  .preview-foot{
-    flex:0 0 auto;
-    margin-top:6px;
-    font-size:10px;
-    gap:5px;
-  }
+  .preview-stage{flex:1; min-height:0; padding:8px; border-radius:10px}
+  #iconCanvas{max-width:100%; max-height:calc(33vh - 108px)}
+  .preview-foot{flex:0 0 auto; margin-top:6px; font-size:10px; gap:5px}
 
   .topbar{padding:8px 12px;gap:9px}
   .brand-text p{display:none}
@@ -564,6 +623,7 @@ input[type=range]::-moz-range-thumb{
 @media (max-width:520px){
   .format-grid{grid-template-columns:repeat(3,1fr)}
   .linkage-btn span.lbl{display:none}
+  .modal-body canvas{width:80vw!important;height:80vw!important}
 }
 </style>
 </head>
@@ -581,12 +641,12 @@ input[type=range]::-moz-range-thumb{
 
   <div class="topbar-actions">
     <div class="segmented icon-only">
-      <button title="撤销 Ctrl+Z">
+      <button title="撤销 Ctrl+Z" id="undoBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-4"/>
         </svg>
       </button>
-      <button title="重做 Ctrl+Y">
+      <button title="重做 Ctrl+Y" id="redoBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h4"/>
         </svg>
@@ -622,19 +682,47 @@ input[type=range]::-moz-range-thumb{
           <option value="star">米字</option>
           <option value="thirds">均分井字</option>
         </select>
-        <label class="mini-check"><input type="checkbox" id="safeChk" checked> 安全边距</label>
+        <button class="btn icon" id="enlargeBtn" title="放大预览（多栏模式下左栏半屏）">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
+          </svg>
+        </button>
       </div>
       <div class="module-body">
         <div class="preview-stage" id="stage">
           <div class="preview-canvas-wrap" id="canvasWrap">
             <canvas id="iconCanvas" width="256" height="256"></canvas>
+            <svg class="guides-layer" id="guidesLayer" viewBox="0 0 100 100" preserveAspectRatio="none" data-mode="none">
+              <g class="g-guide g-cross">
+                <line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/>
+                <line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/>
+              </g>
+              <g class="g-guide g-star">
+                <line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/>
+                <line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/>
+                <line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>
+                <line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/>
+              </g>
+              <g class="g-guide g-thirds">
+                <line x1="33.3" y1="0" x2="33.3" y2="100" vector-effect="non-scaling-stroke"/>
+                <line x1="66.7" y1="0" x2="66.7" y2="100" vector-effect="non-scaling-stroke"/>
+                <line x1="0" y1="33.3" x2="100" y2="33.3" vector-effect="non-scaling-stroke"/>
+                <line x1="0" y1="66.7" x2="100" y2="66.7" vector-effect="non-scaling-stroke"/>
+              </g>
+            </svg>
+            <div class="safe-box" id="safeBox"></div>
           </div>
         </div>
         <div class="preview-foot">
           <span class="k" id="sizeTag">256 × 256</span>
+          <label class="mini-check"><input type="checkbox" id="safeChk" checked> 安全边距</label>
+          <input class="num" id="safePct" value="10" style="width:36px;flex:0 0 36px;height:20px">
+          <span>%</span>
+        </div>
+        <div class="preview-foot">
           <span>滚轮缩放</span><span class="dot-sep">·</span>
           <span>双击复位</span><span class="dot-sep">·</span>
-          <span>双击进入模态预览</span>
+          <span>双击进入 1:1 模态预览</span>
         </div>
       </div>
     </section>
@@ -652,11 +740,11 @@ input[type=range]::-moz-range-thumb{
         <div class="tab-body">
           <div class="pane active" data-pane="preset">
             <div class="preset-tools">
-              <button class="btn ghost sm">导入</button>
-              <button class="btn ghost sm">导出</button>
-              <button class="btn sm" title="保存仅本次有效，刷新后消失">保存</button>
-              <button class="btn ghost sm">复制 JSON</button>
-              <button class="btn ghost sm">复制 HTML</button>
+              <button class="btn ghost sm" data-act="import">导入</button>
+              <button class="btn ghost sm" data-act="export">导出</button>
+              <button class="btn sm" data-act="save" title="保存仅本次有效，刷新后消失">保存</button>
+              <button class="btn ghost sm" data-act="copy-json">复制 JSON</button>
+              <button class="btn ghost sm" data-act="copy-html">复制 HTML</button>
             </div>
             <div class="preset-grid" id="presetGrid"></div>
           </div>
@@ -716,14 +804,14 @@ input[type=range]::-moz-range-thumb{
         <div class="divider"></div>
 
         <div class="format-grid">
-          <button class="fmt">PNG</button>
-          <button class="fmt">JPG</button>
-          <button class="fmt">WEBP</button>
-          <button class="fmt">ICO</button>
-          <button class="fmt">CANVAS</button>
-          <button class="fmt">JSON</button>
-          <button class="fmt">HTML</button>
-          <button class="fmt">SVG</button>
+          <button class="fmt" data-fmt="png">PNG</button>
+          <button class="fmt" data-fmt="jpg">JPG</button>
+          <button class="fmt" data-fmt="webp">WEBP</button>
+          <button class="fmt" data-fmt="ico">ICO</button>
+          <button class="fmt" data-fmt="canvas">CANVAS</button>
+          <button class="fmt" data-fmt="json">JSON</button>
+          <button class="fmt" data-fmt="html">HTML</button>
+          <button class="fmt" data-fmt="svg">SVG</button>
         </div>
 
         <div class="filename" id="fileName">KIcon-256-K-20260914153000.png</div>
@@ -749,14 +837,7 @@ input[type=range]::-moz-range-thumb{
         </div>
         <div class="param stacked">
           <span class="pname">排版模式</span>
-          <div class="chip-row" id="layoutChips">
-            <button class="chip active">全在上</button>
-            <button class="chip">全在下</button>
-            <button class="chip">全在左</button>
-            <button class="chip">全在右</button>
-            <button class="chip">左右分</button>
-            <button class="chip">上下分</button>
-          </div>
+          <div class="chip-row" id="layoutChips"></div>
         </div>
         <div class="param stacked" id="layerParam">
           <span class="pname">多行排列层次</span>
@@ -772,9 +853,10 @@ input[type=range]::-moz-range-thumb{
     <section class="module">
       <div class="module-head">
         <span class="mh-title">内容</span>
+        <span class="mh-sub" id="contentNote">行 1 · 文本</span>
         <span class="mh-spacer"></span>
-        <button class="btn ghost sm">复制样式</button>
-        <button class="btn ghost sm">粘贴样式</button>
+        <button class="btn ghost sm" id="copyStyleBtn">复制样式</button>
+        <button class="btn ghost sm" id="pasteStyleBtn">粘贴样式</button>
       </div>
       <div class="module-body">
         <div class="vtab-group">
@@ -788,15 +870,15 @@ input[type=range]::-moz-range-thumb{
     <section class="module">
       <div class="module-head">
         <span class="mh-title">样式</span>
-        <span class="mh-sub" id="styleSub">第 1 行 · 文本 · “K”</span>
+        <span class="mh-sub" id="styleSub">行 1 · 文本 · “K”</span>
         <span class="mh-spacer"></span>
-        <button class="btn ghost sm">重置</button>
+        <button class="btn ghost sm" id="styleReset">重置</button>
       </div>
       <div class="module-body">
         <div class="tabs" id="styleTabs">
           <button class="tab active" data-pane="size">尺寸</button>
           <button class="tab" data-pane="color">颜色</button>
-          <button class="tab" data-pane="shadow">阴影 <span class="badge-ok">✓</span></button>
+          <button class="tab enabled" data-pane="shadow">阴影 <span class="badge-ok">✓</span></button>
         </div>
         <div class="tab-body" id="styleBody"></div>
       </div>
@@ -815,7 +897,7 @@ input[type=range]::-moz-range-thumb{
       <div class="module-body">
         <div class="tabs" id="shapeTabs">
           <button class="tab active" data-pane="shape">形状</button>
-          <button class="tab" data-pane="border">边框 <span class="badge-ok">✓</span></button>
+          <button class="tab enabled" data-pane="border">边框 <span class="badge-ok">✓</span></button>
           <button class="tab" data-pane="shadow">阴影 <span class="badge-ok">✓</span></button>
         </div>
         <div class="tab-body" id="shapeBody"></div>
@@ -840,7 +922,7 @@ input[type=range]::-moz-range-thumb{
           </div>
         </div>
 
-        <div class="tabs" id="fillTabs" style="margin-top:8px">
+        <div class="tabs" id="fillTabs" style="margin-top:10px">
           <button class="tab active" data-pane="layout">布局</button>
           <button class="tab" data-pane="edge">填充边界</button>
           <button class="tab" data-pane="advice">颜色建议</button>
@@ -872,6 +954,24 @@ input[type=range]::-moz-range-thumb{
   <br>KiconCreator V2.02 · 本工具全部运行于浏览器本地，不上传、不保存任何数据。
 </footer>
 
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 模态查看器 -->
+<div class="modal" id="viewerModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span>1:1 模态预览</span>
+      <span style="font-size:10.5px;color:var(--muted);font-weight:500" id="modalInfo">256 × 256</span>
+      <span class="mh-spacer" style="flex:1"></span>
+      <button class="btn icon" id="viewerClose" title="关闭 (ESC)">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <canvas id="viewerCanvas" width="256" height="256"></canvas>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    工具函数
@@ -899,17 +999,53 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/* 通用参数行构造 */
+/* Toast 提示 */
+let toastTimer;
+function toast(msg){
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+}
+
+/* 非法输入闪烁：闪烁两次后回退到最近合法值 */
+function flashInvalid(input, min, max){
+  input.classList.add('invalid');
+  setTimeout(() => input.classList.remove('invalid'), 620);
+  let v = parseFloat(input.value);
+  if (isNaN(v)) v = min;
+  if (v < min) v = min;
+  if (v > max) v = max;
+  setTimeout(() => { input.value = v; }, 620);
+  return v;
+}
+
+/* ============================================================
+   通用参数行构造（统一封装滑块 + 数字 + 联动 + 重置）
+   ============================================================ */
 function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
   const step = opts.step ?? 1;
-  return `<div class="param${opts.stacked ? ' stacked' : ''}">
+  const chain = opts.chain ? ' on' : '';
+  const showReset = opts.reset !== false;
+  return `<div class="param" data-name="${name}" data-min="${min}" data-max="${max}" data-default="${value}">
     <span class="pname">${name}</span>
     <div class="pctrl">
       <input type="range" min="${min}" max="${max}" value="${value}" step="${step}">
       <input class="num" value="${value}">
       ${unit ? `<span class="unit">${unit}</span>` : ''}
-      <button class="chain${opts.chain ? ' on' : ''}" title="参数联动">${CHAIN_SVG}</button>
+      <button class="chain${chain}" title="参数联动">${CHAIN_SVG}</button>
+      ${showReset ? `<button class="rst" title="重置为默认值">⟲</button>` : ''}
     </div>
+  </div>`;
+}
+
+/* 把非滑块的自定义构造也封装 */
+function stackedChips(name, chips, activeIdx = 0) {
+  return `<div class="param stacked">
+    <span class="pname">${name}</span>
+    <div class="chip-row">${chips.map((c,i) =>
+      `<button class="chip${i===activeIdx?' active':''}">${c}</button>`).join('')}</div>
   </div>`;
 }
 
@@ -921,6 +1057,7 @@ $$('#themeSwitch button').forEach(btn => {
     document.documentElement.dataset.theme = btn.dataset.theme;
     $$('#themeSwitch button').forEach(b => b.classList.toggle('active', b === btn));
     drawIcon();
+    toast('已切换至「' + btn.textContent + '」主题');
   });
 });
 
@@ -949,40 +1086,33 @@ const cvs = $('#iconCanvas');
 const ctx = cvs.getContext('2d');
 let iconSize = 256;
 
-function drawGuides(S) {
+function drawGuides(S){
   const mode = $('#guideSelect').value;
   const safe = $('#safeChk').checked;
-  ctx.save();
-  ctx.strokeStyle = 'rgba(110,122,150,.55)';
-  ctx.lineWidth = 1;
-
-  const line = (x1, y1, x2, y2) => {
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  };
-
-  if (mode === 'cross') {
-    line(S / 2, 0, S / 2, S);
-    line(0, S / 2, S, S / 2);
-  } else if (mode === 'star') {
-    line(S / 2, 0, S / 2, S);
-    line(0, S / 2, S, S / 2);
-    line(0, 0, S, S);
-    line(S, 0, 0, S);
-  } else if (mode === 'thirds') {
-    for (let i = 1; i <= 2; i++) {
-      line(S * i / 3, 0, S * i / 3, S);
-      line(0, S * i / 3, S, S * i / 3);
+  if (mode !== 'none'){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(110,122,150,.55)';
+    ctx.lineWidth = 1;
+    const line = (x1,y1,x2,y2) => { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
+    if (mode === 'cross'){
+      line(S/2,0,S/2,S); line(0,S/2,S,S/2);
+    } else if (mode === 'star'){
+      line(S/2,0,S/2,S); line(0,S/2,S,S/2); line(0,0,S,S); line(S,0,0,S);
+    } else if (mode === 'thirds'){
+      for (let i=1;i<=2;i++){ line(S*i/3,0,S*i/3,S); line(0,S*i/3,S,S*i/3); }
     }
+    ctx.restore();
   }
-
-  if (safe) {
-    const m = S * 0.1;
-    ctx.setLineDash([4, 4]);
+  if (safe){
+    const pct = Math.min(50, Math.max(0, +$('#safePct').value || 10));
+    const m = S * pct / 100;
+    ctx.save();
+    ctx.setLineDash([4,4]);
     ctx.strokeStyle = 'rgba(110,122,150,.7)';
-    ctx.strokeRect(m, m, S - m * 2, S - m * 2);
+    ctx.strokeRect(m, m, S - m*2, S - m*2);
     ctx.setLineDash([]);
+    ctx.restore();
   }
-  ctx.restore();
 }
 
 function drawIcon() {
@@ -990,6 +1120,7 @@ function drawIcon() {
   if (cvs.width !== S) { cvs.width = S; cvs.height = S; }
   ctx.clearRect(0, 0, S, S);
 
+  /* 背景形状：渐变圆角方形 */
   const r = S * 0.22;
   roundRect(ctx, S * 0.03, S * 0.03, S * 0.94, S * 0.94, r);
   const g = ctx.createLinearGradient(0, 0, S, S);
@@ -998,6 +1129,15 @@ function drawIcon() {
   ctx.fillStyle = g;
   ctx.fill();
 
+  /* 高光 */
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  ctx.beginPath();
+  ctx.arc(S * 0.74, S * 0.31, S * 0.23, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  /* 文字内容 */
   const text = (rows[0] && rows[0].text) ? rows[0].text : 'K';
   ctx.fillStyle = '#ffffff';
   ctx.font = `800 ${Math.round(S * 0.52)}px -apple-system, "Segoe UI", "PingFang SC", sans-serif`;
@@ -1006,6 +1146,13 @@ function drawIcon() {
   ctx.fillText(text.slice(0, 3), S / 2, S / 2 + S * 0.02);
 
   drawGuides(S);
+
+  /* 同步到模态查看器 */
+  const vc = $('#viewerCanvas');
+  if (vc){
+    vc.width = S; vc.height = S;
+    vc.getContext('2d').drawImage(cvs, 0, 0);
+  }
 }
 
 /* ============================================================
@@ -1025,6 +1172,7 @@ let rows = [
 ];
 let rowCount = 2;
 let activeRow = 0;
+let styleClipboard = null;
 
 function rowLabel(r) {
   if (r.mode === 'text') return r.text || '空';
@@ -1044,13 +1192,38 @@ function renderRowCount() {
       rowCount = i;
       if (activeRow >= rowCount) activeRow = rowCount - 1;
       renderRowCount();
+      renderLayoutChips();
       renderContentTabs();
       renderContentBody();
       renderStyle();
       $('#layerParam').style.display = rowCount > 1 ? '' : 'none';
+      drawIcon();
     };
     box.appendChild(b);
   }
+}
+
+/* 排版模式（按行数变化） */
+const LAYOUTS = {
+  1:['上半边','下半边','左半边','右半边','居中'],
+  2:['全在上（左右分）','全在下（左右分）','全在左（上下分）','全在右（上下分）','左右分','上下分'],
+  3:['一字横排','一字纵排','品字（上1下2）','倒品（上2下1）'],
+  4:['一字横排','一字纵排','四宫格','纵向121','横向121'],
+  5:['一字横排','一字纵排','环形','四宫格+中央'],
+  6:['一字横排','一字纵排','环形','2×3','3×2'],
+  7:['一字横排','一字纵排','环形'],
+  8:['一字横排','一字纵排','环形','2×4','4×2'],
+  9:['一字横排','一字纵排','环形','3×3']
+};
+function renderLayoutChips(){
+  const box = $('#layoutChips');
+  box.innerHTML = '';
+  LAYOUTS[rowCount].forEach((name, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (i===0 ? ' active' : '');
+    b.textContent = name;
+    box.appendChild(b);
+  });
 }
 
 /* 内容竖向标签 —— 每行只占一行： [序号] [文/图/F] [输入框] */
@@ -1083,7 +1256,7 @@ function renderContentTabs() {
         e.stopPropagation();
         rows[i].mode = mb.dataset.mode;
         activeRow = i;
-        renderContentTabs(); renderContentBody(); renderStyle();
+        renderContentTabs(); renderContentBody(); renderStyle(); drawIcon();
         return;
       }
       if (activeRow !== i) {
@@ -1101,7 +1274,8 @@ function renderContentTabs() {
       if (i === activeRow) {
         const pv = $('#cpTextPreview');
         if (pv) pv.textContent = input.value || '空';
-        $('#styleSub').textContent = `第 ${i + 1} 行 · 文本 · “${input.value || '空'}”`;
+        $('#styleSub').textContent = `行 ${i + 1} · 文本 · “${input.value || '空'}”`;
+        $('#contentNote').textContent = `行 ${i + 1} · 文本`;
       }
       updateFileName();
     });
@@ -1129,7 +1303,6 @@ function renderContentBody() {
   if (r.mode === 'text') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 文本模式</div>
-
       <div class="cp-text-preview" id="cpTextPreview">${escapeHtml(r.text || '空')}</div>
 
       <div class="param">
@@ -1140,7 +1313,7 @@ function renderContentBody() {
             <option>思源黑体</option>
             <option>思源宋体</option>
             <option>站酷高端黑</option>
-            <option>阿里巴巴普惠体</option>
+            <option>阿里巴巴普惠体（未下载）</option>
           </select>
         </div>
       </div>
@@ -1158,16 +1331,7 @@ function renderContentBody() {
         </div>
       </div>
 
-      <div class="param stacked">
-        <span class="pname">粗细</span>
-        <div class="chip-row">
-          <button class="chip">细</button>
-          <button class="chip active">常规</button>
-          <button class="chip">中粗</button>
-          <button class="chip">粗</button>
-          <button class="chip">特粗</button>
-        </div>
-      </div>
+      ${stackedChips('粗细', ['细','常规','中粗','粗','特粗'], 1)}
 
       <div class="param">
         <span class="pname">斜体</span>
@@ -1178,23 +1342,14 @@ function renderContentBody() {
         </div>
       </div>
 
-      <div class="param stacked">
-        <span class="pname">排版</span>
-        <div class="chip-row">
-          <button class="chip active">横排</button>
-          <button class="chip">纵排</button>
-          <button class="chip">环形向心</button>
-        </div>
-      </div>
+      ${stackedChips('排版', ['横排','纵排','环形向心'])}
 
       ${paramRow('字号', 100, 1, 300, '%')}
 
       <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
-        字体优先加载 Web 字体，加载失败自动回退系统字体；正在加载时预览会显示“字体加载中”。
+        字体优先加载 Web 字体，加载失败自动回退系统字体；正在加载时预览会显示"字体加载中"。
       </div>`;
-    syncRanges(body);
   }
-
   else if (r.mode === 'image') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 图片模式</div>
@@ -1208,7 +1363,6 @@ function renderContentBody() {
         切换图片时旧图按会话图片仓库引用计数延迟释放。
       </div>`;
   }
-
   else {
     const icons = ['★','♥','⚡','☀','☁','✦','✿','◆','▲','●','☂','♫','✔','✈','☕','♠','♦','♣','⚙','✎','⌘','☘','☯','⚑'];
     body.innerHTML = `
@@ -1218,7 +1372,41 @@ function renderContentBody() {
       <div style="margin-top:8px;font-size:10px;color:var(--warn);line-height:1.5">
         FA6 免费版仅部分图标可用于商用，请遵循其授权条款。
       </div>`;
+    /* FA 搜索过滤 */
+    const search = body.querySelector('.fa-search');
+    const grid = body.querySelector('.fa-grid');
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      Array.from(grid.children).forEach(c => {
+        c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+    grid.addEventListener('click', e => {
+      const cell = e.target.closest('.fa-cell');
+      if (!cell) return;
+      rows[activeRow].text = cell.textContent;
+      renderContentTabs();
+      drawIcon();
+      toast('已选中图标：' + cell.textContent);
+    });
   }
+
+  /* 绑定内容面板内的滑块 */
+  syncRanges(body);
+
+  /* 内容面板内的 chip 单选 */
+  $$('.chip-row', body).forEach(row => {
+    row.addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      $$('.chip', row).forEach(c => c.classList.toggle('active', c === chip));
+    });
+  });
+
+  /* 斜体、链条 */
+  $$('.chain', body).forEach(ch => ch.addEventListener('click', () => {
+    ch.classList.toggle('on');
+  }));
 }
 
 /* ============================================================
@@ -1267,16 +1455,17 @@ function paneColor(r) {
     </div>
     <div class="param stacked">
       <span class="pname">颜色建议</span>
-      <div class="chip-row">
+      <div class="suggest-legend"><span>互补</span><span>类似</span><span>柔和</span><span>明亮</span></div>
+      <div class="suggest-row">
         ${['#4d6ef5','#7c5cff','#22c55e','#f59e0b','#ef4444','#0ea5e9','#ec4899','#14b8a6']
-          .map(c => `<button class="fill-swatch" style="background:${c};width:22px;height:22px;border-radius:7px"></button>`).join('')}
+          .map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}
       </div>
     </div>`;
 }
 
 function paneShadow() {
   return `
-    <label class="check-row" style="padding-top:0"><input type="checkbox" checked> 启用阴影</label>
+    <label class="check-row" style="padding-top:0"><input type="checkbox" checked id="shadowEnable"> 启用阴影</label>
     <div class="param">
       <span class="pname">颜色</span>
       <div class="pctrl">
@@ -1292,7 +1481,8 @@ function paneShadow() {
 
 function renderStyle() {
   const r = rows[activeRow];
-  $('#styleSub').textContent = `第 ${activeRow + 1} 行 · ${MODE_LABEL[r.mode]} · “${rowLabel(r)}”`;
+  $('#styleSub').textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]} · “${rowLabel(r)}”`;
+  $('#contentNote').textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]}`;
 
   const active = $('#styleTabs .tab.active')?.dataset.pane || 'size';
   $('#styleBody').innerHTML = `
@@ -1300,6 +1490,22 @@ function renderStyle() {
     <div class="pane${active === 'color' ? ' active' : ''}" data-pane="color">${paneColor(r)}</div>
     <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">${paneShadow()}</div>`;
   syncRanges($('#styleBody'));
+
+  /* 颜色模式单/渐变 切换 */
+  const seg = $('#styleBody .segmented');
+  if (seg) {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('button', seg).forEach(x => x.classList.toggle('active', x === b));
+    });
+  }
+
+  /* 颜色建议点击 */
+  $$('#styleBody .sw').forEach(sw => {
+    sw.addEventListener('click', () => {
+      toast('已应用建议颜色 ' + sw.dataset.c);
+    });
+  });
 }
 
 /* ============================================================
@@ -1309,26 +1515,9 @@ function renderShapeBody() {
   const active = $('#shapeTabs .tab.active')?.dataset.pane || 'shape';
   $('#shapeBody').innerHTML = `
     <div class="pane${active === 'shape' ? ' active' : ''}" data-pane="shape">
-      <div class="param stacked" style="padding-top:0">
-        <span class="pname">基础</span>
-        <div class="chip-row">
-          <button class="chip">无</button>
-          <button class="chip active">圆形</button>
-          <button class="chip">圆角方形</button>
-        </div>
-      </div>
-      <div class="param stacked">
-        <span class="pname">边形</span>
-        <div class="chip-row">
-          ${[3,4,5,6,7,8].map(n => `<button class="chip">${n}</button>`).join('')}
-        </div>
-      </div>
-      <div class="param stacked">
-        <span class="pname">角星</span>
-        <div class="chip-row">
-          ${[3,4,5,6,7,8].map(n => `<button class="chip">${n}</button>`).join('')}
-        </div>
-      </div>
+      ${stackedChips('基础', ['无','圆形','圆角方形'], 2)}
+      ${stackedChips('边形', ['3','4','5','6','7','8'])}
+      ${stackedChips('角星', ['3','4','5','6','7','8'])}
       <div class="divider"></div>
       ${paramRow('尺寸', 100, 1, 200, '%')}
       ${paramRow('拉伸', 100, 1, 200, '%')}
@@ -1336,13 +1525,17 @@ function renderShapeBody() {
       ${paramRow('弧度', 0, 0, 100, '%')}
       <div class="param">
         <span class="pname"></span>
-        <div class="pctrl"><button class="btn ghost sm" style="flex:1">填满绘图区域</button></div>
+        <div class="pctrl"><button class="btn ghost sm" style="flex:1" id="fillShapeBtn">填满绘图区域</button></div>
       </div>
-      <div style="font-size:10px;color:var(--muted);padding-top:6px">角星内角为 0° 时形状不可见</div>
+      <div style="font-size:10px;color:var(--muted);padding-top:6px">
+        角星内角为 0° 时形状不可见
+      </div>
     </div>
 
     <div class="pane${active === 'border' ? ' active' : ''}" data-pane="border">
-      <label class="check-row" style="padding-top:0"><input type="checkbox" checked> 启用边框</label>
+      <label class="check-row" style="padding-top:0">
+        <input type="checkbox" checked id="borderEnable"> 启用边框
+      </label>
       ${paramRow('边框宽度', 6, 0, 100, 'px')}
       <div class="param">
         <span class="pname">颜色</span>
@@ -1355,13 +1548,51 @@ function renderShapeBody() {
     </div>
 
     <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">
-      <label class="check-row" style="padding-top:0"><input type="checkbox" checked> 启用形状阴影</label>
+      <label class="check-row" style="padding-top:0">
+        <input type="checkbox" id="fshadowEnable"> 启用形状阴影
+      </label>
       ${paramRow('大小', 16, 0, 100, '')}
       ${paramRow('模糊', 14, 0, 100, '')}
       ${paramRow('X 偏移', 0, -100, 100, '')}
       ${paramRow('Y 偏移', 8, -100, 100, '')}
     </div>`;
+
   syncRanges($('#shapeBody'));
+
+  /* chip 单选 */
+  $$('.chip-row', $('#shapeBody')).forEach(row => {
+    row.addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      $$('.chip', row).forEach(c => c.classList.toggle('active', c === chip));
+      toast('形状参数：' + chip.textContent);
+    });
+  });
+
+  /* 填满按钮 */
+  const fb = $('#fillShapeBtn');
+  if (fb) fb.addEventListener('click', () => {
+    const rows = $$('#shapeBody .param');
+    rows.forEach(p => {
+      if (p.querySelector('.pname')?.textContent === '尺寸'){
+        const r = p.querySelector('input[type=range]');
+        const n = p.querySelector('.num');
+        r.value = 200; n.value = 200;
+        r.style.setProperty('--fill', '100%');
+      }
+    });
+    toast('形状已填满绘图区域');
+  });
+
+  /* 边框、阴影开关更新标签绿勾 */
+  const be = $('#borderEnable');
+  if (be) be.addEventListener('change', () => {
+    $('#shapeTabs [data-pane=border]').classList.toggle('enabled', be.checked);
+  });
+  const fs = $('#fshadowEnable');
+  if (fs) fs.addEventListener('change', () => {
+    $('#shapeTabs [data-pane=shadow]').classList.toggle('enabled', fs.checked);
+  });
 }
 
 /* ============================================================
@@ -1377,13 +1608,7 @@ function renderFillBody() {
         <div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">
           单色填充无需设置布局与边界，直接到下方「内部填充」调整颜色即可。
         </div>` : `
-        <div class="param stacked" style="padding-top:0">
-          <span class="pname">布局形式</span>
-          <div class="chip-row">
-            <button class="chip active">矩阵布局</button>
-            <button class="chip">饼图布局</button>
-          </div>
-        </div>
+        ${stackedChips('布局形式', ['矩阵布局','饼图布局'])}
         ${paramRow('层数', 1, 1, fillCount, '')}
         ${paramRow('层间比例', 50, 0, 100, '%')}
         ${paramRow('层内比例', 50, 0, 100, '%')}
@@ -1400,15 +1625,7 @@ function renderFillBody() {
           单色填充没有内部边界，无需设置过渡与边界形状。
         </div>` : `
         ${paramRow('过渡宽度', 0, 0, 100, '%')}
-        <div class="param stacked">
-          <span class="pname">边界形状</span>
-          <div class="chip-row">
-            <button class="chip active">直线</button>
-            <button class="chip">sin</button>
-            <button class="chip">tan</button>
-            <button class="chip">锯齿</button>
-          </div>
-        </div>
+        ${stackedChips('边界形状', ['直线','sin','tan','锯齿'])}
         <div class="param stacked">
           <span class="pname">边界参数</span>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
@@ -1419,16 +1636,7 @@ function renderFillBody() {
               </div>`).join('')}
           </div>
         </div>
-        <div class="param stacked">
-          <span class="pname">过渡样式</span>
-          <div class="chip-row">
-            <button class="chip active">单色</button>
-            <button class="chip">渐变</button>
-            <button class="chip">加深</button>
-            <button class="chip">变浅</button>
-            <button class="chip">透明</button>
-          </div>
-        </div>`}
+        ${stackedChips('过渡样式', ['单色','渐变','加深','变浅','透明'])}`}
     </div>
 
     <div class="pane${active === 'advice' ? ' active' : ''}" data-pane="advice">
@@ -1442,12 +1650,22 @@ function renderFillBody() {
         <div class="param">
           <span class="pname">${g.n}</span>
           <div class="pctrl" style="gap:5px">
-            ${g.cs.map(c => `<button class="fill-swatch" style="background:${c};width:24px;height:24px;border-radius:7px"></button>`).join('')}
+            ${g.cs.map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}
             <button class="btn ghost sm" style="margin-left:auto">填充</button>
           </div>
         </div>`).join('')}
     </div>`;
+
   syncRanges($('#fillBody'));
+
+  /* chip 单选 */
+  $$('.chip-row', $('#fillBody')).forEach(row => {
+    row.addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      $$('.chip', row).forEach(c => c.classList.toggle('active', c === chip));
+    });
+  });
 }
 
 /* ============================================================
@@ -1497,12 +1715,21 @@ function renderFillBody2() {
     ${paramRow('明度', 70, 0, 100, '%')}
     <div class="param stacked">
       <span class="pname">颜色建议</span>
-      <div class="chip-row">
+      <div class="suggest-row">
         ${['#4d6ef5','#7c5cff','#22c55e','#f59e0b','#ef4444','#0ea5e9']
-          .map(x => `<button class="fill-swatch" style="background:${x};width:22px;height:22px;border-radius:7px"></button>`).join('')}
+          .map(x => `<button class="sw" data-c="${x}" style="background:${x}"></button>`).join('')}
       </div>
     </div>`;
   syncRanges($('#fillBody2'));
+
+  /* 背景模式切换（纯/渐/图） */
+  const seg = $('#fillBody2 .segmented');
+  if (seg) {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('button', seg).forEach(x => x.classList.toggle('active', x === b));
+    });
+  }
 }
 
 /* ============================================================
@@ -1537,13 +1764,22 @@ function paintIcon(canvas, p, S = 96) {
 function renderPresets() {
   const grid = $('#presetGrid');
   grid.innerHTML = '';
-  PRESETS.forEach(p => {
+  PRESETS.forEach((p, i) => {
     const d = document.createElement('div');
     d.className = 'preset-item';
     d.title = '点击应用预设';
     const c = document.createElement('canvas');
     d.appendChild(c);
     paintIcon(c, p);
+    d.addEventListener('click', () => {
+      rows[0].text = p.text;
+      activeRow = 0;
+      renderContentTabs();
+      renderContentBody();
+      renderStyle();
+      drawIcon();
+      toast('已应用预设：' + p.text);
+    });
     grid.appendChild(d);
   });
 }
@@ -1569,53 +1805,221 @@ function renderHistory() {
     s.className = 'hname';
     s.textContent = `KIcon-256-${p.text}-${stamp.slice(0, 14 - i * 2)}.png`;
     d.appendChild(s);
+    const del = document.createElement('button');
+    del.className = 'hdel';
+    del.textContent = '✕';
+    del.title = '删除该条历史';
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      d.remove();
+      toast('已删除历史快照');
+    });
+    d.appendChild(del);
+    d.addEventListener('click', () => {
+      rows[0].text = p.text;
+      activeRow = 0;
+      renderContentTabs(); renderContentBody(); renderStyle(); drawIcon();
+      toast('已恢复历史快照：' + p.text);
+    });
     list.appendChild(d);
   });
 }
 
 /* ============================================================
-   参数滑块填充同步
+   参数滑块填充同步 + 非法输入校验
    ============================================================ */
 function syncRanges(root) {
   $$('input[type=range]', root).forEach(r => {
+    const row = r.closest('.param');
+    const min = +r.min || 0, max = +r.max || 100;
     const upd = () => {
-      const min = +r.min || 0, max = +r.max || 100, v = +r.value;
+      const v = +r.value;
       r.style.setProperty('--fill', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
-      const num = r.parentElement.querySelector('.num');
+      const num = row?.querySelector('.num');
       if (num && document.activeElement !== num) num.value = v;
     };
     upd();
     r.addEventListener('input', upd);
-    const num = r.parentElement.querySelector('.num');
+
+    const num = row?.querySelector('.num');
     if (num) {
-      num.addEventListener('input', () => {
+      num.addEventListener('change', () => {
         const v = parseFloat(num.value);
-        if (!isNaN(v)) { r.value = v; upd(); }
+        if (isNaN(v) || v < min || v > max){
+          const fixed = flashInvalid(num, min, max);
+          setTimeout(() => { r.value = fixed; upd(); }, 620);
+          return;
+        }
+        r.value = v; upd();
+      });
+      num.addEventListener('blur', () => {
+        const v = parseFloat(num.value);
+        if (isNaN(v) || v < min || v > max){
+          const fixed = flashInvalid(num, min, max);
+          setTimeout(() => { r.value = fixed; upd(); }, 620);
+        }
       });
     }
+
+    /* 重置按钮 */
+    const rst = row?.querySelector('.rst');
+    if (rst) rst.addEventListener('click', () => {
+      const def = row.dataset.default;
+      if (def !== undefined){
+        r.value = def;
+        const n = row.querySelector('.num');
+        if (n) n.value = def;
+        upd();
+      }
+    });
+
+    /* 联动链条 */
+    const chain = row?.querySelector('.chain');
+    if (chain) chain.addEventListener('click', () => {
+      chain.classList.toggle('on');
+      toast(chain.classList.contains('on') ? '已开启该参数联动' : '已取消该参数联动');
+    });
   });
 }
 
 /* ============================================================
-   预览缩放
+   预览缩放（原位缩放：滚轮缩放 + 拖动 + 双击复位）
    ============================================================ */
 let zoom = 1;
+let panX = 0, panY = 0;
+let dragging = false;
+let dragStartX = 0, dragStartY = 0;
+let startPanX = 0, startPanY = 0;
+
 const wrap = $('#canvasWrap');
 const stage = $('#stage');
 
+function applyTransform(){
+  wrap.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
 stage.addEventListener('wheel', e => {
   e.preventDefault();
-  zoom = Math.min(3, Math.max(0.5, zoom + (e.deltaY > 0 ? -0.08 : 0.08)));
-  wrap.style.transform = `scale(${zoom})`;
+  const delta = e.deltaY > 0 ? -0.08 : 0.08;
+  zoom = Math.min(3, Math.max(0.5, zoom + delta));
+  applyTransform();
 }, { passive: false });
 
-stage.addEventListener('dblclick', () => {
-  zoom = 1;
-  wrap.style.transform = 'scale(1)';
+/* 鼠标按下拖动 */
+stage.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  /* 双击时不拖动 */
+  dragging = true;
+  dragStartX = e.clientX; dragStartY = e.clientY;
+  startPanX = panX; startPanY = panY;
+  stage.style.cursor = 'grabbing';
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  panX = startPanX + (e.clientX - dragStartX);
+  panY = startPanY + (e.clientY - dragStartY);
+  applyTransform();
+});
+window.addEventListener('mouseup', () => {
+  if (dragging){ dragging = false; stage.style.cursor = ''; }
 });
 
-$('#guideSelect').addEventListener('change', drawIcon);
-$('#safeChk').addEventListener('change', drawIcon);
+/* 双击复位；若在缩放模式则退出缩放模式 */
+stage.addEventListener('dblclick', e => {
+  /* 双击复位并退出缩放模式 */
+  zoom = 1; panX = 0; panY = 0;
+  applyTransform();
+  stage.style.cursor = '';
+});
+
+/* 单击：若曾拖动过，不触发模态；用时间判断 */
+let downTime = 0;
+stage.addEventListener('mousedown', () => { downTime = Date.now(); });
+stage.addEventListener('click', e => {
+  const dt = Date.now() - downTime;
+  if (dt > 300) return; /* 拖动过 */
+  /* 仅在双击时进入模态，所以单击不处理 */
+});
+
+/* ============================================================
+   模态查看器
+   ============================================================ */
+const viewerModal = $('#viewerModal');
+const modalBody = $('#modalBody');
+const viewerCanvas = $('#viewerCanvas');
+
+function openViewer(){
+  $('#modalInfo').textContent = `${iconSize} × ${iconSize}`;
+  viewerModal.classList.add('open');
+}
+function closeViewer(){
+  viewerModal.classList.remove('open');
+}
+/* 双击预览打开模态（若未拖动） */
+stage.addEventListener('dblclick', e => {
+  if (e.target.closest('.safe-box')) return;
+  /* 先复位 */
+  zoom = 1; panX = 0; panY = 0;
+  applyTransform();
+  openViewer();
+});
+
+/* 模态内双击复位 */
+modalBody.addEventListener('dblclick', () => {
+  modalBody.scrollTop = 0;
+  modalBody.scrollLeft = 0;
+});
+$('#viewerClose').addEventListener('click', closeViewer);
+viewerModal.addEventListener('click', e => {
+  if (e.target === viewerModal) closeViewer();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeViewer();
+});
+
+/* 放大按钮 */
+$('#enlargeBtn').addEventListener('click', () => {
+  const layout = $('.layout');
+  const enlarged = layout.classList.toggle('enlarged');
+  if (enlarged){
+    layout.style.gridTemplateColumns = '50vw minmax(280px,1fr) minmax(280px,1fr)';
+    toast('已放大预览（左栏占半屏）');
+  } else {
+    layout.style.gridTemplateColumns = '';
+    toast('已恢复三栏布局');
+  }
+});
+
+/* 辅助线、安全边距 */
+$('#guideSelect').addEventListener('change', () => {
+  const mode = $('#guideSelect').value;
+  const layer = $('#guidesLayer');
+  layer.dataset.mode = mode;
+  layer.classList.toggle('show', mode !== 'none');
+  drawIcon();
+});
+$('#safeChk').addEventListener('change', () => {
+  $('#safeBox').classList.toggle('show', $('#safeChk').checked);
+  drawIcon();
+});
+$('#safePct').addEventListener('change', () => {
+  let v = +$('#safePct').value;
+  if (isNaN(v) || v < 0 || v > 50){
+    v = flashInvalid($('#safePct'), 0, 50);
+    setTimeout(() => { $('#safePct').value = v; }, 620);
+    return;
+  }
+  const S = iconSize;
+  $('#safeBox').style.inset = (S * v / 100) + 'px';
+  drawIcon();
+});
+$('#safePct').addEventListener('blur', () => {
+  let v = +$('#safePct').value;
+  if (isNaN(v) || v < 0 || v > 50){
+    const fixed = flashInvalid($('#safePct'), 0, 50);
+    setTimeout(() => { $('#safePct').value = fixed; }, 620);
+  }
+});
 
 /* 尺寸联动 */
 $('#sizePreset').addEventListener('change', e => {
@@ -1624,15 +2028,27 @@ $('#sizePreset').addEventListener('change', e => {
 });
 $('#sizeInput').addEventListener('change', e => {
   let v = parseInt(e.target.value, 10);
-  if (isNaN(v) || v < 0) v = 16;
-  if (v > 10000) v = 8192;
-  e.target.value = v;
+  if (isNaN(v) || v < 0 || v > 10000){
+    const fixed = flashInvalid(e.target, 16, 8192);
+    setTimeout(() => { e.target.value = fixed; updateSize(); }, 620);
+    return;
+  }
   updateSize();
+});
+$('#sizeInput').addEventListener('blur', e => {
+  let v = parseInt(e.target.value, 10);
+  if (isNaN(v) || v < 16 || v > 8192){
+    const fixed = flashInvalid(e.target, 16, 8192);
+    setTimeout(() => { e.target.value = fixed; updateSize(); }, 620);
+  }
 });
 
 function updateSize() {
   iconSize = parseInt($('#sizeInput').value, 10) || 256;
   $('#sizeTag').textContent = `${iconSize} × ${iconSize}`;
+  const S = iconSize;
+  const pct = Math.min(50, Math.max(0, +$('#safePct').value || 10));
+  $('#safeBox').style.inset = (S * pct / 100) + 'px';
   drawIcon();
   updateFileName();
 }
@@ -1650,12 +2066,112 @@ function updateFileName() {
 }
 
 /* ============================================================
+   预设/历史/下载 按钮行为
+   ============================================================ */
+$$('[data-act]').forEach(b => b.addEventListener('click', () => {
+  const act = b.dataset.act;
+  if (act === 'import'){ toast('导入预设（演示）：请选择 JSON 文件'); }
+  else if (act === 'export'){ toast('导出预设 JSON（演示）'); }
+  else if (act === 'save'){ toast('已保存为预设（仅本次会话有效）'); }
+  else if (act === 'copy-json'){
+    const data = JSON.stringify({app:'KIcon', v:'2.02', rows: rowCount, size: iconSize}, null, 2);
+    navigator.clipboard?.writeText(data)
+      .then(() => toast('预设 JSON 已复制到剪贴板'))
+      .catch(() => toast('复制失败（浏览器限制）'));
+  }
+  else if (act === 'copy-html'){
+    const html = `<link rel="icon" href="favicon.ico" sizes="any">\n<link rel="apple-touch-icon" href="apple-touch-icon.png">`;
+    navigator.clipboard?.writeText(html)
+      .then(() => toast('link 标签已复制'))
+      .catch(() => toast('复制失败（浏览器限制）'));
+  }
+}));
+
+/* 下载格式按钮 */
+$$('.fmt').forEach(b => b.addEventListener('click', () => {
+  const fmt = b.dataset.fmt.toUpperCase();
+  toast(`正在导出 ${fmt} …（演示）`);
+  /* 触发一次真实下载（PNG 演示） */
+  if (fmt === 'PNG'){
+    const a = document.createElement('a');
+    a.download = $('#fileName').textContent;
+    a.href = cvs.toDataURL('image/png');
+    a.click();
+  }
+}));
+
+/* 顶部联动按钮 */
+const lb = $('#linkageBtn');
+let ls = 1; /* 0=无 1=部分 2=全部 */
+lb.addEventListener('click', () => {
+  ls = (ls + 1) % 3;
+  lb.classList.remove('partial', 'all', 'none');
+  const txt = $('.lbl', lb);
+  if (ls === 0){ txt.textContent = '参数联动：无'; lb.classList.add('none'); }
+  if (ls === 1){ txt.textContent = '参数联动：部分'; lb.classList.add('partial'); }
+  if (ls === 2){ txt.textContent = '参数联动：全部'; lb.classList.add('all'); }
+  toast(txt.textContent);
+});
+
+/* 撤销/重做（占位） */
+$('#undoBtn').addEventListener('click', () => toast('撤销（演示：参数变更在滑块释放 / 失焦时入栈）'));
+$('#redoBtn').addEventListener('click', () => toast('重做（演示）'));
+
+/* 复制样式/粘贴样式 */
+$('#copyStyleBtn').addEventListener('click', () => {
+  styleClipboard = { row: activeRow, mode: rows[activeRow].mode };
+  toast(`已复制第 ${activeRow + 1} 行样式（跨模式仅应用相同参数）`);
+});
+$('#pasteStyleBtn').addEventListener('click', () => {
+  if (!styleClipboard){ toast('剪贴板为空，请先复制样式'); return; }
+  toast(`已将第 ${styleClipboard.row + 1} 行样式粘贴到第 ${activeRow + 1} 行（同参数）`);
+});
+
+/* 样式重置 */
+$('#styleReset').addEventListener('click', () => {
+  renderStyle();
+  toast('已重置当前行样式');
+});
+
+/* 填充数量 → 色块数量联动 */
+$('#fillCount').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  const kids = Array.from(chip.parentElement.children);
+  const idx = kids.indexOf(chip);
+  fillCount = idx === 0 ? 1 : idx + 1;
+  if (activeFill >= fillCount) activeFill = 0;
+  $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
+  renderFillList();
+  renderFillBody2();
+  renderFillBody();
+  toast(`填充数量：${fillCount === 1 ? '单色' : fillCount + '色'}`);
+});
+
+/* ============================================================
+   全局 chip / segmented / fill-swatch 单选
+   ============================================================ */
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chip-row .chip');
+  if (chip && !chip.closest('#fillCount')){
+    $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
+  }
+  const seg = e.target.closest('.segmented button');
+  if (seg && seg.parentElement.classList.contains('segmented')
+      && !seg.parentElement.classList.contains('icon-only')
+      && seg.parentElement.id !== 'themeSwitch'){
+    $$('button', seg.parentElement).forEach(b => b.classList.toggle('active', b === seg));
+  }
+});
+
+/* ============================================================
    初始化
    ============================================================ */
 function init() {
   bindTabs(document);
 
   renderRowCount();
+  renderLayoutChips();
   renderContentTabs();
   renderContentBody();
   renderStyle();
@@ -1669,79 +2185,27 @@ function init() {
   drawIcon();
   updateSize();
 
-  /* 填充数量 → 色块数量联动 */
-  $('#fillCount').addEventListener('click', e => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    const kids = Array.from(chip.parentElement.children);
-    const idx = kids.indexOf(chip);
-    fillCount = idx === 0 ? 1 : idx + 1;
-    if (activeFill >= fillCount) activeFill = 0;
-    renderFillList();
-    renderFillBody2();
-    renderFillBody();
-  });
+  /* 初始安全边距显示 */
+  $('#safeBox').classList.add('show');
+  const S = iconSize;
+  $('#safeBox').style.inset = (S * 0.1) + 'px';
 
-  // 通用：chip 单选组
-  document.addEventListener('click', e => {
-    const chip = e.target.closest('.chip-row .chip');
-    if (chip) {
-      $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
-    }
-    const seg = e.target.closest('.segmented button');
-    if (seg && seg.parentElement.classList.contains('segmented') && !seg.parentElement.classList.contains('icon-only')) {
-      if (seg.parentElement.id === 'themeSwitch') return;
-      $$('button', seg.parentElement).forEach(b => b.classList.toggle('active', b === seg));
-    }
-    const sw = e.target.closest('.fill-swatch');
-    if (sw) {
-      const group = sw.parentElement;
-      $$('.fill-swatch', group).forEach(s => s.classList.toggle('active', s === sw));
-    }
-  });
-
-  // 滑块填充同步（事件委托）
-  document.addEventListener('input', e => {
-    if (e.target.matches('input[type=range]')) {
-      const min = +e.target.min || 0, max = +e.target.max || 100, v = +e.target.value;
-      e.target.style.setProperty('--fill', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
-      const num = e.target.parentElement.querySelector('.num');
-      if (num) num.value = v;
-    }
-    if (e.target.id === 'sizeInput') updateFileName();
-  });
-
-  // 联动按钮
-  document.addEventListener('click', e => {
-    const chain = e.target.closest('.chain');
-    if (chain) chain.classList.toggle('on');
-  });
-
-  // 联动状态按钮
-  const lb = $('#linkageBtn');
-  let ls = 0;
-  lb.addEventListener('click', () => {
-    ls = (ls + 1) % 3;
-    lb.classList.remove('partial', 'all');
-    const txt = $('.lbl', lb);
-    if (ls === 0) { txt.textContent = '参数联动：无'; }
-    if (ls === 1) { txt.textContent = '参数联动：部分'; lb.classList.add('partial'); }
-    if (ls === 2) { txt.textContent = '参数联动：全部'; lb.classList.add('all'); }
-  });
-
-  // 快捷键提示（不拦截浏览器原生撤销）
+  /* 快捷键：输入框内交给浏览器原生撤销 */
   document.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
       e.preventDefault();
-      console.log('[KIcon] 撤销');
+      toast('撤销（演示）');
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){
       e.preventDefault();
-      console.log('[KIcon] 重做');
+      toast('重做（演示）');
     }
   });
+
+  /* 初次提示 */
+  setTimeout(() => toast('欢迎使用 KiconCreator · 双击预览进入 1:1 模态查看'), 400);
 }
 
 init();
