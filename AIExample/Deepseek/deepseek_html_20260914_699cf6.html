@@ -11,8 +11,7 @@
   --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 22px rgba(16,24,40,.06);
   --shadow-lg:0 12px 34px rgba(16,24,40,.12);
   --topbar-h: 54px;
-  --merge-tabs-h: 44px;    /* 两栏模式下合并标签栏占位高度 */
-  --expand-threshold: 560px; /* 栏高度超过此值 → 标签组展开 */
+  --merge-tabs-h: 44px;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 html[data-theme="light"]{
@@ -41,7 +40,7 @@ html[data-theme="dark"]{
 html,body{
   margin:0; padding:0;
   height:100%;
-  overflow:hidden;   /* 禁止页面级横向/纵向滚动条 */
+  overflow:hidden;
 }
 body{
   display:grid;
@@ -152,7 +151,6 @@ html[data-layout="two"] .col{
 }
 html[data-layout="one"] .col{display:contents}
 
-/* 两栏合并：col-mid 和 col-right 共享第 2 格，且预留合并标签栏空间 */
 html[data-layout="two"] .col-left{grid-column:1;grid-row:1}
 html[data-layout="two"] .col-mid{
   grid-column:2;grid-row:1;
@@ -165,10 +163,7 @@ html[data-layout="two"] .col-right{
 html[data-layout="two"] .col-mid:not(.active),
 html[data-layout="two"] .col-right:not(.active){display:none}
 
-/* ============================================================
-   合并标签栏：两栏模式下 fixed 悬浮在第 2 栏顶部
-   —— 提取到 layout 之外，独立 fixed 定位，与 col 是否显示无关
-   ============================================================ */
+/* ================= 合并标签栏（两栏模式） ================= */
 .merge-tabs{
   display:none;
   position:fixed;
@@ -179,7 +174,6 @@ html[data-layout="two"] .col-right:not(.active){display:none}
   border:1px solid var(--border);
   border-radius:10px;
   box-shadow:var(--shadow);
-  /* left / top / width 由 JS 设置 */
 }
 html[data-layout="two"] .merge-tabs{display:flex}
 .merge-tab{
@@ -206,7 +200,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
   background:var(--panel); border:1px solid var(--border);
   border-radius:var(--radius); box-shadow:var(--shadow);
   overflow:hidden; min-width:0;
-  flex:0 0 auto;
+  flex:0 0 auto;   /* 不压缩，让标签组折叠/滚动来处理溢出 */
 }
 .module-head{
   display:flex;align-items:center;gap:8px;
@@ -306,7 +300,6 @@ html[data-layout="two"] .merge-tabs{display:flex}
 
 .preview-placeholder{display:none;flex:0 0 auto}
 
-/* 预览浮动固定 */
 body.preview-float .module-preview{
   position:fixed;
   top:var(--topbar-h);
@@ -356,7 +349,7 @@ body.preview-float .preview-placeholder{
 .tab.enabled .badge-ok{visibility:visible}
 
 /* ============================================================
-   标签组展开：模块高度充足时，全部 pane 纵向展开
+   标签组展开：栏高度充足时，全部 pane 纵向展开
    —— 由 JS 在模块上加 .expanded
    ============================================================ */
 .module.expanded .tabs{display:none}
@@ -735,7 +728,6 @@ input[type=range]::-moz-range-thumb{
 </head>
 <body>
 
-<!-- ================= 顶部工具栏 ================= -->
 <header class="topbar">
   <div class="brand">
     <div class="logo">K</div>
@@ -771,19 +763,16 @@ input[type=range]::-moz-range-thumb{
   </div>
 </header>
 
-<!-- ================= 两栏模式的合并标签栏（fixed 悬浮，与 col 显示状态无关） ================= -->
 <div class="merge-tabs" id="mergeTabs">
   <button class="merge-tab active" data-tab="mid">内容参数</button>
   <button class="merge-tab" data-tab="right">背景参数</button>
 </div>
 
-<!-- ================= 主布局 ================= -->
 <main class="layout" data-mode="three">
 
-  <!-- ============ 左栏：预览 / 预设历史 / 下载 ============ -->
+  <!-- ============ 左栏 ============ -->
   <section class="col col-left">
 
-    <!-- 预览 -->
     <section class="module module-preview">
       <div class="module-head">
         <span class="mh-title">预览</span>
@@ -834,10 +823,8 @@ input[type=range]::-moz-range-thumb{
         </div>
       </div>
     </section>
-    <!-- 预览占位：preview-float 时显示 -->
     <div class="preview-placeholder" aria-hidden="true"></div>
 
-    <!-- 预设与历史 -->
     <section class="module">
       <div class="module-head">
         <span class="mh-title">预设与历史</span>
@@ -865,7 +852,6 @@ input[type=range]::-moz-range-thumb{
       </div>
     </section>
 
-    <!-- 下载 -->
     <section class="module">
       <div class="module-head">
         <span class="mh-title">下载</span>
@@ -930,10 +916,9 @@ input[type=range]::-moz-range-thumb{
 
   </section>
 
-  <!-- ============ 中栏：内容参数 ============ -->
+  <!-- ============ 中栏 ============ -->
   <section class="col col-mid">
 
-    <!-- 多行设置 -->
     <section class="module">
       <div class="module-head">
         <span class="mh-title">多行设置</span>
@@ -959,7 +944,6 @@ input[type=range]::-moz-range-thumb{
       </div>
     </section>
 
-    <!-- 内容 -->
     <section class="module">
       <div class="module-head">
         <span class="mh-title">内容</span>
@@ -976,7 +960,6 @@ input[type=range]::-moz-range-thumb{
       </div>
     </section>
 
-    <!-- 样式 -->
     <section class="module" id="moduleStyle">
       <div class="module-head">
         <span class="mh-title">样式</span>
@@ -996,10 +979,9 @@ input[type=range]::-moz-range-thumb{
 
   </section>
 
-  <!-- ============ 右栏：背景参数 ============ -->
+  <!-- ============ 右栏 ============ -->
   <section class="col col-right">
 
-    <!-- 形状与外框 -->
     <section class="module" id="moduleShape">
       <div class="module-head">
         <span class="mh-title">形状与外框</span>
@@ -1014,7 +996,6 @@ input[type=range]::-moz-range-thumb{
       </div>
     </section>
 
-    <!-- 填充数量和布局 -->
     <section class="module" id="moduleFill">
       <div class="module-head">
         <span class="mh-title">填充数量和布局</span>
@@ -1041,7 +1022,6 @@ input[type=range]::-moz-range-thumb{
       </div>
     </section>
 
-    <!-- 内部填充 -->
     <section class="module">
       <div class="module-head">
         <span class="mh-title">内部填充</span>
@@ -1059,10 +1039,8 @@ input[type=range]::-moz-range-thumb{
   </section>
 </main>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- 模态查看器 -->
 <div class="modal" id="viewerModal">
   <div class="modal-box">
     <div class="modal-head">
@@ -1153,7 +1131,6 @@ function updateLayoutMode(){
   const layoutEl = $('.layout');
   if (layoutEl) layoutEl.dataset.mode = mode;
 
-  /* 两栏模式：默认显示内容栏；恢复上次激活的标签 */
   if (mode === 'two'){
     const tab = $('.merge-tab.active')?.dataset.tab || 'mid';
     document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
@@ -1162,19 +1139,10 @@ function updateLayoutMode(){
     document.querySelector('.col-mid')?.classList.remove('active');
     document.querySelector('.col-right')?.classList.remove('active');
   }
-
-  /* 布局切换后重新计算 */
-  requestAnimationFrame(() => {
-    updateTopbarHeight();
-    syncMergeTabs();
-    checkPreviewFloat();
-    checkTabExpansion();
-  });
 }
 
 /* ============================================================
    两栏合并标签栏：fixed 悬浮在第 2 栏顶部
-   —— left / top / width 由 JS 同步
    ============================================================ */
 function syncMergeTabs(){
   const mt = $('#mergeTabs');
@@ -1185,7 +1153,6 @@ function syncMergeTabs(){
     mt.style.removeProperty('width');
     return;
   }
-  /* 两个栏共享同一个 grid cell，选当前显示的栏取 rect */
   const col = document.querySelector('.col-mid.active')
            || document.querySelector('.col-right.active')
            || document.querySelector('.col-mid');
@@ -1257,38 +1224,94 @@ function syncPreviewLayout(){
 }
 
 /* ============================================================
-   标签组展开检测
-   —— 栏可用高度 ≥ 阈值 → 含 tabs 的模块全部展开 pane
+   标签组展开/折叠检测（核心：先折叠，再考虑滚动条）
+   ------------------------------------------------------------
+   需求：
+   1. 栏高度足够容纳所有模块展开态 → 全部展开（expanded）
+   2. 否则 → 折叠为标签组（tabs），保留一个 pane
+   3. 若折叠态仍装不下 → 栏出现纵向滚动条（由 CSS overflow 自动处理）
+   ------------------------------------------------------------
+   实现：用一个不可见的临时快照测量两态高度，避免可见抖动
    ============================================================ */
+function getActiveColumns(){
+  const mode = document.documentElement.dataset.layout;
+  if (mode === 'three'){
+    const mid = document.querySelector('.col-mid');
+    const right = document.querySelector('.col-right');
+    return [mid, right].filter(Boolean);
+  }
+  if (mode === 'two'){
+    const active = document.querySelector('.col-mid.active')
+                || document.querySelector('.col-right.active');
+    return active ? [active] : [];
+  }
+  /* 单栏：默认折叠，无展开需求 */
+  return [];
+}
+
 function checkTabExpansion(){
   const mode = document.documentElement.dataset.layout;
-  const topbarH = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')
-  ) || 54;
 
-  let colH = 0;
+  /* 单栏：所有模块默认折叠，让栏出现滚动条 */
   if (mode === 'one'){
-    /* 单栏：用视口可用高度 */
-    colH = window.innerHeight - topbarH - 40;
-  } else if (mode === 'two'){
-    const col = document.querySelector('.col-mid.active')
-             || document.querySelector('.col-right.active')
-             || document.querySelector('.col-mid');
-    colH = col ? col.clientHeight : 0;
-  } else {
-    const col = document.querySelector('.col-mid');
-    colH = col ? col.clientHeight : 0;
+    $$('.module').forEach(m => m.classList.remove('expanded'));
+    checkPreviewFloat();
+    return;
   }
 
-  const threshold = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue('--expand-threshold')
-  ) || 560;
-  const shouldExpand = colH >= threshold;
+  const cols = getActiveColumns();
+  cols.forEach(col => {
+    const tabModules = Array.from(col.querySelectorAll('.module'))
+      .filter(m => m.querySelector('.tabs'));
+    if (tabModules.length === 0) return;
 
-  $$('.module').forEach(mod => {
-    if (!mod.querySelector('.tabs')) return;
-    mod.classList.toggle('expanded', shouldExpand);
+    const colH = col.clientHeight;
+    if (colH <= 0) return;
+
+    /* 保存当前状态与滚动位置 */
+    const savedScroll = col.scrollTop;
+
+    /* 隐藏栏避免中间态闪烁 */
+    const prevVis = col.style.visibility;
+    col.style.visibility = 'hidden';
+
+    /* 测量展开态 */
+    tabModules.forEach(m => m.classList.add('expanded'));
+    void col.offsetHeight; /* 强制同步重排 */
+    const hExpanded = col.scrollHeight;
+
+    /* 测量折叠态 */
+    tabModules.forEach(m => m.classList.remove('expanded'));
+    void col.offsetHeight;
+    const hCollapsed = col.scrollHeight;
+
+    /* 决策：
+       - 展开态能装下 → 展开
+       - 否则 → 折叠（折叠态若也装不下，则自然出现滚动条） */
+    if (hExpanded <= colH + 2){
+      tabModules.forEach(m => m.classList.add('expanded'));
+    } else {
+      tabModules.forEach(m => m.classList.remove('expanded'));
+    }
+
+    /* 恢复 */
+    col.style.visibility = prevVis;
+    /* 尽量恢复滚动位置 */
+    col.scrollTop = Math.min(savedScroll, col.scrollHeight);
   });
+
+  /* 折叠/展开后重新检测预览浮动 */
+  checkPreviewFloat();
+}
+
+/* ============================================================
+   统一刷新：布局 → 合并标签栏 → 标签展开 → 预览浮动
+   ============================================================ */
+function refreshLayout(){
+  updateTopbarHeight();
+  updateLayoutMode();
+  syncMergeTabs();
+  checkTabExpansion();
 }
 
 /* ============================================================
@@ -1357,10 +1380,9 @@ $$('.merge-tab').forEach(btn => {
     $$('.merge-tab').forEach(b => b.classList.toggle('active', b === btn));
     document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
     document.querySelector('.col-right')?.classList.toggle('active', tab === 'right');
-    /* 切换后重新计算：滚动、合并标签位置、展开状态 */
+    /* 切换后重新计算 */
     requestAnimationFrame(() => {
       syncMergeTabs();
-      checkPreviewFloat();
       checkTabExpansion();
     });
   });
@@ -1482,10 +1504,7 @@ function renderRowCount() {
       renderStyle();
       $('#layerParam').style.display = rowCount > 1 ? '' : 'none';
       drawIcon();
-      requestAnimationFrame(() => {
-        checkPreviewFloat();
-        checkTabExpansion();
-      });
+      requestAnimationFrame(refreshLayout);
     };
     box.appendChild(b);
   }
@@ -1760,7 +1779,6 @@ function renderStyle() {
   $('#contentNote').textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]}`;
 
   const active = $('#styleTabs .tab.active')?.dataset.pane || 'size';
-  /* 每个 pane 加 data-label，展开时用于显示标题 */
   $('#styleBody').innerHTML = `
     <div class="pane${active === 'size' ? ' active' : ''}" data-pane="size" data-label="尺寸">${paneSize()}</div>
     <div class="pane${active === 'color' ? ' active' : ''}" data-pane="color" data-label="颜色">${paneColor(r)}</div>
@@ -1777,6 +1795,7 @@ function renderStyle() {
   $$('#styleBody .sw').forEach(sw => {
     sw.addEventListener('click', () => toast('已应用建议颜色 ' + sw.dataset.c));
   });
+  requestAnimationFrame(refreshLayout);
 }
 
 /* ============================================================
@@ -2214,9 +2233,7 @@ $('#enlargeBtn').addEventListener('click', () => {
     layout.style.gridTemplateColumns = '';
     toast('已恢复默认栏宽');
   }
-  requestAnimationFrame(() => {
-    updateLayoutMode();
-  });
+  requestAnimationFrame(refreshLayout);
 });
 
 /* 辅助线、安全边距、尺寸 */
@@ -2362,6 +2379,7 @@ $('#fillCount').addEventListener('click', e => {
   renderFillList();
   renderFillBody2();
   renderFillBody();
+  requestAnimationFrame(refreshLayout);
   toast(`填充数量：${fillCount === 1 ? '单色' : fillCount + '色'}`);
 });
 
@@ -2399,63 +2417,59 @@ function init() {
   drawIcon();
   updateSize();
   updateTopbarHeight();
-  updateLayoutMode();
 
   $('#safeBox').classList.add('show');
   const S = iconSize;
   $('#safeBox').style.inset = (S * 0.1) + 'px';
 
-  /* 首次检测 */
+  /* 首次刷新：布局 → 展开决策 → 预览浮动 */
   requestAnimationFrame(() => {
-    updateLayoutMode();
+    refreshLayout();
   });
 
-  /* 视口变化：重新计算布局 + 合并标签位置 + 展开状态 + 预览浮动 */
+  /* 视口变化 */
+  let resizeRAF = null;
   window.addEventListener('resize', () => {
-    updateTopbarHeight();
-    updateLayoutMode();
-    if (document.body.classList.contains('preview-float')){
-      requestAnimationFrame(syncPreviewLayout);
-    }
-    checkPreviewFloat();
-    checkTabExpansion();
+    if (resizeRAF) cancelAnimationFrame(resizeRAF);
+    resizeRAF = requestAnimationFrame(() => {
+      refreshLayout();
+    });
   });
 
   window.addEventListener('orientationchange', () => {
     setTimeout(() => {
-      updateTopbarHeight();
-      updateLayoutMode();
-      checkPreviewFloat();
-      checkTabExpansion();
+      refreshLayout();
     }, 150);
   });
 
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
-      updateTopbarHeight();
-      if (document.body.classList.contains('preview-float')){
-        requestAnimationFrame(syncPreviewLayout);
-      }
-      syncMergeTabs();
+      refreshLayout();
     });
   }
 
-  /* ResizeObserver：栏尺寸变化时重新检测滚动/展开/合并标签位置 */
+  /* ResizeObserver：栏尺寸变化时重新决策展开/折叠/滚动 */
   if (window.ResizeObserver) {
+    let roRAF = null;
     const ro = new ResizeObserver(() => {
-      syncMergeTabs();
-      checkPreviewFloat();
-      checkTabExpansion();
+      if (roRAF) cancelAnimationFrame(roRAF);
+      roRAF = requestAnimationFrame(() => {
+        updateTopbarHeight();
+        syncMergeTabs();
+        checkTabExpansion();
+      });
     });
     const colLeft = $('.col-left');
-    if (colLeft) ro.observe(colLeft);
     const colMid = $('.col-mid');
-    if (colMid) ro.observe(colMid);
+    const colRight = $('.col-right');
     const layout = $('.layout');
+    if (colLeft) ro.observe(colLeft);
+    if (colMid) ro.observe(colMid);
+    if (colRight) ro.observe(colRight);
     if (layout) ro.observe(layout);
   }
 
-  /* 栏内滚动时，同步 fixed 预览位置（以防滚动引起的位置变化） */
+  /* 栏内滚动时同步预览浮动位置 */
   document.querySelectorAll('.col, .layout').forEach(el => {
     el.addEventListener('scroll', () => {
       if (document.body.classList.contains('preview-float')){
