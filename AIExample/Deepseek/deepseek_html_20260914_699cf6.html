@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="light" data-layout="three">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -34,12 +34,19 @@ html[data-theme="dark"]{
   --ok:#3ddc84; --warn:#ff7a59; --err:#ff5f5f;
   --checker-a:#20242e; --checker-b:#171a22;
 }
-/* ================= 基础 ================= */
+/* ================= 基础：body 用 grid 分两行，禁止页面级滚动 ================= */
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+html,body{
+  margin:0; padding:0;
+  height:100%;
+  overflow:hidden;   /* 禁止页面级横向/纵向滚动条 */
+}
 body{
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  height:100vh;
   font-family:var(--font); font-size:13px; color:var(--text);
-  background:var(--bg); min-height:100vh;
+  background:var(--bg);
   -webkit-font-smoothing:antialiased;
   background-image:
     radial-gradient(900px 380px at 12% -6%, color-mix(in srgb,var(--accent) 9%, transparent), transparent 70%),
@@ -47,7 +54,7 @@ body{
   background-attachment:fixed;
   transition:background .25s,color .25s;
 }
-::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
 ::-webkit-scrollbar-track{background:transparent}
@@ -56,10 +63,10 @@ input,select{font-family:inherit}
 
 /* ================= 顶栏 ================= */
 .topbar{
-  position:sticky; top:0; z-index:60;
+  z-index:60;
   display:flex; align-items:center; gap:14px;
   padding:9px 18px;
-  background:color-mix(in srgb, var(--panel) 82%, transparent);
+  background:color-mix(in srgb, var(--panel) 88%, transparent);
   backdrop-filter:saturate(160%) blur(14px);
   -webkit-backdrop-filter:saturate(160%) blur(14px);
   border-bottom:1px solid var(--border);
@@ -104,23 +111,94 @@ input,select{font-family:inherit}
 .linkage-btn.all .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
 .linkage-btn.none .dot{background:var(--muted)}
 
-/* ================= 布局 ================= */
+/* ================= 布局容器 ================= */
 .layout{
+  min-height:0; min-width:0;
+  overflow:hidden;
   display:grid;
-  grid-template-columns:340px minmax(320px,1fr) minmax(320px,1fr);
-  gap:14px; padding:14px 18px 24px;
-  align-items:start; max-width:1920px; margin:0 auto;
+  gap:14px;
+  padding:14px 18px;
 }
-.col{display:flex;flex-direction:column;min-width:0}
+/* 三栏：>800 或手机横屏 */
+html[data-layout="three"] .layout{
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  grid-template-rows:minmax(0, 1fr);
+}
+/* 两栏：400~800 */
+html[data-layout="two"] .layout{
+  grid-template-columns:minmax(240px, 1fr) minmax(280px, 1.5fr);
+  grid-template-rows:minmax(0, 1fr);
+}
+/* 单栏：<400 或手机竖屏 —— layout 自身纵向滚动，col 用 display:contents 让模块直接参与 */
+html[data-layout="one"] .layout{
+  display:flex;
+  flex-direction:column;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:10px 12px;
+  gap:12px;
+}
+
+/* ================= 栏 ================= */
+.col{
+  display:flex; flex-direction:column;
+  gap:14px;
+  min-width:0; min-height:0;
+}
+/* 三栏/两栏：每个栏独立纵向滚动 */
+html[data-layout="three"] .col,
+html[data-layout="two"] .col{
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-gutter:stable;
+}
+/* 单栏：col 透明，模块直接参与 layout flex 布局 */
+html[data-layout="one"] .col{display:contents}
+
+/* ================= 两栏合并：col-mid 和 col-right 共享第 2 格，按 active 切换 ================= */
+html[data-layout="two"] .col-left{grid-column:1;grid-row:1}
+html[data-layout="two"] .col-mid{grid-column:2;grid-row:1}
+html[data-layout="two"] .col-right{grid-column:2;grid-row:1}
+html[data-layout="two"] .col-mid:not(.active),
+html[data-layout="two"] .col-right:not(.active){display:none}
+
+/* 合并标签栏：仅两栏模式显示 */
+.merge-tabs{
+  display:none;
+  gap:4px;
+  padding:4px;
+  background:var(--field);
+  border:1px solid var(--border);
+  border-radius:10px;
+  margin-bottom:2px;
+}
+html[data-layout="two"] .merge-tabs{display:flex}
+.merge-tab{
+  flex:1;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:600;
+  padding:7px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:.15s;
+}
+.merge-tab:hover{color:var(--text)}
+.merge-tab.active{
+  background:var(--panel);
+  color:var(--accent);
+  box-shadow:var(--shadow);
+}
 
 /* ================= 模块 ================= */
 .module{
   background:var(--panel); border:1px solid var(--border);
   border-radius:var(--radius); box-shadow:var(--shadow);
-  margin-bottom:14px; overflow:hidden; min-width:0;
-  transition:box-shadow .2s;
+  overflow:hidden; min-width:0;
+  flex:0 0 auto;
 }
-.module:last-child{margin-bottom:0}
 .module-head{
   display:flex;align-items:center;gap:8px;
   padding:9px 12px; font-size:12.5px; font-weight:700;
@@ -154,10 +232,16 @@ input,select{font-family:inherit}
 .btn.icon svg{width:14px;height:14px}
 
 /* ================= 预览 ================= */
+.module-preview{max-height:33vh;display:flex;flex-direction:column}
+.module-preview .module-body{
+  flex:1 1 auto;min-height:0;
+  display:flex;flex-direction:column;gap:6px;
+}
 .preview-stage{
   position:relative; display:flex; align-items:center; justify-content:center;
-  padding:16px; border-radius:var(--radius-sm);
-  border:1px solid var(--border); min-height:190px;
+  padding:12px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); min-height:140px;
+  flex:1 1 auto; min-height:0;
   background-color:var(--checker-a);
   background-image:
     linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),
@@ -176,10 +260,8 @@ input,select{font-family:inherit}
   transform-origin:center center;
 }
 #iconCanvas{
-  display:block;
-  width:auto; height:auto;
-  max-width:100%;
-  max-height:min(32vh,262px);
+  display:block; width:auto; height:auto;
+  max-width:100%; max-height:100%;
   border-radius:16px;
   box-shadow:0 10px 26px rgba(18,26,48,.20), 0 2px 6px rgba(18,26,48,.10);
   cursor:zoom-in;
@@ -202,8 +284,9 @@ input,select{font-family:inherit}
 .guides-layer[data-mode="thirds"] .g-thirds{display:block}
 
 .preview-foot{
-  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
-  margin-top:9px;font-size:10.5px;color:var(--muted);
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  font-size:10.5px;color:var(--muted);
+  flex:0 0 auto;
 }
 .preview-foot .k{
   font-variant-numeric:tabular-nums;font-weight:700;color:var(--text);
@@ -212,59 +295,31 @@ input,select{font-family:inherit}
 }
 .dot-sep{opacity:.5}
 
+/* 预览占位元素：仅 preview-float 激活时显示 */
+.preview-placeholder{display:none;flex:0 0 auto}
+
 /* ============================================================
-   滚动条出现时：预览模块 fixed 悬浮在视口顶部
-   —— 由 JS 在 <body> 上加 .has-vscroll，并同步 left / width
-   —— 用 .col-left::before 占位保持文档流不塌陷
+   预览浮动固定：当所在栏有纵向滚动条时，预览模块 fixed 悬浮
+   —— 由 JS 在 <body> 上加 .preview-float
    ============================================================ */
-body.has-vscroll .col-left{position:relative}
-body.has-vscroll .col-left::before{
-  content:"";
-  display:block;
-  flex:0 0 auto;
-  height:var(--preview-placeholder-h, 220px);
-  margin-bottom:14px;
-}
-body.has-vscroll .module-preview{
+body.preview-float .module-preview{
   position:fixed;
   top:var(--topbar-h);
   z-index:45;
   margin:0;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  max-height:33vh;
   border-radius:var(--radius);
   box-shadow:
     0 16px 38px rgba(16,24,40,.22),
     0 4px 10px rgba(16,24,40,.10);
   /* left / width 由 JS 同步 */
 }
-body.has-vscroll .module-preview .module-head{flex:0 0 auto}
-body.has-vscroll .module-preview .module-body{
-  flex:1 1 auto;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
+body.preview-float .preview-placeholder{
+  display:block;
+  height:var(--preview-placeholder-h, 220px);
 }
-body.has-vscroll .module-preview .preview-stage{
-  flex:1 1 auto;
-  min-height:0;
-  padding:8px;
-}
-body.has-vscroll .module-preview .preview-canvas-wrap{
-  max-width:100%;
-  max-height:100%;
-}
-body.has-vscroll .module-preview #iconCanvas{
-  max-height:100%;
-  max-width:100%;
-}
-body.has-vscroll .module-preview .preview-foot{
-  flex:0 0 auto;
-  margin-top:6px;
-}
+/* 单栏模式下，模块间隙由 layout 的 gap 提供，占位也占一份 */
+html[data-layout="one"] body.preview-float .preview-placeholder,
+html[data-layout="one"].preview-float .preview-placeholder{}
 
 /* ================= 标签页 ================= */
 .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
@@ -465,9 +520,7 @@ input[type=range]::-moz-range-thumb{
 }
 
 /* ============================================================
-   内容竖向标签组
-   每行只占一行：[序号] [文/图/F] [输入框]
-   激活标签与右侧内容区连成一体，底色明显不同
+   内容竖向标签组：每行只占一行 [序号] [文/图/F] [输入框]
    ============================================================ */
 .vtab-group{display:flex; align-items:stretch; gap:0; min-width:0}
 .vtab-list{
@@ -540,7 +593,7 @@ input[type=range]::-moz-range-thumb{
   border-left:0;
   border-radius:0 10px 10px 10px;
   padding:10px 11px;
-  min-height:170px;
+  min-height:150px;
 }
 
 .cp-label{font-size:10.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
@@ -596,11 +649,8 @@ input[type=range]::-moz-range-thumb{
 
 /* ================= 底部 & Toast ================= */
 .footer{
-  text-align:center;font-size:10.5px;color:var(--muted);
-  padding:6px 18px 22px;line-height:1.7;
+  display:none; /* body 用 grid 控制，footer 隐藏，避免撑高页面 */
 }
-.footer a{color:var(--accent);text-decoration:none}
-
 .toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
   background:var(--text);color:var(--panel);padding:8px 18px;
@@ -642,32 +692,16 @@ input[type=range]::-moz-range-thumb{
 .modal-body:active{cursor:grabbing}
 .modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
 
-/* ================= 自适应 ================= */
-@media (max-width:1180px){
-  .layout{grid-template-columns:300px minmax(280px,1fr);gap:12px;padding:12px}
-  .col-right{
-    grid-column:1/-1;display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-    gap:12px;align-items:start;
-  }
-  .col-right .module{margin-bottom:0}
-}
-@media (max-width:860px){
-  .layout{grid-template-columns:1fr;gap:10px;padding:10px}
-  .col-left,.col-mid,.col-right{grid-column:1/-1}
-  .col-right{grid-template-columns:1fr}
-
-  .topbar{padding:8px 12px;gap:9px}
-  .brand-text p{display:none}
-  .vtab-list{width:min(52%,170px)}
-
-  /* 单栏时放大按钮无意义 */
-  body.has-vscroll .module-preview #enlargeBtn{display:none}
-}
+/* ================= 小屏适配（仅压缩尺寸，布局由 data-layout 控制） ================= */
 @media (max-width:520px){
   .format-grid{grid-template-columns:repeat(3,1fr)}
   .linkage-btn span.lbl{display:none}
   .modal-body canvas{width:80vw!important;height:80vw!important}
+  .topbar{padding:7px 10px;gap:8px}
+  .brand-text p{display:none}
+  .layout{padding:8px 10px;gap:8px}
+  .module-head{padding:7px 10px;font-size:12px}
+  .module-body{padding:9px 10px 11px}
 }
 </style>
 </head>
@@ -710,9 +744,9 @@ input[type=range]::-moz-range-thumb{
 </header>
 
 <!-- ================= 主布局 ================= -->
-<main class="layout">
+<main class="layout" data-mode="three">
 
-  <!-- ============ 左栏 ============ -->
+  <!-- ============ 左栏：预览 / 预设历史 / 下载 ============ -->
   <section class="col col-left">
 
     <!-- 预览 -->
@@ -762,14 +796,12 @@ input[type=range]::-moz-range-thumb{
           <label class="mini-check"><input type="checkbox" id="safeChk" checked> 安全边距</label>
           <input class="num" id="safePct" value="10" style="width:36px;flex:0 0 36px;height:20px">
           <span>%</span>
-        </div>
-        <div class="preview-foot">
-          <span>滚轮缩放</span><span class="dot-sep">·</span>
-          <span>双击复位</span><span class="dot-sep">·</span>
-          <span>双击进入 1:1 模态预览</span>
+          <span style="margin-left:auto">滚轮缩放 · 双击复位 / 模态预览</span>
         </div>
       </div>
     </section>
+    <!-- 预览占位：preview-float 时显示 -->
+    <div class="preview-placeholder" aria-hidden="true"></div>
 
     <!-- 预设与历史 -->
     <section class="module">
@@ -864,8 +896,14 @@ input[type=range]::-moz-range-thumb{
 
   </section>
 
-  <!-- ============ 中栏 ============ -->
+  <!-- ============ 中栏：内容参数 ============ -->
   <section class="col col-mid">
+
+    <!-- 两栏合并时的标签栏 -->
+    <div class="merge-tabs">
+      <button class="merge-tab active" data-tab="mid">内容参数</button>
+      <button class="merge-tab" data-tab="right">背景参数</button>
+    </div>
 
     <!-- 多行设置 -->
     <section class="module">
@@ -930,7 +968,7 @@ input[type=range]::-moz-range-thumb{
 
   </section>
 
-  <!-- ============ 右栏 ============ -->
+  <!-- ============ 右栏：背景参数 ============ -->
   <section class="col col-right">
 
     <!-- 形状与外框 -->
@@ -993,11 +1031,6 @@ input[type=range]::-moz-range-thumb{
   </section>
 </main>
 
-<footer class="footer">
-  FontAwesome 6 图标库版权归 <a href="https://fonticons.com" target="_blank" rel="noreferrer">Fonticons, Inc.</a> 所有，商业使用请遵循其授权条款。
-  <br>KiconCreator V2.02 · 本工具全部运行于浏览器本地，不上传、不保存任何数据。
-</footer>
-
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1028,12 +1061,10 @@ const CHAIN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
   <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
 </svg>`;
 
-/* HTML 转义 */
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* 圆角矩形路径 */
 function roundRect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -1055,7 +1086,7 @@ function toast(msg){
   toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
 }
 
-/* 非法输入：浅红闪烁两次后回退到最近合法值 */
+/* 非法输入：浅红闪烁两次后回退最近合法值 */
 function flashInvalid(input, min, max){
   input.classList.add('invalid');
   setTimeout(() => input.classList.remove('invalid'), 620);
@@ -1068,8 +1099,7 @@ function flashInvalid(input, min, max){
 }
 
 /* ============================================================
-   顶栏高度测量：写入 CSS 变量 --topbar-h
-   —— 供 fixed 预览使用，保证悬浮位置精确贴在顶栏之下
+   顶栏高度测量
    ============================================================ */
 function updateTopbarHeight(){
   const tb = $('.topbar');
@@ -1079,48 +1109,112 @@ function updateTopbarHeight(){
 }
 
 /* ============================================================
-   纵向滚动检测 + 预览 fixed 布局同步
-   需求：只要页面出现纵向滚动条，就把预览模块 fixed 悬浮
+   视口宽度 → 布局模式
+   three：宽 > 800 或手机横屏
+   two  ：宽 ∈ [400, 800] 且非手机竖屏
+   one  ：宽 < 400 或手机竖屏
    ============================================================ */
-function syncPreviewLayout(){
-  const colLeft = document.querySelector('.col-left');
-  const preview = document.querySelector('.module-preview');
-  if (!colLeft || !preview) return;
-  const cr = colLeft.getBoundingClientRect();
-  const pr = preview.getBoundingClientRect();
-  /* 让 fixed 预览对齐左栏的水平位置和宽度 */
-  preview.style.left = cr.left + 'px';
-  preview.style.width = cr.width + 'px';
-  /* 占位高度取 fixed 预览的实际渲染高度 */
-  document.documentElement.style.setProperty('--preview-placeholder-h', pr.height + 'px');
+function updateLayoutMode(){
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  // 手机横屏：宽大于高，且高度较小
+  const isPhoneLandscape = w > h && h <= 500;
+  // 手机竖屏：高大于宽，且宽度较小
+  const isPhonePortrait = h > w && w < 500;
+
+  let mode;
+  if (w > 800 || isPhoneLandscape) mode = 'three';
+  else if (w < 400 || isPhonePortrait) mode = 'one';
+  else mode = 'two';
+
+  document.documentElement.dataset.layout = mode;
+  const layoutEl = $('.layout');
+  if (layoutEl) layoutEl.dataset.mode = mode;
+
+  // 两栏模式：默认显示内容栏
+  if (mode === 'two'){
+    const activeTab = document.querySelector('.merge-tab.active');
+    const tab = activeTab?.dataset.tab || 'mid';
+    document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
+    document.querySelector('.col-right')?.classList.toggle('active', tab === 'right');
+  } else {
+    document.querySelector('.col-mid')?.classList.remove('active');
+    document.querySelector('.col-right')?.classList.remove('active');
+  }
+
+  // 布局切换后重新检测滚动状态
+  requestAnimationFrame(() => {
+    checkPreviewFloat();
+    updateTopbarHeight();
+  });
 }
 
-function checkScroll(){
-  const doc = document.documentElement;
-  const hasScroll = doc.scrollHeight > window.innerHeight + 2;
-  const was = document.body.classList.contains('has-vscroll');
+/* ============================================================
+   预览浮动检测：预览模块所在栏有纵向滚动条 → 预览 fixed 悬浮
+   —— 三栏/两栏模式检测 .col-left
+   —— 单栏模式检测 .layout（因为 col 是 display: contents）
+   ============================================================ */
+function isScrollable(el){
+  if (!el) return false;
+  return el.scrollHeight > el.clientHeight + 2;
+}
 
-  if (hasScroll) {
-    if (!was) document.body.classList.add('has-vscroll');
-    /* 加类后下帧再测高度，避免读到未更新的布局 */
-    requestAnimationFrame(syncPreviewLayout);
+function checkPreviewFloat(){
+  const mode = document.documentElement.dataset.layout;
+  let scrollEl;
+  if (mode === 'one'){
+    scrollEl = $('.layout');
   } else {
-    /* 内容不足一屏时撤销 fixed；留 60px 缓冲避免来回震荡 */
-    if (was && doc.scrollHeight < window.innerHeight - 60) {
-      document.body.classList.remove('has-vscroll');
-      doc.style.removeProperty('--preview-placeholder-h');
-      const preview = document.querySelector('.module-preview');
-      if (preview){
-        preview.style.removeProperty('left');
-        preview.style.removeProperty('width');
-      }
+    scrollEl = $('.col-left');
+  }
+  if (!scrollEl) return;
+
+  const hasScroll = isScrollable(scrollEl);
+  const was = document.body.classList.contains('preview-float');
+  document.body.classList.toggle('preview-float', hasScroll);
+
+  if (hasScroll){
+    /* 加类后下一帧再同步 left / width / 占位高度 */
+    requestAnimationFrame(syncPreviewLayout);
+  } else if (was) {
+    /* 撤销 fixed 时清掉内联 left / width */
+    const preview = $('.module-preview');
+    if (preview){
+      preview.style.removeProperty('left');
+      preview.style.removeProperty('width');
     }
   }
 }
 
+/* 同步 fixed 预览的 left / width / 占位高度 */
+function syncPreviewLayout(){
+  const preview = $('.module-preview');
+  if (!preview) return;
+  const mode = document.documentElement.dataset.layout;
+
+  if (mode === 'one'){
+    const layout = $('.layout');
+    const cs = getComputedStyle(layout);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const w = Math.max(0, window.innerWidth - padL - padR);
+    preview.style.left = padL + 'px';
+    preview.style.width = w + 'px';
+  } else {
+    const colLeft = $('.col-left');
+    const r = colLeft.getBoundingClientRect();
+    preview.style.left = r.left + 'px';
+    preview.style.width = r.width + 'px';
+  }
+
+  /* 占位高度 = fixed 预览实际渲染高度 */
+  const h = Math.round(preview.getBoundingClientRect().height);
+  document.documentElement.style.setProperty('--preview-placeholder-h', h + 'px');
+}
+
 /* ============================================================
    通用参数行构造
-   —— 滑块 + 数字 + 单位 + 联动 + 重置
    ============================================================ */
 function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
   const step = opts.step ?? 1;
@@ -1137,8 +1231,6 @@ function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
     </div>
   </div>`;
 }
-
-/* 竖向堆叠的胶囊选择组 */
 function stackedChips(name, chips, activeIdx = 0) {
   return `<div class="param stacked">
     <span class="pname">${name}</span>
@@ -1179,13 +1271,29 @@ function bindTabs(root) {
 }
 
 /* ============================================================
+   两栏合并标签
+   ============================================================ */
+$$('.merge-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    $$('.merge-tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
+    document.querySelector('.col-right')?.classList.toggle('active', tab === 'right');
+    // 切换后重新检测滚动（内容可能变化）
+    requestAnimationFrame(checkPreviewFloat);
+  });
+});
+
+/* ============================================================
    画布渲染
    ============================================================ */
 const cvs = $('#iconCanvas');
 const ctx = cvs.getContext('2d');
 let iconSize = 256;
+const viewerModal = $('#viewerModal');
+const modalBody = $('#modalBody');
+const viewerCanvas = $('#viewerCanvas');
 
-/* 绘制辅助线与安全边距（不导出，仅预览） */
 function drawGuides(S){
   const mode = $('#guideSelect').value;
   const safe = $('#safeChk').checked;
@@ -1215,13 +1323,11 @@ function drawGuides(S){
   }
 }
 
-/* 主绘制函数：背景形状 + 高光 + 文字 + 辅助线 + 同步模态 */
 function drawIcon() {
   const S = iconSize;
   if (cvs.width !== S) { cvs.width = S; cvs.height = S; }
   ctx.clearRect(0, 0, S, S);
 
-  /* 背景形状：渐变圆角方形 */
   const r = S * 0.22;
   roundRect(ctx, S * 0.03, S * 0.03, S * 0.94, S * 0.94, r);
   const g = ctx.createLinearGradient(0, 0, S, S);
@@ -1230,7 +1336,6 @@ function drawIcon() {
   ctx.fillStyle = g;
   ctx.fill();
 
-  /* 装饰高光圆 */
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,.14)';
   ctx.beginPath();
@@ -1238,7 +1343,6 @@ function drawIcon() {
   ctx.fill();
   ctx.restore();
 
-  /* 文字内容（默认取第一行） */
   const text = (rows[0] && rows[0].text) ? rows[0].text : 'K';
   ctx.fillStyle = '#ffffff';
   ctx.font = `800 ${Math.round(S * 0.52)}px -apple-system, "Segoe UI", "PingFang SC", sans-serif`;
@@ -1246,10 +1350,8 @@ function drawIcon() {
   ctx.textBaseline = 'middle';
   ctx.fillText(text.slice(0, 3), S / 2, S / 2 + S * 0.02);
 
-  /* 辅助线绘制 */
   drawGuides(S);
 
-  /* 同步到 1:1 模态查看器的画布 */
   if (viewerCanvas){
     viewerCanvas.width = S; viewerCanvas.height = S;
     viewerCanvas.getContext('2d').drawImage(cvs, 0, 0);
@@ -1275,14 +1377,12 @@ let rowCount = 2;
 let activeRow = 0;
 let styleClipboard = null;
 
-/* 行标签的显示文本 */
 function rowLabel(r) {
   if (r.mode === 'text') return r.text || '空';
   if (r.mode === 'image') return '图片.png';
   return 'fa-star';
 }
 
-/* 行数按钮 1–9 */
 function renderRowCount() {
   const box = $('#rowCount');
   box.innerHTML = '';
@@ -1298,17 +1398,16 @@ function renderRowCount() {
       renderContentTabs();
       renderContentBody();
       renderStyle();
-      /* 单行时隐藏「多行排列层次」 */
       $('#layerParam').style.display = rowCount > 1 ? '' : 'none';
       drawIcon();
-      /* 内容变化后可能影响滚动条 */
-      requestAnimationFrame(checkScroll);
+      requestAnimationFrame(() => {
+        checkPreviewFloat();
+      });
     };
     box.appendChild(b);
   }
 }
 
-/* 排版模式：随行数变化 */
 const LAYOUTS = {
   1:['上半边','下半边','左半边','右半边','居中'],
   2:['全在上（左右分）','全在下（左右分）','全在左（上下分）','全在右（上下分）','左右分','上下分'],
@@ -1331,12 +1430,10 @@ function renderLayoutChips(){
   });
 }
 
-/* 更新激活行标签（不重建 DOM，避免输入框失焦） */
 function updateActiveTab() {
   $$('#contentTabs .vtab').forEach((el, i) => el.classList.toggle('active', i === activeRow));
 }
 
-/* 内容竖向标签：每行只占一行 [序号] [文/图/F] [输入框] */
 function renderContentTabs() {
   const list = $('#contentTabs');
   list.innerHTML = '';
@@ -1357,7 +1454,6 @@ function renderContentTabs() {
     `;
 
     el.addEventListener('click', e => {
-      /* 切换模式 */
       const mb = e.target.closest('.mode-mini button');
       if (mb) {
         e.stopPropagation();
@@ -1366,7 +1462,6 @@ function renderContentTabs() {
         renderContentTabs(); renderContentBody(); renderStyle(); drawIcon();
         return;
       }
-      /* 激活行（不重建 DOM，避免输入框失焦） */
       if (activeRow !== i) {
         activeRow = i;
         updateActiveTab();
@@ -1375,7 +1470,6 @@ function renderContentTabs() {
       }
     });
 
-    /* 文本输入：实时更新预览、样式标题、文件名 */
     const input = $('.vtab-input', el);
     input.addEventListener('input', () => {
       rows[i].text = input.value;
@@ -1401,15 +1495,11 @@ function renderContentTabs() {
   }
 }
 
-/* ============================================================
-   内容右侧面板 —— 随模式展示对应参数
-   ============================================================ */
 function renderContentBody() {
   const r = rows[activeRow];
   const idx = activeRow + 1;
   const body = $('#contentBody');
 
-  /* ---------- 文本模式：字体相关参数 ---------- */
   if (r.mode === 'text') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 文本模式</div>
@@ -1460,8 +1550,6 @@ function renderContentBody() {
         字体优先加载 Web 字体，加载失败自动回退系统字体；正在加载时预览会显示"字体加载中"。
       </div>`;
   }
-
-  /* ---------- 图片模式 ---------- */
   else if (r.mode === 'image') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 图片模式</div>
@@ -1475,8 +1563,6 @@ function renderContentBody() {
         切换图片时旧图按会话图片仓库引用计数延迟释放。
       </div>`;
   }
-
-  /* ---------- FontAwesome 模式 ---------- */
   else {
     const icons = ['★','♥','⚡','☀','☁','✦','✿','◆','▲','●','☂','♫','✔','✈','☕','♠','♦','♣','⚙','✎','⌘','☘','☯','⚑'];
     body.innerHTML = `
@@ -1487,7 +1573,6 @@ function renderContentBody() {
         FA6 免费版仅部分图标可用于商用，请遵循其授权条款。
       </div>`;
 
-    /* FA 搜索过滤 */
     const search = body.querySelector('.fa-search');
     const grid = body.querySelector('.fa-grid');
     search.addEventListener('input', () => {
@@ -1496,7 +1581,6 @@ function renderContentBody() {
         c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
       });
     });
-    /* 点击图标写回当前行 */
     grid.addEventListener('click', e => {
       const cell = e.target.closest('.fa-cell');
       if (!cell) return;
@@ -1507,10 +1591,7 @@ function renderContentBody() {
     });
   }
 
-  /* 绑定内容面板内的滑块 */
   syncRanges(body);
-
-  /* 内容面板内的 chip 单选 */
   $$('.chip-row', body).forEach(row => {
     row.addEventListener('click', e => {
       const chip = e.target.closest('.chip');
@@ -1518,8 +1599,6 @@ function renderContentBody() {
       $$('.chip', row).forEach(c => c.classList.toggle('active', c === chip));
     });
   });
-
-  /* 斜体、链条 */
   $$('.chain', body).forEach(ch => ch.addEventListener('click', () => {
     ch.classList.toggle('on');
   }));
@@ -1542,7 +1621,6 @@ function paneSize() {
       </label>
     </div>`;
 }
-
 function paneColor(r) {
   if (r.mode === 'image') {
     return `
@@ -1578,7 +1656,6 @@ function paneColor(r) {
       </div>
     </div>`;
 }
-
 function paneShadow() {
   return `
     <label class="check-row" style="padding-top:0"><input type="checkbox" checked id="shadowEnable"> 启用阴影</label>
@@ -1594,7 +1671,6 @@ function paneShadow() {
     ${paramRow('X 偏移', 0, -100, 100, '')}
     ${paramRow('Y 偏移', 4, -100, 100, '')}`;
 }
-
 function renderStyle() {
   const r = rows[activeRow];
   $('#styleSub').textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]} · “${rowLabel(r)}”`;
@@ -1607,7 +1683,6 @@ function renderStyle() {
     <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">${paneShadow()}</div>`;
   syncRanges($('#styleBody'));
 
-  /* 颜色模式单/渐变 切换 */
   const seg = $('#styleBody .segmented');
   if (seg) {
     seg.addEventListener('click', e => {
@@ -1615,12 +1690,8 @@ function renderStyle() {
       $$('button', seg).forEach(x => x.classList.toggle('active', x === b));
     });
   }
-
-  /* 颜色建议点击 */
   $$('#styleBody .sw').forEach(sw => {
-    sw.addEventListener('click', () => {
-      toast('已应用建议颜色 ' + sw.dataset.c);
-    });
+    sw.addEventListener('click', () => toast('已应用建议颜色 ' + sw.dataset.c));
   });
 }
 
@@ -1643,9 +1714,7 @@ function renderShapeBody() {
         <span class="pname"></span>
         <div class="pctrl"><button class="btn ghost sm" style="flex:1" id="fillShapeBtn">填满绘图区域</button></div>
       </div>
-      <div style="font-size:10px;color:var(--muted);padding-top:6px">
-        角星内角为 0° 时形状不可见
-      </div>
+      <div style="font-size:10px;color:var(--muted);padding-top:6px">角星内角为 0° 时形状不可见</div>
     </div>
 
     <div class="pane${active === 'border' ? ' active' : ''}" data-pane="border">
@@ -1674,8 +1743,6 @@ function renderShapeBody() {
     </div>`;
 
   syncRanges($('#shapeBody'));
-
-  /* chip 单选 */
   $$('.chip-row', $('#shapeBody')).forEach(row => {
     row.addEventListener('click', e => {
       const chip = e.target.closest('.chip');
@@ -1684,12 +1751,9 @@ function renderShapeBody() {
       toast('形状参数：' + chip.textContent);
     });
   });
-
-  /* 填满按钮 */
   const fb = $('#fillShapeBtn');
   if (fb) fb.addEventListener('click', () => {
-    const rows2 = $$('#shapeBody .param');
-    rows2.forEach(p => {
+    $$('#shapeBody .param').forEach(p => {
       if (p.querySelector('.pname')?.textContent === '尺寸'){
         const r = p.querySelector('input[type=range]');
         const n = p.querySelector('.num');
@@ -1699,8 +1763,6 @@ function renderShapeBody() {
     });
     toast('形状已填满绘图区域');
   });
-
-  /* 边框、阴影开关更新标签绿勾 */
   const be = $('#borderEnable');
   if (be) be.addEventListener('change', () => {
     $('#shapeTabs [data-pane=border]').classList.toggle('enabled', be.checked);
@@ -1717,7 +1779,6 @@ function renderShapeBody() {
 function renderFillBody() {
   const active = $('#fillTabs .tab.active')?.dataset.pane || 'layout';
   const single = fillCount === 1;
-
   $('#fillBody').innerHTML = `
     <div class="pane${active === 'layout' ? ' active' : ''}" data-pane="layout">
       ${single ? `
@@ -1771,10 +1832,7 @@ function renderFillBody() {
           </div>
         </div>`).join('')}
     </div>`;
-
   syncRanges($('#fillBody'));
-
-  /* chip 单选 */
   $$('.chip-row', $('#fillBody')).forEach(row => {
     row.addEventListener('click', e => {
       const chip = e.target.closest('.chip');
@@ -1785,7 +1843,7 @@ function renderFillBody() {
 }
 
 /* ============================================================
-   内部填充色块 —— 数量跟随「填充数量」
+   内部填充色块
    ============================================================ */
 const FILL_COLORS = [
   { bg: 'linear-gradient(135deg,#6c8cff,#9b5cff)' },
@@ -1837,8 +1895,6 @@ function renderFillBody2() {
       </div>
     </div>`;
   syncRanges($('#fillBody2'));
-
-  /* 背景模式切换（纯/渐/图） */
   const seg = $('#fillBody2 .segmented');
   if (seg) {
     seg.addEventListener('click', e => {
@@ -1862,7 +1918,6 @@ const PRESETS = [
   { text: 'M', c1: '#64748b', c2: '#0f172a', r: 26 }
 ];
 
-/* 在给定 canvas 上绘制预设缩略图 */
 function paintIcon(canvas, p, S = 96) {
   canvas.width = S; canvas.height = S;
   const c = canvas.getContext('2d');
@@ -1919,7 +1974,6 @@ function renderHistory() {
     s.className = 'hname';
     s.textContent = `KIcon-256-${p.text}-${stamp.slice(0, 14 - i * 2)}.png`;
     d.appendChild(s);
-    /* 悬停显示删除按钮 */
     const del = document.createElement('button');
     del.className = 'hdel';
     del.textContent = '✕';
@@ -1956,7 +2010,6 @@ function syncRanges(root) {
     upd();
     r.addEventListener('input', upd);
 
-    /* 数字输入：非法时闪烁 + 回退 */
     const num = row?.querySelector('.num');
     if (num) {
       num.addEventListener('change', () => {
@@ -1977,7 +2030,6 @@ function syncRanges(root) {
       });
     }
 
-    /* 重置按钮 */
     const rst = row?.querySelector('.rst');
     if (rst) rst.addEventListener('click', () => {
       const def = row.dataset.default;
@@ -1989,7 +2041,6 @@ function syncRanges(root) {
       }
     });
 
-    /* 联动链条 */
     const chain = row?.querySelector('.chain');
     if (chain) chain.addEventListener('click', () => {
       chain.classList.toggle('on');
@@ -2014,7 +2065,6 @@ function applyTransform(){
   wrap.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 }
 
-/* 滚轮缩放 */
 stage.addEventListener('wheel', e => {
   e.preventDefault();
   const delta = e.deltaY > 0 ? -0.08 : 0.08;
@@ -2022,7 +2072,6 @@ stage.addEventListener('wheel', e => {
   applyTransform();
 }, { passive: false });
 
-/* 鼠标按下拖动 */
 stage.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
   dragging = true;
@@ -2040,13 +2089,10 @@ window.addEventListener('mouseup', () => {
   if (dragging){ dragging = false; stage.style.cursor = ''; }
 });
 
-/* 双击预览：复位缩放后打开 1:1 模态查看器 */
 stage.addEventListener('dblclick', e => {
-  /* 先复位平移与缩放 */
   zoom = 1; panX = 0; panY = 0;
   applyTransform();
   stage.style.cursor = '';
-  /* 点在安全边距上不触发 */
   if (e.target.closest('.safe-box')) return;
   openViewer();
 });
@@ -2054,10 +2100,6 @@ stage.addEventListener('dblclick', e => {
 /* ============================================================
    模态查看器
    ============================================================ */
-const viewerModal = $('#viewerModal');
-const modalBody = $('#modalBody');
-const viewerCanvas = $('#viewerCanvas');
-
 function openViewer(){
   $('#modalInfo').textContent = `${iconSize} × ${iconSize}`;
   viewerModal.classList.add('open');
@@ -2065,8 +2107,6 @@ function openViewer(){
 function closeViewer(){
   viewerModal.classList.remove('open');
 }
-
-/* 模态内双击复位滚动位置 */
 modalBody.addEventListener('dblclick', () => {
   modalBody.scrollTop = 0;
   modalBody.scrollLeft = 0;
@@ -2079,23 +2119,25 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeViewer();
 });
 
-/* 放大按钮：多栏模式下左栏变半屏 */
+/* 放大按钮 */
 $('#enlargeBtn').addEventListener('click', () => {
   const layout = $('.layout');
   const enlarged = layout.classList.toggle('enlarged');
-  if (enlarged){
-    layout.style.gridTemplateColumns = '50vw minmax(280px,1fr) minmax(280px,1fr)';
-    toast('已放大预览（左栏占半屏）');
+  const mode = document.documentElement.dataset.layout;
+  if (enlarged && mode !== 'one'){
+    layout.style.gridTemplateColumns = '1.6fr 1fr 1fr';
+    toast('已放大预览（左栏加宽）');
   } else {
     layout.style.gridTemplateColumns = '';
-    toast('已恢复三栏布局');
+    toast('已恢复默认栏宽');
   }
-  requestAnimationFrame(syncPreviewLayout);
+  requestAnimationFrame(() => {
+    checkPreviewFloat();
+    updateLayoutMode();
+  });
 });
 
-/* ============================================================
-   辅助线、安全边距、尺寸
-   ============================================================ */
+/* 辅助线、安全边距、尺寸 */
 $('#guideSelect').addEventListener('change', () => {
   const mode = $('#guideSelect').value;
   const layer = $('#guidesLayer');
@@ -2126,7 +2168,6 @@ $('#safePct').addEventListener('blur', () => {
   }
 });
 
-/* 尺寸联动 */
 $('#sizePreset').addEventListener('change', e => {
   $('#sizeInput').value = e.target.value;
   updateSize();
@@ -2157,8 +2198,6 @@ function updateSize() {
   drawIcon();
   updateFileName();
 }
-
-/* 文件名：KIcon-{尺寸}-{文本}-{日期时间}.png */
 function updateFileName() {
   const now = new Date();
   const stamp = now.getFullYear().toString()
@@ -2171,9 +2210,7 @@ function updateFileName() {
   $('#fileName').textContent = `KIcon-${iconSize}-${text}-${stamp}.png`;
 }
 
-/* ============================================================
-   预设/历史/下载 按钮行为
-   ============================================================ */
+/* 预设/历史/下载 按钮行为 */
 $$('[data-act]').forEach(b => b.addEventListener('click', () => {
   const act = b.dataset.act;
   if (act === 'import') toast('导入预设（演示）：请选择 JSON 文件');
@@ -2193,7 +2230,6 @@ $$('[data-act]').forEach(b => b.addEventListener('click', () => {
   }
 }));
 
-/* 下载格式按钮：PNG 触发真实下载，其余为演示 */
 $$('.fmt').forEach(b => b.addEventListener('click', () => {
   const fmt = b.dataset.fmt.toUpperCase();
   toast(`正在导出 ${fmt} …（演示）`);
@@ -2205,9 +2241,9 @@ $$('.fmt').forEach(b => b.addEventListener('click', () => {
   }
 }));
 
-/* 顶部联动按钮：无 / 部分 / 全部 三态循环 */
+/* 顶部联动按钮 */
 const lb = $('#linkageBtn');
-let ls = 1; /* 0=无 1=部分 2=全部 */
+let ls = 1;
 lb.addEventListener('click', () => {
   ls = (ls + 1) % 3;
   lb.classList.remove('partial', 'all', 'none');
@@ -2218,21 +2254,17 @@ lb.addEventListener('click', () => {
   toast(txt.textContent);
 });
 
-/* 撤销 / 重做（演示） */
-$('#undoBtn').addEventListener('click', () => toast('撤销（演示：参数变更在滑块释放 / 失焦时入栈）'));
+$('#undoBtn').addEventListener('click', () => toast('撤销（演示）'));
 $('#redoBtn').addEventListener('click', () => toast('重做（演示）'));
 
-/* 复制样式 / 粘贴样式 */
 $('#copyStyleBtn').addEventListener('click', () => {
   styleClipboard = { row: activeRow, mode: rows[activeRow].mode };
-  toast(`已复制第 ${activeRow + 1} 行样式（跨模式仅应用相同参数）`);
+  toast(`已复制第 ${activeRow + 1} 行样式`);
 });
 $('#pasteStyleBtn').addEventListener('click', () => {
   if (!styleClipboard){ toast('剪贴板为空，请先复制样式'); return; }
-  toast(`已将第 ${styleClipboard.row + 1} 行样式粘贴到第 ${activeRow + 1} 行（同参数）`);
+  toast(`已将第 ${styleClipboard.row + 1} 行样式粘贴到第 ${activeRow + 1} 行`);
 });
-
-/* 样式重置 */
 $('#styleReset').addEventListener('click', () => {
   renderStyle();
   toast('已重置当前行样式');
@@ -2253,9 +2285,6 @@ $('#fillCount').addEventListener('click', e => {
   toast(`填充数量：${fillCount === 1 ? '单色' : fillCount + '色'}`);
 });
 
-/* ============================================================
-   全局 chip / segmented 单选
-   ============================================================ */
 document.addEventListener('click', e => {
   const chip = e.target.closest('.chip-row .chip');
   if (chip && !chip.closest('#fillCount')){
@@ -2290,59 +2319,57 @@ function init() {
   drawIcon();
   updateSize();
   updateTopbarHeight();
+  updateLayoutMode();
 
-  /* 初始安全边距显示 */
   $('#safeBox').classList.add('show');
   const S = iconSize;
   $('#safeBox').style.inset = (S * 0.1) + 'px';
 
-  /* 首次检测滚动条，决定是否 fixed 预览 */
-  checkScroll();
-
-  /* 滚动时检查是否仍旧存在滚动条 */
-  window.addEventListener('scroll', checkScroll, { passive: true });
-
-  /* 视口变化：更新顶栏高度、重测滚动、同步 fixed 预览 */
-  window.addEventListener('resize', () => {
-    updateTopbarHeight();
-    if (document.body.classList.contains('has-vscroll')){
-      requestAnimationFrame(syncPreviewLayout);
-    }
-    checkScroll();
+  /* 布局检测 + 滚动检测 */
+  requestAnimationFrame(() => {
+    updateLayoutMode();
+    checkPreviewFloat();
   });
 
-  /* 方向切换 */
+  /* 视口变化 */
+  window.addEventListener('resize', () => {
+    updateTopbarHeight();
+    updateLayoutMode();
+    if (document.body.classList.contains('preview-float')){
+      requestAnimationFrame(syncPreviewLayout);
+    }
+    checkPreviewFloat();
+  });
+
   window.addEventListener('orientationchange', () => {
     setTimeout(() => {
       updateTopbarHeight();
-      checkScroll();
+      updateLayoutMode();
+      checkPreviewFloat();
     }, 150);
   });
 
-  /* 字体加载完成后顶栏可能变高，重测 */
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
       updateTopbarHeight();
-      if (document.body.classList.contains('has-vscroll')){
+      if (document.body.classList.contains('preview-float')){
         requestAnimationFrame(syncPreviewLayout);
       }
     });
   }
 
-  /* 用 ResizeObserver 监听左栏宽度变化，实时同步 fixed 预览宽度 */
+  /* 用 ResizeObserver 监听每个栏的尺寸变化，重新检测滚动 */
   if (window.ResizeObserver) {
-    const colLeft = document.querySelector('.col-left');
-    if (colLeft){
-      const ro = new ResizeObserver(() => {
-        if (document.body.classList.contains('has-vscroll')){
-          syncPreviewLayout();
-        }
-      });
-      ro.observe(colLeft);
-    }
+    const ro = new ResizeObserver(() => {
+      checkPreviewFloat();
+    });
+    const colLeft = $('.col-left');
+    if (colLeft) ro.observe(colLeft);
+    const layout = $('.layout');
+    if (layout) ro.observe(layout);
   }
 
-  /* 快捷键：输入框内交给浏览器原生撤销 */
+  /* 快捷键 */
   document.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
@@ -2356,7 +2383,6 @@ function init() {
     }
   });
 
-  /* 初次提示 */
   setTimeout(() => toast('欢迎使用 KiconCreator · 双击预览进入 1:1 模态查看'), 400);
 }
 
