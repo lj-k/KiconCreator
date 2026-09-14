@@ -11,6 +11,8 @@
   --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 22px rgba(16,24,40,.06);
   --shadow-lg:0 12px 34px rgba(16,24,40,.12);
   --topbar-h: 54px;
+  --merge-tabs-h: 44px;    /* 两栏模式下合并标签栏占位高度 */
+  --expand-threshold: 560px; /* 栏高度超过此值 → 标签组展开 */
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 html[data-theme="light"]{
@@ -34,7 +36,7 @@ html[data-theme="dark"]{
   --ok:#3ddc84; --warn:#ff7a59; --err:#ff5f5f;
   --checker-a:#20242e; --checker-b:#171a22;
 }
-/* ================= 基础：body 用 grid 分两行，禁止页面级滚动 ================= */
+/* ================= 基础 ================= */
 *{box-sizing:border-box}
 html,body{
   margin:0; padding:0;
@@ -119,17 +121,14 @@ input,select{font-family:inherit}
   gap:14px;
   padding:14px 18px;
 }
-/* 三栏：>800 或手机横屏 */
 html[data-layout="three"] .layout{
   grid-template-columns:repeat(3, minmax(0, 1fr));
   grid-template-rows:minmax(0, 1fr);
 }
-/* 两栏：400~800 */
 html[data-layout="two"] .layout{
   grid-template-columns:minmax(240px, 1fr) minmax(280px, 1.5fr);
   grid-template-rows:minmax(0, 1fr);
 }
-/* 单栏：<400 或手机竖屏 —— layout 自身纵向滚动，col 用 display:contents 让模块直接参与 */
 html[data-layout="one"] .layout{
   display:flex;
   flex-direction:column;
@@ -145,32 +144,42 @@ html[data-layout="one"] .layout{
   gap:14px;
   min-width:0; min-height:0;
 }
-/* 三栏/两栏：每个栏独立纵向滚动 */
 html[data-layout="three"] .col,
 html[data-layout="two"] .col{
   overflow-y:auto;
   overflow-x:hidden;
   scrollbar-gutter:stable;
 }
-/* 单栏：col 透明，模块直接参与 layout flex 布局 */
 html[data-layout="one"] .col{display:contents}
 
-/* ================= 两栏合并：col-mid 和 col-right 共享第 2 格，按 active 切换 ================= */
+/* 两栏合并：col-mid 和 col-right 共享第 2 格，且预留合并标签栏空间 */
 html[data-layout="two"] .col-left{grid-column:1;grid-row:1}
-html[data-layout="two"] .col-mid{grid-column:2;grid-row:1}
-html[data-layout="two"] .col-right{grid-column:2;grid-row:1}
+html[data-layout="two"] .col-mid{
+  grid-column:2;grid-row:1;
+  padding-top:var(--merge-tabs-h);
+}
+html[data-layout="two"] .col-right{
+  grid-column:2;grid-row:1;
+  padding-top:var(--merge-tabs-h);
+}
 html[data-layout="two"] .col-mid:not(.active),
 html[data-layout="two"] .col-right:not(.active){display:none}
 
-/* 合并标签栏：仅两栏模式显示 */
+/* ============================================================
+   合并标签栏：两栏模式下 fixed 悬浮在第 2 栏顶部
+   —— 提取到 layout 之外，独立 fixed 定位，与 col 是否显示无关
+   ============================================================ */
 .merge-tabs{
   display:none;
+  position:fixed;
+  z-index:50;
   gap:4px;
   padding:4px;
-  background:var(--field);
+  background:var(--panel);
   border:1px solid var(--border);
   border-radius:10px;
-  margin-bottom:2px;
+  box-shadow:var(--shadow);
+  /* left / top / width 由 JS 设置 */
 }
 html[data-layout="two"] .merge-tabs{display:flex}
 .merge-tab{
@@ -187,7 +196,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
 }
 .merge-tab:hover{color:var(--text)}
 .merge-tab.active{
-  background:var(--panel);
+  background:var(--accent-soft);
   color:var(--accent);
   box-shadow:var(--shadow);
 }
@@ -241,7 +250,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
   position:relative; display:flex; align-items:center; justify-content:center;
   padding:12px; border-radius:var(--radius-sm);
   border:1px solid var(--border); min-height:140px;
-  flex:1 1 auto; min-height:0;
+  flex:1 1 auto;
   background-color:var(--checker-a);
   background-image:
     linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),
@@ -295,13 +304,9 @@ html[data-layout="two"] .merge-tabs{display:flex}
 }
 .dot-sep{opacity:.5}
 
-/* 预览占位元素：仅 preview-float 激活时显示 */
 .preview-placeholder{display:none;flex:0 0 auto}
 
-/* ============================================================
-   预览浮动固定：当所在栏有纵向滚动条时，预览模块 fixed 悬浮
-   —— 由 JS 在 <body> 上加 .preview-float
-   ============================================================ */
+/* 预览浮动固定 */
 body.preview-float .module-preview{
   position:fixed;
   top:var(--topbar-h);
@@ -311,15 +316,11 @@ body.preview-float .module-preview{
   box-shadow:
     0 16px 38px rgba(16,24,40,.22),
     0 4px 10px rgba(16,24,40,.10);
-  /* left / width 由 JS 同步 */
 }
 body.preview-float .preview-placeholder{
   display:block;
   height:var(--preview-placeholder-h, 220px);
 }
-/* 单栏模式下，模块间隙由 layout 的 gap 提供，占位也占一份 */
-html[data-layout="one"] body.preview-float .preview-placeholder,
-html[data-layout="one"].preview-float .preview-placeholder{}
 
 /* ================= 标签页 ================= */
 .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
@@ -353,6 +354,36 @@ html[data-layout="one"].preview-float .preview-placeholder{}
   visibility:hidden;
 }
 .tab.enabled .badge-ok{visibility:visible}
+
+/* ============================================================
+   标签组展开：模块高度充足时，全部 pane 纵向展开
+   —— 由 JS 在模块上加 .expanded
+   ============================================================ */
+.module.expanded .tabs{display:none}
+.module.expanded .tab-body{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+}
+.module.expanded .pane{
+  display:block !important;
+  padding:11px 12px;
+  border-bottom:1px dashed var(--border);
+}
+.module.expanded .pane:last-child{border-bottom:none}
+.module.expanded .pane::before{
+  content:attr(data-label);
+  display:block;
+  font-weight:700;
+  font-size:12px;
+  color:var(--accent);
+  margin-bottom:8px;
+  padding-bottom:5px;
+  border-bottom:1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
 
 /* ================= 参数行 ================= */
 .param{display:flex;align-items:center;gap:8px;padding:5px 0;min-width:0}
@@ -520,7 +551,7 @@ input[type=range]::-moz-range-thumb{
 }
 
 /* ============================================================
-   内容竖向标签组：每行只占一行 [序号] [文/图/F] [输入框]
+   内容竖向标签组
    ============================================================ */
 .vtab-group{display:flex; align-items:stretch; gap:0; min-width:0}
 .vtab-list{
@@ -647,10 +678,8 @@ input[type=range]::-moz-range-thumb{
   border:1px solid var(--border);border-radius:10px;padding:9px 10px;
 }
 
-/* ================= 底部 & Toast ================= */
-.footer{
-  display:none; /* body 用 grid 控制，footer 隐藏，避免撑高页面 */
-}
+/* ================= Toast / 模态 ================= */
+.footer{display:none}
 .toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
   background:var(--text);color:var(--panel);padding:8px 18px;
@@ -660,7 +689,6 @@ input[type=range]::-moz-range-thumb{
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* ================= 模态查看器 ================= */
 .modal{
   position:fixed;inset:0;background:rgba(8,10,18,.62);
   backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
@@ -692,7 +720,7 @@ input[type=range]::-moz-range-thumb{
 .modal-body:active{cursor:grabbing}
 .modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
 
-/* ================= 小屏适配（仅压缩尺寸，布局由 data-layout 控制） ================= */
+/* ================= 小屏适配 ================= */
 @media (max-width:520px){
   .format-grid{grid-template-columns:repeat(3,1fr)}
   .linkage-btn span.lbl{display:none}
@@ -743,6 +771,12 @@ input[type=range]::-moz-range-thumb{
   </div>
 </header>
 
+<!-- ================= 两栏模式的合并标签栏（fixed 悬浮，与 col 显示状态无关） ================= -->
+<div class="merge-tabs" id="mergeTabs">
+  <button class="merge-tab active" data-tab="mid">内容参数</button>
+  <button class="merge-tab" data-tab="right">背景参数</button>
+</div>
+
 <!-- ================= 主布局 ================= -->
 <main class="layout" data-mode="three">
 
@@ -760,7 +794,7 @@ input[type=range]::-moz-range-thumb{
           <option value="star">米字</option>
           <option value="thirds">均分井字</option>
         </select>
-        <button class="btn icon" id="enlargeBtn" title="放大预览（多栏模式下左栏半屏）">
+        <button class="btn icon" id="enlargeBtn" title="放大预览（多栏模式下左栏加宽）">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
           </svg>
@@ -814,7 +848,7 @@ input[type=range]::-moz-range-thumb{
           <button class="tab" data-pane="history">历史</button>
         </div>
         <div class="tab-body">
-          <div class="pane active" data-pane="preset">
+          <div class="pane active" data-pane="preset" data-label="预设">
             <div class="preset-tools">
               <button class="btn ghost sm" data-act="import">导入</button>
               <button class="btn ghost sm" data-act="export">导出</button>
@@ -824,7 +858,7 @@ input[type=range]::-moz-range-thumb{
             </div>
             <div class="preset-grid" id="presetGrid"></div>
           </div>
-          <div class="pane" data-pane="history">
+          <div class="pane" data-pane="history" data-label="历史">
             <div class="history-list" id="historyList"></div>
           </div>
         </div>
@@ -899,12 +933,6 @@ input[type=range]::-moz-range-thumb{
   <!-- ============ 中栏：内容参数 ============ -->
   <section class="col col-mid">
 
-    <!-- 两栏合并时的标签栏 -->
-    <div class="merge-tabs">
-      <button class="merge-tab active" data-tab="mid">内容参数</button>
-      <button class="merge-tab" data-tab="right">背景参数</button>
-    </div>
-
     <!-- 多行设置 -->
     <section class="module">
       <div class="module-head">
@@ -949,7 +977,7 @@ input[type=range]::-moz-range-thumb{
     </section>
 
     <!-- 样式 -->
-    <section class="module">
+    <section class="module" id="moduleStyle">
       <div class="module-head">
         <span class="mh-title">样式</span>
         <span class="mh-sub" id="styleSub">行 1 · 文本 · “K”</span>
@@ -972,7 +1000,7 @@ input[type=range]::-moz-range-thumb{
   <section class="col col-right">
 
     <!-- 形状与外框 -->
-    <section class="module">
+    <section class="module" id="moduleShape">
       <div class="module-head">
         <span class="mh-title">形状与外框</span>
       </div>
@@ -987,7 +1015,7 @@ input[type=range]::-moz-range-thumb{
     </section>
 
     <!-- 填充数量和布局 -->
-    <section class="module">
+    <section class="module" id="moduleFill">
       <div class="module-head">
         <span class="mh-title">填充数量和布局</span>
       </div>
@@ -1076,7 +1104,6 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/* Toast 提示 */
 let toastTimer;
 function toast(msg){
   const el = $('#toast');
@@ -1086,7 +1113,6 @@ function toast(msg){
   toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
 }
 
-/* 非法输入：浅红闪烁两次后回退最近合法值 */
 function flashInvalid(input, min, max){
   input.classList.add('invalid');
   setTimeout(() => input.classList.remove('invalid'), 620);
@@ -1110,17 +1136,12 @@ function updateTopbarHeight(){
 
 /* ============================================================
    视口宽度 → 布局模式
-   three：宽 > 800 或手机横屏
-   two  ：宽 ∈ [400, 800] 且非手机竖屏
-   one  ：宽 < 400 或手机竖屏
    ============================================================ */
 function updateLayoutMode(){
   const w = window.innerWidth;
   const h = window.innerHeight;
 
-  // 手机横屏：宽大于高，且高度较小
   const isPhoneLandscape = w > h && h <= 500;
-  // 手机竖屏：高大于宽，且宽度较小
   const isPhonePortrait = h > w && w < 500;
 
   let mode;
@@ -1132,10 +1153,9 @@ function updateLayoutMode(){
   const layoutEl = $('.layout');
   if (layoutEl) layoutEl.dataset.mode = mode;
 
-  // 两栏模式：默认显示内容栏
+  /* 两栏模式：默认显示内容栏；恢复上次激活的标签 */
   if (mode === 'two'){
-    const activeTab = document.querySelector('.merge-tab.active');
-    const tab = activeTab?.dataset.tab || 'mid';
+    const tab = $('.merge-tab.active')?.dataset.tab || 'mid';
     document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
     document.querySelector('.col-right')?.classList.toggle('active', tab === 'right');
   } else {
@@ -1143,17 +1163,44 @@ function updateLayoutMode(){
     document.querySelector('.col-right')?.classList.remove('active');
   }
 
-  // 布局切换后重新检测滚动状态
+  /* 布局切换后重新计算 */
   requestAnimationFrame(() => {
-    checkPreviewFloat();
     updateTopbarHeight();
+    syncMergeTabs();
+    checkPreviewFloat();
+    checkTabExpansion();
   });
 }
 
 /* ============================================================
-   预览浮动检测：预览模块所在栏有纵向滚动条 → 预览 fixed 悬浮
-   —— 三栏/两栏模式检测 .col-left
-   —— 单栏模式检测 .layout（因为 col 是 display: contents）
+   两栏合并标签栏：fixed 悬浮在第 2 栏顶部
+   —— left / top / width 由 JS 同步
+   ============================================================ */
+function syncMergeTabs(){
+  const mt = $('#mergeTabs');
+  if (!mt) return;
+  if (document.documentElement.dataset.layout !== 'two'){
+    mt.style.removeProperty('left');
+    mt.style.removeProperty('top');
+    mt.style.removeProperty('width');
+    return;
+  }
+  /* 两个栏共享同一个 grid cell，选当前显示的栏取 rect */
+  const col = document.querySelector('.col-mid.active')
+           || document.querySelector('.col-right.active')
+           || document.querySelector('.col-mid');
+  if (!col) return;
+  const r = col.getBoundingClientRect();
+  const topbarH = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')
+  ) || 54;
+  mt.style.left = Math.round(r.left) + 'px';
+  mt.style.top = Math.round(topbarH + 8) + 'px';
+  mt.style.width = Math.round(r.width) + 'px';
+}
+
+/* ============================================================
+   预览浮动检测
    ============================================================ */
 function isScrollable(el){
   if (!el) return false;
@@ -1175,10 +1222,8 @@ function checkPreviewFloat(){
   document.body.classList.toggle('preview-float', hasScroll);
 
   if (hasScroll){
-    /* 加类后下一帧再同步 left / width / 占位高度 */
     requestAnimationFrame(syncPreviewLayout);
   } else if (was) {
-    /* 撤销 fixed 时清掉内联 left / width */
     const preview = $('.module-preview');
     if (preview){
       preview.style.removeProperty('left');
@@ -1187,7 +1232,6 @@ function checkPreviewFloat(){
   }
 }
 
-/* 同步 fixed 预览的 left / width / 占位高度 */
 function syncPreviewLayout(){
   const preview = $('.module-preview');
   if (!preview) return;
@@ -1204,13 +1248,47 @@ function syncPreviewLayout(){
   } else {
     const colLeft = $('.col-left');
     const r = colLeft.getBoundingClientRect();
-    preview.style.left = r.left + 'px';
-    preview.style.width = r.width + 'px';
+    preview.style.left = Math.round(r.left) + 'px';
+    preview.style.width = Math.round(r.width) + 'px';
   }
 
-  /* 占位高度 = fixed 预览实际渲染高度 */
   const h = Math.round(preview.getBoundingClientRect().height);
   document.documentElement.style.setProperty('--preview-placeholder-h', h + 'px');
+}
+
+/* ============================================================
+   标签组展开检测
+   —— 栏可用高度 ≥ 阈值 → 含 tabs 的模块全部展开 pane
+   ============================================================ */
+function checkTabExpansion(){
+  const mode = document.documentElement.dataset.layout;
+  const topbarH = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')
+  ) || 54;
+
+  let colH = 0;
+  if (mode === 'one'){
+    /* 单栏：用视口可用高度 */
+    colH = window.innerHeight - topbarH - 40;
+  } else if (mode === 'two'){
+    const col = document.querySelector('.col-mid.active')
+             || document.querySelector('.col-right.active')
+             || document.querySelector('.col-mid');
+    colH = col ? col.clientHeight : 0;
+  } else {
+    const col = document.querySelector('.col-mid');
+    colH = col ? col.clientHeight : 0;
+  }
+
+  const threshold = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--expand-threshold')
+  ) || 560;
+  const shouldExpand = colH >= threshold;
+
+  $$('.module').forEach(mod => {
+    if (!mod.querySelector('.tabs')) return;
+    mod.classList.toggle('expanded', shouldExpand);
+  });
 }
 
 /* ============================================================
@@ -1271,7 +1349,7 @@ function bindTabs(root) {
 }
 
 /* ============================================================
-   两栏合并标签
+   两栏合并标签切换
    ============================================================ */
 $$('.merge-tab').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1279,8 +1357,12 @@ $$('.merge-tab').forEach(btn => {
     $$('.merge-tab').forEach(b => b.classList.toggle('active', b === btn));
     document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
     document.querySelector('.col-right')?.classList.toggle('active', tab === 'right');
-    // 切换后重新检测滚动（内容可能变化）
-    requestAnimationFrame(checkPreviewFloat);
+    /* 切换后重新计算：滚动、合并标签位置、展开状态 */
+    requestAnimationFrame(() => {
+      syncMergeTabs();
+      checkPreviewFloat();
+      checkTabExpansion();
+    });
   });
 });
 
@@ -1402,6 +1484,7 @@ function renderRowCount() {
       drawIcon();
       requestAnimationFrame(() => {
         checkPreviewFloat();
+        checkTabExpansion();
       });
     };
     box.appendChild(b);
@@ -1677,10 +1760,11 @@ function renderStyle() {
   $('#contentNote').textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]}`;
 
   const active = $('#styleTabs .tab.active')?.dataset.pane || 'size';
+  /* 每个 pane 加 data-label，展开时用于显示标题 */
   $('#styleBody').innerHTML = `
-    <div class="pane${active === 'size' ? ' active' : ''}" data-pane="size">${paneSize()}</div>
-    <div class="pane${active === 'color' ? ' active' : ''}" data-pane="color">${paneColor(r)}</div>
-    <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">${paneShadow()}</div>`;
+    <div class="pane${active === 'size' ? ' active' : ''}" data-pane="size" data-label="尺寸">${paneSize()}</div>
+    <div class="pane${active === 'color' ? ' active' : ''}" data-pane="color" data-label="颜色">${paneColor(r)}</div>
+    <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow" data-label="阴影">${paneShadow()}</div>`;
   syncRanges($('#styleBody'));
 
   const seg = $('#styleBody .segmented');
@@ -1701,7 +1785,7 @@ function renderStyle() {
 function renderShapeBody() {
   const active = $('#shapeTabs .tab.active')?.dataset.pane || 'shape';
   $('#shapeBody').innerHTML = `
-    <div class="pane${active === 'shape' ? ' active' : ''}" data-pane="shape">
+    <div class="pane${active === 'shape' ? ' active' : ''}" data-pane="shape" data-label="形状">
       ${stackedChips('基础', ['无','圆形','圆角方形'], 2)}
       ${stackedChips('边形', ['3','4','5','6','7','8'])}
       ${stackedChips('角星', ['3','4','5','6','7','8'])}
@@ -1717,7 +1801,7 @@ function renderShapeBody() {
       <div style="font-size:10px;color:var(--muted);padding-top:6px">角星内角为 0° 时形状不可见</div>
     </div>
 
-    <div class="pane${active === 'border' ? ' active' : ''}" data-pane="border">
+    <div class="pane${active === 'border' ? ' active' : ''}" data-pane="border" data-label="边框">
       <label class="check-row" style="padding-top:0">
         <input type="checkbox" checked id="borderEnable"> 启用边框
       </label>
@@ -1732,7 +1816,7 @@ function renderShapeBody() {
       <div style="font-size:10px;color:var(--muted);padding-top:6px">边框从形状边界向外延伸</div>
     </div>
 
-    <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">
+    <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow" data-label="阴影">
       <label class="check-row" style="padding-top:0">
         <input type="checkbox" id="fshadowEnable"> 启用形状阴影
       </label>
@@ -1780,7 +1864,7 @@ function renderFillBody() {
   const active = $('#fillTabs .tab.active')?.dataset.pane || 'layout';
   const single = fillCount === 1;
   $('#fillBody').innerHTML = `
-    <div class="pane${active === 'layout' ? ' active' : ''}" data-pane="layout">
+    <div class="pane${active === 'layout' ? ' active' : ''}" data-pane="layout" data-label="布局">
       ${single ? `
         <div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">
           单色填充无需设置布局与边界，直接到下方「内部填充」调整颜色即可。
@@ -1796,7 +1880,7 @@ function renderFillBody() {
         ${paramRow('Y 拉伸', 100, 1, 300, '%')}`}
     </div>
 
-    <div class="pane${active === 'edge' ? ' active' : ''}" data-pane="edge">
+    <div class="pane${active === 'edge' ? ' active' : ''}" data-pane="edge" data-label="填充边界">
       ${single ? `
         <div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">
           单色填充没有内部边界，无需设置过渡与边界形状。
@@ -1816,7 +1900,7 @@ function renderFillBody() {
         ${stackedChips('过渡样式', ['单色','渐变','加深','变浅','透明'])}`}
     </div>
 
-    <div class="pane${active === 'advice' ? ' active' : ''}" data-pane="advice">
+    <div class="pane${active === 'advice' ? ' active' : ''}" data-pane="advice" data-label="颜色建议">
       <div class="cp-label">根据文本颜色提供的填充组合建议</div>
       ${[
         { n: '互补色', cs: ['#4d6ef5', '#f5a04d'] },
@@ -2050,7 +2134,7 @@ function syncRanges(root) {
 }
 
 /* ============================================================
-   预览缩放（原位缩放：滚轮缩放 + 拖动 + 双击复位）
+   预览缩放
    ============================================================ */
 let zoom = 1;
 let panX = 0, panY = 0;
@@ -2119,7 +2203,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeViewer();
 });
 
-/* 放大按钮 */
 $('#enlargeBtn').addEventListener('click', () => {
   const layout = $('.layout');
   const enlarged = layout.classList.toggle('enlarged');
@@ -2132,7 +2215,6 @@ $('#enlargeBtn').addEventListener('click', () => {
     toast('已恢复默认栏宽');
   }
   requestAnimationFrame(() => {
-    checkPreviewFloat();
     updateLayoutMode();
   });
 });
@@ -2210,7 +2292,7 @@ function updateFileName() {
   $('#fileName').textContent = `KIcon-${iconSize}-${text}-${stamp}.png`;
 }
 
-/* 预设/历史/下载 按钮行为 */
+/* 预设/历史/下载 按钮 */
 $$('[data-act]').forEach(b => b.addEventListener('click', () => {
   const act = b.dataset.act;
   if (act === 'import') toast('导入预设（演示）：请选择 JSON 文件');
@@ -2241,7 +2323,6 @@ $$('.fmt').forEach(b => b.addEventListener('click', () => {
   }
 }));
 
-/* 顶部联动按钮 */
 const lb = $('#linkageBtn');
 let ls = 1;
 lb.addEventListener('click', () => {
@@ -2270,7 +2351,6 @@ $('#styleReset').addEventListener('click', () => {
   toast('已重置当前行样式');
 });
 
-/* 填充数量 → 色块数量联动 */
 $('#fillCount').addEventListener('click', e => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -2325,13 +2405,12 @@ function init() {
   const S = iconSize;
   $('#safeBox').style.inset = (S * 0.1) + 'px';
 
-  /* 布局检测 + 滚动检测 */
+  /* 首次检测 */
   requestAnimationFrame(() => {
     updateLayoutMode();
-    checkPreviewFloat();
   });
 
-  /* 视口变化 */
+  /* 视口变化：重新计算布局 + 合并标签位置 + 展开状态 + 预览浮动 */
   window.addEventListener('resize', () => {
     updateTopbarHeight();
     updateLayoutMode();
@@ -2339,6 +2418,7 @@ function init() {
       requestAnimationFrame(syncPreviewLayout);
     }
     checkPreviewFloat();
+    checkTabExpansion();
   });
 
   window.addEventListener('orientationchange', () => {
@@ -2346,6 +2426,7 @@ function init() {
       updateTopbarHeight();
       updateLayoutMode();
       checkPreviewFloat();
+      checkTabExpansion();
     }, 150);
   });
 
@@ -2355,19 +2436,33 @@ function init() {
       if (document.body.classList.contains('preview-float')){
         requestAnimationFrame(syncPreviewLayout);
       }
+      syncMergeTabs();
     });
   }
 
-  /* 用 ResizeObserver 监听每个栏的尺寸变化，重新检测滚动 */
+  /* ResizeObserver：栏尺寸变化时重新检测滚动/展开/合并标签位置 */
   if (window.ResizeObserver) {
     const ro = new ResizeObserver(() => {
+      syncMergeTabs();
       checkPreviewFloat();
+      checkTabExpansion();
     });
     const colLeft = $('.col-left');
     if (colLeft) ro.observe(colLeft);
+    const colMid = $('.col-mid');
+    if (colMid) ro.observe(colMid);
     const layout = $('.layout');
     if (layout) ro.observe(layout);
   }
+
+  /* 栏内滚动时，同步 fixed 预览位置（以防滚动引起的位置变化） */
+  document.querySelectorAll('.col, .layout').forEach(el => {
+    el.addEventListener('scroll', () => {
+      if (document.body.classList.contains('preview-float')){
+        syncPreviewLayout();
+      }
+    }, { passive: true });
+  });
 
   /* 快捷键 */
   document.addEventListener('keydown', e => {
