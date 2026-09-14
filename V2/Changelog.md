@@ -224,3 +224,50 @@ L1342 重复 canvas（canvas/ico/json/html/canvas/zip）→ 去重为 canvas/ico
 | L32-33 | 下载栏三个勾选框（多尺寸/代码/原始）| export.js ZIP 选项参数已预留，UI 层补复选框组件 |
 | L62 | FA 标签内商用版权提醒 + 页面底部版权 | ui.js FA 选择器组件详细设计时补 |
 | L106 边界联动语义 | boundary 单副本"联动"到底是什么 | 歧义清单保留，产品确认后再定 set() 分支内是否加实际逻辑 |
+
+---
+
+## v0.01 三家 AI 第二轮评审修正（2026-09-14，deepseek 深度思考 + GLM5.3 极致 + 豆包快速）
+
+**评审文档**：架构文档AI评审.md v2（600 行，较上轮 289 行翻倍）
+
+### 本轮 P0 修订（7 个，编号 #10~#16）
+
+| # | 优先级 | 问题 | 来源 | 修订 |
+|---|--------|------|------|------|
+| 10 | **P0** | **state.set() 缺源行门控！** 需求示例"取消勾选行1的大小联动→调整行1大小→其它行不变化"——set() 只检查"目标行是否勾选"，从不检查"当前源行自己是否勾选"。源行取消联动后仍会向外传播，与需求完全相反 | GLM5.3 独抓 | 加源行门控：`if (!state.content.lines[lineIdx].links[subPath]) return;` |
+| 11 | **P0** | **undo/redo 入栈时序完全反了！** 三个入口（set/toggleLink/setLineCount）全部 pushUndo 在变更**之后**——栈顶 = 变更后状态，但 undo() 语义是 pop(previousSnap) → state=previousSnap → Ctrl+Z 永远 no-op | GLM5.3 独抓 | 三处全部前置入栈：pushUndo() 移到 setDirect/links修改/enabled修改 **之前** |
+| 12 | **P0** | **boundary.params.links 半实现**：架构既在 schema 加了 links 字段、在 set() 写了 no-op 分支，又不渲染链条图标。clearAllLinks 错误地包含 boundary.params。三家 AI 共识必须二选一 | deepseek + GLM5.3 + 豆包 共识 | 采纳方案 A：**彻底删除** boundary.params.links 字段 + LINKABLE_BOUNDARY_PARAMS 常量 + set() 中 boundary 分支。clearAllLinks 注释改为"只遍历 content.lines[*].links，绝对不碰 boundary" |
+| 13 | **P0** | **derefOnlyIn 函数只引用不定义**！undo()/redo() 伪代码三处调用 derefOnlyIn(listA, listB)，但全文从未定义其行为。开发可能实现错误导致图片重复 deref → 内存提前释放 | 豆包 | 第九节伪代码补函数定义：`setB = new Set(listB); for id in listA if !setB.has(id) ImageRepo.deref(id)` |
+| 14 | **P0** | **deletePreset 无 deref 伪代码**！saveCurrent 时 ref+1（预设持有引用），但删除会话预设时没有任何 deref 操作 → 图片永远不会触发 5s 延迟释放 → 内存泄漏 | 豆包 | presets.js 模块补 deletePreset() 伪代码：先 collectImageIds → 每个 deref → splice 删除 |
+| 15 | **P0** | **makeName 三个致命缺陷**：① image 模式没显式写去扩展名（stripExt）；② 没过滤 disabled 行（默认文本 "A" 污染文件名）；③ 过度论断"不可能出现空"→ 没兜底 | 豆包 + GLM5.3 共识 | 重写 makeName 为完整伪代码：① `stripExt(name)` 显式去扩展名；② `enabled=true` 才拼接；③ 空文本行跳过；④ 全空用 "KIcon" 兜底 |
+| 16 | **P0** | **边界参数 φ/k 合法范围缺失**！只有 A 和 ω 有暂定范围，φ 和 k 无任何约束 → 用户可输入任意值导致渲染崩溃 | deepseek + GLM5.3 共识 | 歧义#3 补全：φ ∈ [-6.28, 6.28]（-2π~2π），k ∈ [-1, 1]；标注渲染层防御性编程即便 schema 校验 |
+
+### 本轮 P1 修订（3 个，编号 #17~#19）
+
+| # | 优先级 | 问题 | 来源 | 修订 |
+|---|--------|------|------|------|
+| 17 | **P1** | **白色键控只在导出层**（架构差异表写 `- \| ✅`），违反需求 1.8"预览效果即导出效果（除画布背景不导出）"——唯一豁免是画布背景 | GLM5.3 + deepseek | 差异表改为 `✅ \| ✅` 两层同步执行；补充阈值定义 `whiteThreshold=240`（与行级 threshold=128 独立）；补 getImageData→alpha置0→putImageData 伪代码 |
+| 18 | **P1** | **快照序列化口径不一致**：九节 undo/redo/pushUndo 全部用 `JSON.parse(JSON.stringify(state))`，但十五/十七节隔离表明确"不序列化 session.* 和 UI 视图状态"。照抄九节会把激活标签、滚动位置等带入 undo 快照 | GLM5.3 独抓 | 九节 4 处全部改为 `JSON.parse(JSON.stringify(state.businessFields))`（canvas/content/background），与十五/十七节约定对齐 |
+| 19 | **P1** | **clearAllLinks 作用域错误**：之前注释写"遍历 content.lines + boundary.params"，需求和豆包都指出顶部工具栏"全部联动"按钮只作用于内容参数 | 豆包 P0-2 | clearAllLinks 注释改为"只遍历 content.lines[*].links；绝对不触碰 boundary.params"；顶部工具栏强约束同步更新 |
+
+### 架构前后两轮评审对同一问题的态度变化
+
+| 问题 | 前一轮（自我勘误 #9） | 本轮（三家共识 #12）| 结论 |
+|------|----------------------|-------------------|------|
+| boundary.params.links | 半实现：保留 links 字段 + set() 写 no-op 分支 | 彻底删除：方案 A（删除字段 + 常量 + set() 分支） | 本轮更激进，正确。半实现是最危险的状态——导出预设 JSON 会带无用字段，用户看到链条图标点击没反应（P0 级 bug）|
+
+### 批判性拒绝纳入本轮的项（需产品确认或属 UI 详细设计层）
+
+| 需求 | 内容 | 拒绝理由 |
+|------|------|---------|
+| 响应式具体行为 | 竖屏浮动固定顶部/最大高度≤视口1/3、手机横排三栏、默认视口800×400 | ui.js 详细设计时补，架构已有 observeResponsive 骨架 |
+| 快捷键焦点判断 | 输入框获得焦点时禁用工程撤销（交由浏览器原生）| main.js 详细设计层实现 |
+| FA 商用版权提示 UI | 标签内提醒 + 页面底部版权 | fa_map.js / ui.js 详细设计时补 |
+| 上传进度条 | Images.upload 显示 FileReader 进度 | images.js 详细设计时补 |
+| 复制样式按钮位置 | 内容标签内容顶部两个按钮 | ui.js createTabContent 详细设计时补 |
+| 样式模块标题动态信息 | 当前激活第几行/模式/内容 | ui.js createModuleTitle 详细设计时补 |
+| shape 非无时标签显示形状预览 | 标签标题显示形状缩略图 | ui.js createFillTabTitle 详细设计时补 |
+| 设备内存 fallback | deviceMemory API 不可用时的默认值 15 | state.js 常量定义时补 |
+| 渲染时图片缺失降级 | ImageRepo 图片被 purge 后渲染占位 | render.js 防御性编程时补 |
+| rotate center 正式确认记录 | 三家 AI 都要求"形状几何中心"有正式产品确认 | 需求文档待产品走确认流程，架构语义正确 |

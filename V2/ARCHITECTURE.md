@@ -363,7 +363,7 @@ const State = {
   set(path, value, { history: true }),    // 自动处理联动（标记传播 + 值同步），可选记录历史
   batchSet(changes, { history: true }),   // 批量设置（原子快照）
   toggleLink(linkPath, { propagate: true }), // **P0 新增：单独处理"勾选某参数联动"**
-  clearAllLinks(bool),                    // **deepseek #2 + GLM5.3 P0-1 P0 修正**：遍历 content.lines[*].links + boundary.params.links；不触碰 _fillDef/shape/layout（P2）
+  clearAllLinks(bool),                    // **豆包 P0-2 + deepseek/GLM5.3 共识 P0 修正**：只遍历 content.lines[*].links；**绝对不触碰 boundary.params**（单副本无跨行语义，见方案 A）
   undo(),
   redo(),
   getLinkState(),                         // 返回 'all' | 'partial' | 'none'
@@ -403,17 +403,19 @@ const LINKABLE_LINE_PARAMS = {
 }
 
 // V2-2：边界参数可联动（单副本对象，links 存在 boundary.params 上）
-// **deepseek #2 + GLM5.3 P0-1 共识 P0 修正**：需求 L106 明确写了。
-// 但需求 L79 对"联动"的定义是"跨行同步"，boundary 是单副本——语义待确认（歧义清单）
-const LINKABLE_BOUNDARY_PARAMS = {
-  'A': true, 'ω': true, 'φ': true, 'k': true,
-}
+// **deepseek #2 + GLM5.3 P0-1 共识 + 本轮三家评审共识 P0 修正**：
+// 需求 L106 写边界参数"有滑块、输入框、联动、重置按钮"，
+// 但需求 L79 对"联动"的原始定义是 **"跨行同步同参数"**——boundary 是全局单副本，不存在多行。
+//
+// 方案 A（本轮三家共识采纳）：**删除 boundary.params.links 字段**，UI 不渲染链条联动图标。
+//   - 语义：联动 = 跨行同步，boundary 无跨行 → 没有联动 UI。
+//   - 保留滑块、输入框、重置按钮。
+//   - 歧义消除：需求 L106 中的"联动"字样按产品待确认；当前方案 A 实现为不渲染。
+//
+// （上一版错误地在 boundary.params 挂 links 字段并在 set() 写 no-op 分支，
+//  属于半实现状态——本轮彻底删除）
 
 // —— P2 后续版本扩展：背景其他参数联动（V2.02 不启用）——
-// **deepseek #2 + GLM5.3 P0-1 共识 P0 修正**：
-// 需求 L106 明确写边界参数 A/ω/φ/k "有滑块、输入框、**联动**、重置按钮"——
-// 之前错误地把 boundary.params 全部降到 P2。已恢复到 V2（见上面 LINKABLE_BOUNDARY_PARAMS）。
-// V2 仅不给 _fillDef / shape / layout 对象序列化 links 字段。
 const LINKABLE_PARAMS_P2 = {
   'background.fills.*.color',
   'background.layout.directions.*',
@@ -421,11 +423,11 @@ const LINKABLE_PARAMS_P2 = {
 }
 ```
 
-**V2 架构强约束（deepseek #2 + GLM5.3 P0-1 共识 P0 修正）**：
-- 有 links 字段并参与 JSON 序列化的：`content.lines[i].links`（18 键）+ `background.boundary.params.links`（4 键 A/ω/φ/k）
-- **没有 links 字段**（P2）：`_fillDef` / `shape` / `layout` 对象——boundary 的 links 只在 params 子对象上
-- 联动链条图标：内容参数栏各参数后 + 边界参数 A/ω/φ/k 后
-- 顶部工具栏"全部联动/全部不联动"作用于：内容参数栏（跨行同步）+ 边界参数（单副本，直接设）
+**V2 架构强约束（本轮三家评审共识 P0 修正）**：
+- 有 links 字段并参与 JSON 序列化的：**仅** `content.lines[i].links`（18 键）
+- **没有 links 字段**（方案 A）：`background.boundary.params`（单副本无跨行语义 → 不渲染联动链条图标）、`_fillDef`、`shape`、`layout`
+- 联动链条图标：**仅内容参数栏**各参数后渲染
+- 顶部工具栏"全部联动/全部不联动"作用域：**仅内容参数栏**（跨行同步）。**绝对不触碰边界参数**
 - 核心联动逻辑（两阶段状态机）：content.lines 跨行同步不变；boundary.params 单副本走独立简化路径（见歧义清单）
 
 #### 参数联动两阶段状态机（**P0 修正**）
@@ -440,6 +442,8 @@ const LINKABLE_PARAMS_P2 = {
 //   isLink=true  + propagate=true（默认） → 所有 9 行该参数 links 都设为 true
 //   isLink=false + propagate=任何值        → 当前行该参数 links 设为 false（单独取消）
 function toggleLink(lineIdx, subPath, isLink, { propagate: true }) {
+  // **GLM5.3 P0-3 修正（undo 时序）：先拍快照！**
+  pushUndo();
   if (isLink && propagate) {
     // 勾选传播：所有行同参数联动标记一起打开
     state.content.lines.forEach(line => {
@@ -451,7 +455,6 @@ function toggleLink(lineIdx, subPath, isLink, { propagate: true }) {
     // 取消：只取消当前行
     state.content.lines[lineIdx].links[subPath] = isLink;
   }
-  pushUndo();
   emit('links:changed');
   updateLinkIcons();
 }
@@ -461,40 +464,42 @@ function toggleLink(lineIdx, subPath, isLink, { propagate: true }) {
 function set(path, value, opts = { history: true }) {
   const oldVal = get(path);
   if (oldVal === value) return;
+
+  // **GLM5.3 P0-3 修正（undo 时序）：先拍快照，再变更！**
+  // undo() 语义是 pop(previousSnap) → state = previousSnap，
+  // 所以 undoStack 栈顶必须是**变更前**的状态！
+  // 之前版本把 pushUndo 放在 setDirect 之后 → 栈顶 = 变更后 → Ctrl+Z 永远 no-op
+  if (opts.history) {
+    pushUndo();
+    clearRedoWithDeref();
+  }
+
   // 1. 修改当前行
   setDirect(path, value);
 
   // 2. **始终同步所有标记了联动的其它行**（拖动中 history=false 也要实时联动！）
-  //    GLM5.3 评审指出原逻辑把同步放在 if (opts.history) 里 → 拖动中不联动
-  //    **豆包 P0 修正：加 content.lines 前缀守卫！**
-  //    否则 path='background.fills.0.color' 会误解析 lineIdx=0 触发内容行联动分支
+  //    GLM5.3 P0-1 最严重：**缺少源行门控！**
+  //    需求示例："取消勾选行1的大小联动 → 调整行1大小 → 其它行不变化"
+  //    之前版本只检查"目标行是否勾选联动"，从不检查"当前源行自己是否勾选"
+  //    → 源行取消联动后仍会向外传播，与需求完全相反！
   if (path.startsWith('content.lines.')) {
     const lineIdx = parseInt(path.split('.')[2]);
     const subPath = path.split('.').slice(3).join('.');
+    // **源行门控：当前行自身未勾选联动 → 不向外传播！**
+    if (!state.content.lines[lineIdx].links[subPath]) {
+      emit('state:changed', path);
+      return;
+    }
     state.content.lines.forEach((line, i) => {
       if (i === lineIdx) return;
-      if (line.links[subPath]) {
+      if (line.enabled && line.links[subPath]) {
         setDirect(`content.lines.${i}.${subPath}`, value);
       }
     });
   }
-  // **deepseek #2 + GLM5.3 P0-1 共识 P0 补充：boundary.params 联动**
-  // boundary 是全局单副本对象——"跨行同步"不存在，同步目标就是自己（无操作）
-  // 但需要遍历 links 字段做一致性检查，且为未来扩展留好路径
-  // 当前实际效果：boundary.params 的联动 UI 存在，但 set() 不做额外同步（只有一份无需同步）
-  else if (path.startsWith('background.boundary.params.')) {
-    const paramKey = path.split('.')[3]; // 'A' | 'ω' | 'φ' | 'k'
-    if (state.background.boundary.params.links?.[paramKey]) {
-      // boundary 是单副本对象——同步目标就是自己，无需额外 setDirect
-      // 歧义：需求 L79 联动定义是"跨行同步"，boundary 单副本语义待产品确认
-    }
-  }
 
-  // 3. 快照 + 清空 redo
-  if (opts.history) {
-    pushUndo();
-    clearRedoWithDeref();  // **P0 新增**：清空 redo 时必须 deref redo 栈所有快照图片引用
-  }
+  // boundary.params 无跨行语义 → 不走联动传播
+  // （P0-3 方案A：boundary.links 字段已移除，见 clearAllLinks）
 
   emit('state:changed', path);
 }
@@ -520,10 +525,17 @@ function initLines9() {
   return lines;
 }
 function setLineCount(newCount) {
+  // **GLM5.3 P0-3 修正（undo 时序）：先拍快照！**
+  pushUndo();
   for (let i = 0; i < 9; i++) {
     state.content.lines[i].enabled = i < newCount;
   }
-  pushUndo();
+  // **豆包 P1-9 补充：启用 disabled 行后，执行联动继承逻辑**
+  // 需求：新增行自动继承任意已启用行的联动标记
+  LINKABLE_LINE_PARAMS.forEach(paramKey => {
+    const anyEnabledRowHas = state.content.lines.some(l => l.enabled && l.links[paramKey]);
+    state.content.lines.forEach(l => { if (!l.enabled && anyEnabledRowHas) l.links[paramKey] = true; });
+  });
   emit('lines:changed');
 }
 ```
@@ -541,7 +553,7 @@ function setLineCount(newCount) {
 │   ≤4GB → 10 条，≤8GB → 15 条，>8GB → 20 条                │
 │   FIFO 淘汰最旧快照时 deref 其 imageIds                    │
 │                                                             │
-│ 快照 = JSON.parse(JSON.stringify(state))                   │
+│ 快照 = JSON.parse(JSON.stringify(state.businessFields))      │
 │   **仅序列化业务字段**（canvas/content/background）   │
 │   **不序列化 session.* 和 ImageRepo**（base64 始终在 ImageRepo）│
 │   - imageId 保留字符串引用（不复制 base64）                │
@@ -1069,6 +1081,15 @@ const Presets = {
     // 仅显示预览图，不显示名称、不显示删除按钮
     // 点击缩略图即应用（通过 state 切换 → 触发 render）
     // 后加载渲染：主界面初始化完成后 setTimeout(0) 执行，不阻塞主界面
+  },
+
+  // —— 豆包 P0-5 补充：会话预设删除时必须 deref 图片！——
+  // saveCurrent 时 ref +1（预设持有一份引用）
+  // 删除时必须 deref -1，否则图片永远不会触发 5s 延迟释放 → 内存泄漏
+  deletePreset(presetIdx) {
+    const preset = state.session.presets[presetIdx];
+    collectImageIds(preset).forEach(id => ImageRepo.deref(id));
+    state.session.presets.splice(presetIdx, 1);
   }
 }
 ```
@@ -1307,7 +1328,10 @@ undoStack 大小超 20          ← FIFO 淘汰最旧快照
 
 undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）：
   undo()：
-    currentSnap = JSON.parse(JSON.stringify(state))  // 拍新快照 → 推入 redoStack
+    currentSnap = JSON.parse(JSON.stringify(state.businessFields))
+    // 豆包+GLM5.3 共识：快照**仅序列化业务字段**（canvas/content/background）
+    // 不序列化 session.*、ImageRepo 引用、UI 视图状态
+    // 否则 UI 视图状态（激活标签、滚动位置等）会被错误带入 undo 快照
     undoStack.pop(previousSnap)
     redoStack.push(currentSnap)
     // **关键：新快照入栈必须 ref +1**（redoStack 新增持有）
@@ -1319,7 +1343,7 @@ undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）�
     emit('state:changed')
 
   redo()：对称操作
-    currentSnap = JSON.parse(JSON.stringify(state))
+    currentSnap = JSON.parse(JSON.stringify(state.businessFields))
     redoStack.pop(targetSnap)
     undoStack.push(currentSnap)
     currentSnap.imageIds.forEach(id => ImageRepo.ref(id))  // +1
@@ -1328,7 +1352,7 @@ undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）�
     emit('state:changed')
 
 **pushUndo 入栈**：
-  snap = JSON.parse(JSON.stringify(state))
+  snap = JSON.parse(JSON.stringify(state.businessFields))
   if (undoStack.length >= MAX_UNDO) {
     const oldest = undoStack.shift()
     oldest.imageIds.forEach(id => ImageRepo.deref(id))  // FIFO 淘汰
@@ -1340,6 +1364,24 @@ undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）�
 **clearRedoWithDeref 清空 redo**：
   redoStack.forEach(snap => snap.imageIds.forEach(id => ImageRepo.deref(id)))
   redoStack = []
+
+**ImageRepo.derefOnlyIn(listA, listB) — 仅 A 有 B 没有的 id 执行 deref**：
+  // 豆包 P0-4 + GLM5.3 P0-3 共识：之前全文只引用这个函数，但**从未定义**！
+  // 总账模型：state 1 份 + undo 各快照各 1 份 + redo 各快照各 1 份
+  // undo 时 currentSnap（原 state）独有的图片 → state 不再持有 → deref -1
+  // 与 redoStack.push(currentSnap) 的 ref +1 净变化 0
+  function derefOnlyIn(listA, listB) {
+    const setB = new Set(listB);
+    for (const id of listA) {
+      if (!setB.has(id)) ImageRepo.deref(id);  // 仅 A 有、B 没有的才 deref
+    }
+  }
+
+> **GLM5.3 P0-3 共识：undo/redo 时序统一约定**
+> pushUndo() 必须在**变更前**调用（setDirect 之前），
+> 这样 undoStack 栈顶 = 变更前快照 → undo() pop → state 恢复旧值。
+> 之前版本写反了，Ctrl+Z 永远是 no-op。
+> 本文档所有调用点（set / toggleLink / setLineCount）均已修正为前置入栈。
 ```
 
 ---
@@ -1384,14 +1426,21 @@ undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）�
 
 **命名规则（所有格式 + ZIP 内部成员统一走 makeName()）：**
 ```
-KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
-  canvas/ico/json/html/zip → 去 {size}
-  text 模式 → 实际文本
-  FA 模式 → faIcon（FA 代号，fa_map.js 统一存储）
-  image 模式 → 原文件名（去扩展名）
-  多行直接拼接无分隔符
-  过滤 /\:*?"<>| 非法字符
-  总长度 ≤ 30 字符
+makeName(state, ext, size) → string
+  1. 遍历 state.content.lines —— **只处理 enabled=true 的行，disabled 跳过**
+     （豆包+GLM5.3 共识：disabled 行还留着默认文本 "A"，若计入会污染文件名）
+  2. 每行按 mode 取片段：
+       text模式 → line.text（实际输入文本，可能为空 → 跳过该行不计入）
+       FA模式  → line.faIcon（FA 代号，fa_map.js 统一存储）
+       image模式 → stripExt(line.image.name)  ← **去扩展名！**
+       function stripExt(filename) { return filename.replace(/\.[^.]+$/, '') }
+  3. 所有片段直接拼接，**无分隔符**
+  4. 过滤非法字符 /\:*?"<>| 替换为 '-'
+  5. 总长度 ≤ 30 字符，超出截取前段
+  6. 若最终拼接串为空（极端情况：所有 enabled 行都是空文本）→ 用 "KIcon" 兜底
+
+KIcon-{size}-{拼接串}-{YYYYMMDDHHmmss}.{ext}
+  canvas/ico/json/html/zip → 去 {size} 段
 ```
 
 ---
@@ -1406,8 +1455,23 @@ KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
 | 形状 clip | ✅ canvas clip | ✅ canvas clip |
 | 内容/填充/阴影 | ✅ | ✅ |
 | DPR 缩放 | ✅ | ❌ 强制 1x |
-| 透明色处理 | - | ✅ 白色键控透明（JPG 例外） |
+| **白色键控透明**（canvas.transparent=true 时） | **✅** | **✅** |
+| （JPG 强制白色背景跳过键控） | — | — |
 | 缩放/平移视图变换 | ✅（zoomFactor, offsetX/Y） | ❌ 总是 1:1 |
+
+> **GLM5.3 + deepseek 共识 P1 修正**：白色键控必须预览层和导出层同步执行！
+> 需求 1.8 "预览效果即导出效果（除画布背景不导出）" — 唯一豁免是画布背景。
+> 之前架构把键控只放在导出层，会导致白字图标预览显示白字、导出却是透明字 → 差异超出豁免范围。
+>
+> **键控阈值定义**（本轮补充，之前缺失）：
+>   `whiteThreshold = 240`（RGB 各分量均 ≥ 240 的像素视为接近白色，α 置 0）
+>   与行级 `line.whiteToTransparent` 的 `threshold=128` 是两个独立参数，互不影响。
+>
+> **渲染流水线**（本轮补插图）：
+>   canvas.transparent=true 时，在所有内容绘制完成后、toBlob/toDataURL 前执行：
+>   `const img = ctx.getImageData(0, 0, size, size);
+>    for each pixel with R≥240 && G≥240 && B≥240 → img.data[alpha] = 0;
+>    ctx.putImageData(img, 0, 0);`
 
 ---
 
@@ -1483,9 +1547,21 @@ KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
 
 2. **填充色块标签标题规格**（原需求三3.1 "宽度与高度相同为方向"）— 经确认，**填充色块标签标题为正方形**：宽高相同，都 = 2×文本高度；底色为该色块 canvas 预览色。架构 ui.js 新增 createFillTabTitle 组件。
 
-3. **边界 params A、ω、φ、k 的合法数值范围** — 需求说"按函数安全给定范围"但未给具体数值。**架构暂定：A ∈ [-0.5, 0.5]，ω ∈ [0.01, 10]**。实现后可根据实际视觉效果调整。
+3. **边界 params A、ω、φ、k 的合法数值范围** — 需求说"按函数安全给定范围"但未给具体数值。
+   **本轮三家评审共识补全（deepseek + GLM5.3）**：
+   - A ∈ [-0.5, 0.5]  — 波形振幅系数（原暂定，保留）
+   - ω ∈ [0.01, 10]  — 角频率（原暂定，保留）
+   - **φ ∈ [-6.28, 6.28]（-2π ~ 2π）** — 相位偏移（deepseek 补充）
+   - **k ∈ [-1, 1]** — 平滑系数（deepseek 补充）
+   - 渲染层**防御性编程**：即便 schema 校验，tan() 仍做除零保护（架构已有）
+   实现后可根据实际视觉效果调整。
 
-4. **命名规则三模式全覆盖无空** — 需求 3.4 写"文本内容为所有行的文本拼接，FA使用FA代号，图片使用原图片名"。三种 mode（text/image/fa）全覆盖，**不可能出现空**——text 有实际文本、image 有原文件名、fa 有 faIcon。无需空文本兜底。
+4. **命名规则 makeName 约束** — 本轮三家评审共识 P0 修正：
+   - image 模式**必须去扩展名**（stripExt），否则生成 `KIcon-photo.png-20260914.png` 错误
+   - **只拼接 enabled=true 的行**，disabled 跳过（默认文本 "A" 污染文件名）
+   - text 模式空文本行 → 跳过该行不计入
+   - 极端情况所有拼接片段为空 → 用 "KIcon" 兜底
+   - 原过度论断"不可能出现空"已修正
 
 5. **命名截断长度** — 需求只说"做总长度截断"，架构暂定 30 字符（超出截取）。
 
