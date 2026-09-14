@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KiconCreator · 图标王制作器 V2.02</title>
+<style>
+/* ================= 主题变量 ================= */
+:root{
+  --radius:12px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 22px rgba(16,24,40,.06);
+  --shadow-lg:0 12px 34px rgba(16,24,40,.12);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+html[data-theme="light"]{
+  --bg:#eef1f7; --panel:#ffffff; --panel-2:#f8fafd; --field:#f4f6fb;
+  --border:#e3e8f1; --border-strong:#d3dae7; --text:#1d2333; --muted:#7c8698;
+  --accent:#4d6ef5; --accent-2:#7c5cff; --accent-soft:#eef2ff; --tag-bg:#f5f8fd;
+  --ok:#2fbf71; --warn:#e0603a;
+  --checker-a:#ffffff; --checker-b:#e8ecf3;
+}
+html[data-theme="retro"]{
+  --bg:#eadfc2; --panel:#fdf7e6; --panel-2:#f9f1da; --field:#f3e7c9;
+  --border:#dcc99b; --border-strong:#c9b183; --text:#4a3a1c; --muted:#8d7a52;
+  --accent:#c07a1d; --accent-2:#a1601a; --accent-soft:#f6e6c1; --tag-bg:#f7eed7;
+  --ok:#3f8f4f; --warn:#b3491f;
+  --checker-a:#fdf7e6; --checker-b:#e6d8b4;
+}
+html[data-theme="dark"]{
+  --bg:#0e1015; --panel:#171a22; --panel-2:#1c1f29; --field:#1f2330;
+  --border:#2a2f3c; --border-strong:#3a4152; --text:#e7eaf3; --muted:#8b93a7;
+  --accent:#6c8cff; --accent-2:#9b7cff; --accent-soft:#1e2438; --tag-bg:#1f2330;
+  --ok:#3ddc84; --warn:#ff7a59;
+  --checker-a:#20242e; --checker-b:#171a22;
+}
+
+/* ================= 基础 ================= */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font); font-size:13px; color:var(--text);
+  background:var(--bg); min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 380px at 12% -6%, color-mix(in srgb,var(--accent) 9%, transparent), transparent 70%),
+    radial-gradient(760px 340px at 92% 4%, color-mix(in srgb,var(--accent-2) 8%, transparent), transparent 70%);
+  background-attachment:fixed;
+}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+button{font-family:inherit}
+input,select{font-family:inherit}
+
+/* ================= 顶栏 ================= */
+.topbar{
+  position:sticky; top:0; z-index:60;
+  display:flex; align-items:center; gap:14px;
+  padding:9px 18px;
+  background:color-mix(in srgb, var(--panel) 82%, transparent);
+  backdrop-filter:saturate(160%) blur(14px);
+  -webkit-backdrop-filter:saturate(160%) blur(14px);
+  border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.logo{
+  width:36px;height:36px;border-radius:11px;flex:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#fff;font-weight:800;font-size:17px;display:grid;place-items:center;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 42%, transparent);
+  letter-spacing:-.5px;
+}
+.brand-text h1{
+  margin:0;font-size:14.5px;font-weight:700;letter-spacing:.2px;
+  display:flex;align-items:center;gap:7px;line-height:1.2;
+}
+.ver{
+  font-size:10px;font-weight:600;padding:1.5px 6px;border-radius:99px;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 26%, transparent);
+}
+.brand-text p{margin:2px 0 0;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+
+.segmented{display:inline-flex;background:var(--field);border:1px solid var(--border);border-radius:9px;padding:2px;gap:2px}
+.segmented button{
+  border:0;background:transparent;color:var(--muted);font-size:11.5px;font-weight:600;
+  padding:5px 11px;border-radius:7px;cursor:pointer;transition:.15s;line-height:1;
+}
+.segmented button:hover{color:var(--text)}
+.segmented button.active{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
+.segmented.icon-only button{padding:6px 8px;display:grid;place-items:center}
+.segmented.icon-only svg{width:15px;height:15px}
+
+.linkage-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--border);background:var(--field);color:var(--muted);
+  font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:9px;cursor:pointer;transition:.15s;
+}
+.linkage-btn:hover{border-color:var(--accent);color:var(--accent)}
+.linkage-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);box-shadow:0 0 0 3px color-mix(in srgb,var(--muted) 18%,transparent)}
+.linkage-btn.partial .dot{background:#f5a623;box-shadow:0 0 0 3px rgba(245,166,35,.18)}
+.linkage-btn.all .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
+
+/* ================= 布局 ================= */
+.layout{
+  display:grid;
+  grid-template-columns:340px minmax(320px,1fr) minmax(320px,1fr);
+  gap:14px; padding:14px 18px 24px;
+  align-items:start; max-width:1920px; margin:0 auto;
+}
+.col{display:flex;flex-direction:column;min-width:0}
+
+/* ================= 模块 ================= */
+.module{
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  margin-bottom:14px; overflow:hidden; min-width:0;
+  transition:box-shadow .2s;
+}
+.module:last-child{margin-bottom:0}
+.module-head{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 12px; font-size:12.5px; font-weight:700;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  min-height:38px;
+}
+.mh-title{letter-spacing:.2px}
+.mh-sub{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mh-spacer{flex:1}
+.module-body{padding:11px 12px 13px}
+
+/* ================= 按钮 ================= */
+.btn{
+  border:1px solid var(--border);background:var(--panel);color:var(--text);
+  border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer;
+  transition:.15s;white-space:nowrap;line-height:1.2;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.sm{padding:4px 9px;font-size:11px}
+.btn.ghost{background:var(--field);color:var(--muted)}
+.btn.ghost:hover{color:var(--accent);background:var(--accent-soft)}
+.btn.primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-color:transparent;color:#fff;
+  box-shadow:0 5px 14px color-mix(in srgb,var(--accent) 34%,transparent);
+}
+.btn.primary:hover{color:#fff;filter:brightness(1.06)}
+
+/* ================= 预览 ================= */
+.preview-stage{
+  position:relative; display:grid; place-items:center;
+  padding:16px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); min-height:190px;
+  background-color:var(--checker-a);
+  background-image:
+    linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),
+    linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),
+    linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);
+  background-size:18px 18px;
+  background-position:0 0,0 9px,9px -9px,-9px 0;
+  overflow:hidden;
+}
+.preview-canvas-wrap{
+  display:grid;place-items:center;
+  transition:transform .12s ease-out;
+  transform-origin:center center;
+}
+#iconCanvas{
+  display:block; max-width:100%; max-height:min(32vh,262px);
+  border-radius:16px;
+  box-shadow:0 10px 26px rgba(18,26,48,.20), 0 2px 6px rgba(18,26,48,.10);
+  cursor:zoom-in;
+}
+.preview-foot{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin-top:9px;font-size:10.5px;color:var(--muted);
+}
+.preview-foot .k{
+  font-variant-numeric:tabular-nums;font-weight:700;color:var(--text);
+  background:var(--field);border:1px solid var(--border);
+  padding:2px 7px;border-radius:6px;
+}
+.dot-sep{opacity:.5}
+
+/* ================= 标签页 ================= */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
+.tab{
+  border:1px solid var(--border); border-bottom:none;
+  background:var(--tag-bg); color:var(--muted);
+  border-radius:9px 9px 0 0; padding:6px 13px;
+  font-size:11.5px;font-weight:600;cursor:pointer;
+  position:relative; top:1px; transition:.15s;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.tab:hover{color:var(--text)}
+.tab.active{
+  background:var(--accent-soft); color:var(--accent);
+  border-color:var(--border);
+}
+.tab-body{
+  background:var(--accent-soft);
+  border:1px solid var(--border);
+  border-radius:0 9px 9px 9px;
+  padding:9px 11px; min-height:40px;
+}
+.pane{display:none}
+.pane.active{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.tab-body .num,.tab-body .sel,.tab-body .mini-input{background:var(--panel)}
+
+.badge-ok{
+  font-size:9px;color:#fff;background:var(--ok);
+  width:13px;height:13px;border-radius:50%;display:grid;place-items:center;line-height:1;
+}
+
+/* ================= 参数行 ================= */
+.param{display:flex;align-items:center;gap:8px;padding:4px 0;min-width:0}
+.param>.pname{
+  flex:0 0 68px;font-size:11.5px;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.param>.pctrl{flex:1;display:flex;align-items:center;gap:6px;min-width:0}
+.param.stacked{flex-direction:column;align-items:stretch;gap:6px}
+.param.stacked>.pname{flex:none;font-weight:600;color:var(--text);opacity:.8}
+.param+.param{border-top:1px dashed color-mix(in srgb,var(--border) 70%,transparent)}
+.param.stacked+.param.stacked{border-top:none}
+
+input[type=range]{
+  --fill:50%; -webkit-appearance:none; appearance:none;
+  flex:1; min-width:0; height:5px; border-radius:99px; outline:none; cursor:pointer;
+  background:linear-gradient(90deg,var(--accent) var(--fill),var(--border) var(--fill));
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:14px;height:14px;border-radius:50%;
+  background:var(--panel); border:2.5px solid var(--accent);
+  box-shadow:0 1px 4px rgba(16,24,40,.22); cursor:pointer; transition:transform .12s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+input[type=range]::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:var(--panel);
+  border:2.5px solid var(--accent);cursor:pointer;
+}
+.num{
+  width:48px;flex:0 0 48px;height:24px;text-align:center;
+  background:var(--field);border:1px solid var(--border);border-radius:7px;
+  color:var(--text);font-size:11px;font-weight:600;padding:0 3px;
+  font-variant-numeric:tabular-nums;transition:.15s;
+}
+.num:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+.num.wide{width:62px;flex:0 0 62px}
+.unit{font-size:10px;color:var(--muted);flex:none;min-width:10px}
+
+.chain{
+  flex:0 0 22px;width:22px;height:22px;border-radius:7px;padding:0;
+  border:1px solid var(--border);background:var(--field);color:var(--muted);
+  display:grid;place-items:center;cursor:pointer;transition:.15s;
+}
+.chain svg{width:12px;height:12px}
+.chain:hover{color:var(--accent);border-color:var(--accent)}
+.chain.on{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-color:transparent;color:#fff;
+  box-shadow:0 3px 9px color-mix(in srgb,var(--accent) 34%,transparent);
+}
+
+/* ================= 选择控件 ================= */
+.sel,.mini-input{
+  background:var(--field);border:1px solid var(--border);color:var(--text);
+  border-radius:7px;padding:4px 7px;font-size:11px;font-weight:600;
+  cursor:pointer;transition:.15s;min-width:0;
+}
+.sel:focus,.mini-input:focus{outline:none;border-color:var(--accent)}
+.mini-select{
+  background:var(--field);border:1px solid var(--border);color:var(--muted);
+  border-radius:7px;padding:3px 5px;font-size:10.5px;cursor:pointer;max-width:92px;
+}
+.mini-select:focus{outline:none;border-color:var(--accent)}
+.mini-check{
+  display:inline-flex;align-items:center;gap:4px;font-size:10.5px;
+  color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;
+}
+.mini-check input{accent-color:var(--accent);width:13px;height:13px;cursor:pointer}
+
+.check-row{
+  display:flex;align-items:center;gap:7px;font-size:11.5px;
+  color:var(--text);padding:5px 0;cursor:pointer;user-select:none;
+}
+.check-row input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex:none}
+.check-row .hint{font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap}
+
+/* ================= 小徽章按钮组 ================= */
+.pill-row{display:flex;gap:4px;flex-wrap:wrap}
+.pill{
+  width:25px;height:25px;border-radius:7px;padding:0;
+  border:1px solid var(--border);background:var(--field);color:var(--muted);
+  font-size:11px;font-weight:700;cursor:pointer;transition:.15s;
+  display:grid;place-items:center;
+}
+.pill:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.pill.active{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-color:transparent;color:#fff;
+  box-shadow:0 4px 10px color-mix(in srgb,var(--accent) 34%,transparent);
+}
+
+.chip-row{display:flex;gap:5px;flex-wrap:wrap}
+.chip{
+  border:1px solid var(--border);background:var(--field);color:var(--muted);
+  border-radius:99px;padding:4px 11px;font-size:11px;font-weight:600;
+  cursor:pointer;transition:.15s;line-height:1.3;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-color:transparent;color:#fff;
+  box-shadow:0 4px 10px color-mix(in srgb,var(--accent) 30%,transparent);
+}
+
+.divider{height:1px;background:var(--border);margin:10px 0}
+
+/* ================= 预设 ================= */
+.preset-tools{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.preset-grid{display:flex;flex-wrap:wrap;gap:8px}
+.preset-item{
+  width:46px;height:46px;border-radius:10px;overflow:hidden;flex:none;
+  border:1px solid var(--border);background:var(--field);cursor:pointer;position:relative;
+  transition:transform .14s,box-shadow .14s,border-color .14s;
+}
+.preset-item:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--accent)}
+.preset-item canvas{width:100%;height:100%;display:block}
+.preset-item::after{
+  content:"";position:absolute;inset:0;border-radius:10px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);pointer-events:none;
+}
+
+.history-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+.history-item{
+  display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:9px;
+  border:1px solid var(--border);background:var(--field);cursor:pointer;transition:.15s;
+}
+.history-item:hover{border-color:var(--accent);background:var(--accent-soft)}
+.history-item canvas{width:26px;height:26px;border-radius:6px;flex:none}
+.history-item .hname{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ================= 下载 ================= */
+.format-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fmt{
+  border:1px solid var(--border);background:var(--field);color:var(--muted);
+  border-radius:9px;padding:9px 3px;font-size:11px;font-weight:700;
+  cursor:pointer;transition:.15s;letter-spacing:.3px;
+}
+.fmt:hover{
+  background:var(--accent-soft);color:var(--accent);border-color:var(--accent);
+  transform:translateY(-2px);box-shadow:0 6px 14px color-mix(in srgb,var(--accent) 18%,transparent);
+}
+.filename{
+  margin-top:10px;font-size:10px;color:var(--muted);
+  background:var(--field);border:1px dashed var(--border);border-radius:8px;
+  padding:6px 9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ================= 内容竖向标签组 ================= */
+.vtab-group{display:flex;gap:9px;align-items:flex-start}
+.vtab-list{
+  flex:0 0 96px;width:96px;display:flex;flex-direction:column;gap:6px;
+  max-height:340px;overflow-y:auto;padding-right:2px;
+}
+.vtab{
+  border:1px solid var(--border);background:var(--tag-bg);
+  border-radius:10px;padding:6px;cursor:pointer;transition:.15s;
+  display:flex;flex-direction:column;gap:5px;
+}
+.vtab:hover{border-color:var(--accent)}
+.vtab.active{
+  background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent);
+  box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 14%,transparent);
+}
+.vtab-head{display:flex;align-items:center;gap:5px}
+.rownum{
+  width:17px;height:17px;border-radius:6px;flex:none;
+  background:var(--panel);border:1px solid var(--border);
+  display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--muted);
+}
+.vtab.active .rownum{background:var(--accent);border-color:transparent;color:#fff}
+.mode-mini{display:flex;gap:2px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1px}
+.mode-mini button{
+  border:0;background:transparent;color:var(--muted);font-size:9.5px;font-weight:800;
+  padding:2px 4px;border-radius:4px;cursor:pointer;line-height:1.2;
+}
+.mode-mini button.on{background:var(--accent);color:#fff}
+.vtab-input{
+  width:100%;height:22px;border-radius:6px;text-align:center;
+  border:1px solid var(--border);background:var(--panel);color:var(--text);
+  font-size:11px;font-weight:600;padding:0 4px;
+}
+.vtab-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
+.vtab-body{
+  flex:1;min-width:0;background:var(--accent-soft);
+  border:1px solid var(--border);border-radius:0 10px 10px 10px;
+  padding:10px;min-height:120px;
+}
+.cp-label{font-size:10.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
+.cp-text-preview{
+  background:var(--panel);border:1px solid var(--border);border-radius:9px;
+  min-height:64px;display:grid;place-items:center;
+  font-size:26px;font-weight:800;letter-spacing:1px;
+  color:var(--text);padding:12px;word-break:break-all;
+}
+.cp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.cp-thumb{
+  width:88px;height:88px;border-radius:10px;border:1px dashed var(--border-strong);
+  background:var(--panel);display:grid;place-items:center;
+  color:var(--muted);font-size:10px;text-align:center;line-height:1.5;
+}
+.fa-search{
+  width:100%;height:26px;border-radius:8px;border:1px solid var(--border);
+  background:var(--panel);color:var(--text);font-size:11px;padding:0 9px;margin-bottom:8px;
+}
+.fa-search:focus{outline:none;border-color:var(--accent)}
+.fa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:5px;max-height:132px;overflow-y:auto}
+.fa-cell{
+  aspect-ratio:1;border-radius:8px;border:1px solid var(--border);
+  background:var(--panel);display:grid;place-items:center;
+  font-size:14px;cursor:pointer;transition:.14s;color:var(--text);
+}
+.fa-cell:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);transform:translateY(-1px)}
+
+/* ================= 填充色块 ================= */
+.fill-group{display:flex;gap:9px;align-items:flex-start}
+.fill-list{display:flex;flex-direction:column;gap:6px;flex:none}
+.fill-swatch{
+  width:32px;height:32px;border-radius:9px;border:1px solid var(--border-strong);
+  cursor:pointer;position:relative;overflow:hidden;padding:0;flex:none;
+  display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.45);transition:.15s;
+}
+.fill-swatch:hover{transform:translateY(-1px) scale(1.04)}
+.fill-swatch.active{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
+.fill-body{
+  flex:1;min-width:0;background:var(--accent-soft);
+  border:1px solid var(--border);border-radius:10px;padding:9px 10px;
+}
+
+/* ================= 底部 ================= */
+.footer{
+  text-align:center;font-size:10.5px;color:var(--muted);
+  padding:6px 18px 22px;line-height:1.7;
+}
+.footer a{color:var(--accent);text-decoration:none}
+
+/* ================= 自适应 ================= */
+@media (max-width:1180px){
+  .layout{grid-template-columns:300px minmax(280px,1fr);gap:12px;padding:12px}
+  .col-right{
+    grid-column:1/-1;display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:12px;align-items:start;
+  }
+  .col-right .module{margin-bottom:0}
+}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr;gap:10px;padding:10px}
+  .col-left,.col-mid,.col-right{grid-column:1/-1}
+  .col-right{grid-template-columns:1fr}
+  .module-preview{position:sticky;top:56px;z-index:40}
+  .preview-stage{padding:10px;min-height:130px}
+  #iconCanvas{max-height:24vh}
+  .topbar{padding:8px 12px;gap:9px}
+  .brand-text p{display:none}
+  .vtab-list{flex:0 0 82px;width:82px}
+}
+@media (max-width:520px){
+  .format-grid{grid-template-columns:repeat(3,1fr)}
+  .linkage-btn span.lbl{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 顶部工具栏 ================= -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">K</div>
+    <div class="brand-text">
+      <h1>KiconCreator <span class="ver">V2.02</span></h1>
+      <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
+    </div>
+  </div>
+
+  <div class="topbar-actions">
+    <div class="segmented icon-only">
+      <button title="撤销 Ctrl+Z">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-4"/>
+        </svg>
+      </button>
+      <button title="重做 Ctrl+Y">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h4"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="linkage-btn partial" id="linkageBtn">
+      <span class="dot"></span><span class="lbl">参数联动：部分</span>
+    </button>
+
+    <div class="segmented" id="themeSwitch">
+      <button data-theme="light" class="active">明亮</button>
+      <button data-theme="retro">复古</button>
+      <button data-theme="dark">暗黑</button>
+    </div>
+  </div>
+</header>
+
+<!-- ================= 主布局 ================= -->
+<main class="layout">
+
+  <!-- ============ 左栏 ============ -->
+  <section class="col col-left">
+
+    <!-- 预览 -->
+    <section class="module module-preview">
+      <div class="module-head">
+        <span class="mh-title">预览</span>
+        <span class="mh-spacer"></span>
+        <select class="mini-select" id="guideSelect">
+          <option value="none">无辅助线</option>
+          <option value="cross">十字</option>
+          <option value="star">米字</option>
+          <option value="thirds">均分井字</option>
+        </select>
+        <label class="mini-check"><input type="checkbox" id="safeChk" checked> 安全边距</label>
+      </div>
+      <div class="module-body">
+        <div class="preview-stage" id="stage">
+          <div class="preview-canvas-wrap" id="canvasWrap">
+            <canvas id="iconCanvas" width="256" height="256"></canvas>
+          </div>
+        </div>
+        <div class="preview-foot">
+          <span class="k" id="sizeTag">256 × 256</span>
+          <span>滚轮缩放</span><span class="dot-sep">·</span>
+          <span>双击复位</span><span class="dot-sep">·</span>
+          <span>双击进入模态预览</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 预设与历史 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">预设与历史</span>
+      </div>
+      <div class="module-body">
+        <div class="tabs" id="phTabs">
+          <button class="tab active" data-pane="preset">预设</button>
+          <button class="tab" data-pane="history">历史</button>
+        </div>
+        <div class="tab-body">
+          <div class="pane active" data-pane="preset">
+            <div class="preset-tools">
+              <button class="btn ghost sm">导入</button>
+              <button class="btn ghost sm">导出</button>
+              <button class="btn sm" title="保存仅本次有效，刷新后消失">保存</button>
+              <button class="btn ghost sm">复制 JSON</button>
+              <button class="btn ghost sm">复制 HTML</button>
+            </div>
+            <div class="preset-grid" id="presetGrid"></div>
+          </div>
+          <div class="pane" data-pane="history">
+            <div class="history-list" id="historyList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 下载 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">下载</span>
+        <span class="mh-spacer"></span>
+        <span class="mh-sub">导出即所见</span>
+      </div>
+      <div class="module-body">
+        <label class="check-row">
+          <input type="checkbox" id="transparentChk">
+          白色作为透明色导出
+          <span class="hint">JPG 不支持透明</span>
+        </label>
+
+        <div class="param">
+          <span class="pname">导出尺寸</span>
+          <div class="pctrl">
+            <select class="sel" id="sizePreset">
+              <option value="16">16 × 16</option>
+              <option value="32">32 × 32</option>
+              <option value="64">64 × 64</option>
+              <option value="128">128 × 128</option>
+              <option value="256" selected>256 × 256</option>
+              <option value="512">512 × 512</option>
+              <option value="1024">1024 × 1024</option>
+            </select>
+            <input class="num wide" id="sizeInput" value="256">
+            <span class="unit">px</span>
+          </div>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="multiSizeChk">
+          多尺寸打包
+          <span class="hint">32 / 64 / 128 / 256</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="codeChk">
+          代码打包
+          <span class="hint">canvas + json</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="rawChk">
+          原始图片打包
+        </label>
+
+        <div class="divider"></div>
+
+        <div class="format-grid">
+          <button class="fmt">PNG</button>
+          <button class="fmt">JPG</button>
+          <button class="fmt">WEBP</button>
+          <button class="fmt">ICO</button>
+          <button class="fmt">CANVAS</button>
+          <button class="fmt">JSON</button>
+          <button class="fmt">HTML</button>
+          <button class="fmt">SVG</button>
+        </div>
+
+        <div class="filename" id="fileName">KIcon-256-K-20260914153000.png</div>
+      </div>
+    </section>
+
+  </section>
+
+  <!-- ============ 中栏 ============ -->
+  <section class="col col-mid">
+
+    <!-- 多行设置 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">多行设置</span>
+      </div>
+      <div class="module-body">
+        <div class="param">
+          <span class="pname">行数</span>
+          <div class="pctrl">
+            <div class="pill-row" id="rowCount"></div>
+          </div>
+        </div>
+        <div class="param stacked">
+          <span class="pname">排版模式</span>
+          <div class="chip-row" id="layoutChips">
+            <button class="chip active">全在上</button>
+            <button class="chip">全在下</button>
+            <button class="chip">全在左</button>
+            <button class="chip">全在右</button>
+            <button class="chip">左右分</button>
+            <button class="chip">上下分</button>
+          </div>
+        </div>
+        <div class="param stacked" id="layerParam">
+          <span class="pname">多行排列层次</span>
+          <div class="chip-row">
+            <button class="chip active">1 行 → 9 行</button>
+            <button class="chip">9 行 → 1 行</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 内容 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">内容</span>
+        <span class="mh-spacer"></span>
+        <button class="btn ghost sm">复制样式</button>
+        <button class="btn ghost sm">粘贴样式</button>
+      </div>
+      <div class="module-body">
+        <div class="vtab-group">
+          <div class="vtab-list" id="contentTabs"></div>
+          <div class="vtab-body" id="contentBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 样式 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">样式</span>
+        <span class="mh-sub" id="styleSub">第 1 行 · 文本 · “K”</span>
+        <span class="mh-spacer"></span>
+        <button class="btn ghost sm">重置</button>
+      </div>
+      <div class="module-body">
+        <div class="tabs" id="styleTabs">
+          <button class="tab active" data-pane="size">尺寸</button>
+          <button class="tab" data-pane="color">颜色</button>
+          <button class="tab" data-pane="shadow">阴影 <span class="badge-ok">✓</span></button>
+        </div>
+        <div class="tab-body" id="styleBody"></div>
+      </div>
+    </section>
+
+  </section>
+
+  <!-- ============ 右栏 ============ -->
+  <section class="col col-right">
+
+    <!-- 形状与外框 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">形状与外框</span>
+      </div>
+      <div class="module-body">
+        <div class="tabs" id="shapeTabs">
+          <button class="tab active" data-pane="shape">形状</button>
+          <button class="tab" data-pane="border">边框 <span class="badge-ok">✓</span></button>
+          <button class="tab" data-pane="shadow">阴影 <span class="badge-ok">✓</span></button>
+        </div>
+        <div class="tab-body" id="shapeBody"></div>
+      </div>
+    </section>
+
+    <!-- 填充数量和布局 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">填充数量和布局</span>
+      </div>
+      <div class="module-body">
+        <div class="param stacked" style="padding-top:0">
+          <span class="pname">填充数量</span>
+          <div class="chip-row" id="fillCount">
+            <button class="chip">单色</button>
+            <button class="chip active">二色</button>
+            <button class="chip">三色</button>
+            <button class="chip">四色</button>
+            <button class="chip">五色</button>
+            <button class="chip">六色</button>
+          </div>
+        </div>
+
+        <div class="tabs" id="fillTabs" style="margin-top:8px">
+          <button class="tab active" data-pane="layout">布局</button>
+          <button class="tab" data-pane="edge">填充边界</button>
+          <button class="tab" data-pane="advice">颜色建议</button>
+        </div>
+        <div class="tab-body" id="fillBody"></div>
+      </div>
+    </section>
+
+    <!-- 内部填充 -->
+    <section class="module">
+      <div class="module-head">
+        <span class="mh-title">内部填充</span>
+        <span class="mh-spacer"></span>
+        <span class="mh-sub">每个色块独立设置</span>
+      </div>
+      <div class="module-body">
+        <div class="fill-group">
+          <div class="fill-list" id="fillList"></div>
+          <div class="fill-body" id="fillBody2"></div>
+        </div>
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<footer class="footer">
+  FontAwesome 6 图标库版权归 <a href="https://fonticons.com" target="_blank" rel="noreferrer">Fonticons, Inc.</a> 所有，商业使用请遵循其授权条款。
+  <br>KiconCreator V2.02 · 本工具全部运行于浏览器本地，不上传、不保存任何数据。
+</footer>
+
+<script>
+/* ============================================================
+   工具函数
+   ============================================================ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const CHAIN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
+  <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
+</svg>`;
+
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* 通用参数行构造 */
+function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
+  const step = opts.step ?? 1;
+  return `<div class="param${opts.stacked ? ' stacked' : ''}">
+    <span class="pname">${name}</span>
+    <div class="pctrl">
+      <input type="range" min="${min}" max="${max}" value="${value}" step="${step}">
+      <input class="num" value="${value}">
+      ${unit ? `<span class="unit">${unit}</span>` : ''}
+      <button class="chain${opts.chain ? ' on' : ''}" title="参数联动">${CHAIN_SVG}</button>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   主题切换
+   ============================================================ */
+$$('#themeSwitch button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.documentElement.dataset.theme = btn.dataset.theme;
+    $$('#themeSwitch button').forEach(b => b.classList.toggle('active', b === btn));
+    drawIcon();
+  });
+});
+
+/* ============================================================
+   标签页通用绑定
+   ============================================================ */
+function bindTabs(root) {
+  $$('.tabs', root).forEach(tabsEl => {
+    $$('.tab', tabsEl).forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.tab', tabsEl).forEach(t => t.classList.toggle('active', t === tab));
+        const body = tabsEl.parentElement.querySelector('.tab-body');
+        if (!body) return;
+        $$('.pane', body).forEach(p => {
+          p.classList.toggle('active', p.dataset.pane === tab.dataset.pane);
+        });
+      });
+    });
+  });
+}
+
+/* ============================================================
+   画布渲染
+   ============================================================ */
+const cvs = $('#iconCanvas');
+const ctx = cvs.getContext('2d');
+let iconSize = 256;
+
+function drawGuides(S) {
+  const mode = $('#guideSelect').value;
+  const safe = $('#safeChk').checked;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(110,122,150,.55)';
+  ctx.lineWidth = 1;
+
+  const line = (x1, y1, x2, y2) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  };
+
+  if (mode === 'cross') {
+    line(S / 2, 0, S / 2, S);
+    line(0, S / 2, S, S / 2);
+  } else if (mode === 'star') {
+    line(S / 2, 0, S / 2, S);
+    line(0, S / 2, S, S / 2);
+    line(0, 0, S, S);
+    line(S, 0, 0, S);
+  } else if (mode === 'thirds') {
+    for (let i = 1; i <= 2; i++) {
+      line(S * i / 3, 0, S * i / 3, S);
+      line(0, S * i / 3, S, S * i / 3);
+    }
+  }
+
+  if (safe) {
+    const m = S * 0.1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(110,122,150,.7)';
+    ctx.strokeRect(m, m, S - m * 2, S - m * 2);
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function drawIcon() {
+  const S = iconSize;
+  if (cvs.width !== S) { cvs.width = S; cvs.height = S; }
+  ctx.clearRect(0, 0, S, S);
+
+  // 背景形状：渐变圆角方形
+  const r = S * 0.22;
+  roundRect(ctx, S * 0.03, S * 0.03, S * 0.94, S * 0.94, r);
+  const g = ctx.createLinearGradient(0, 0, S, S);
+  g.addColorStop(0, '#6c8cff');
+  g.addColorStop(1, '#9b5cff');
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  // 文字内容
+  const text = (rows[0] && rows[0].text) ? rows[0].text : 'K';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 ${Math.round(S * 0.52)}px -apple-system, "Segoe UI", "PingFang SC", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text.slice(0, 3), S / 2, S / 2 + S * 0.02);
+
+  drawGuides(S);
+}
+
+/* ============================================================
+   内容行数据
+   ============================================================ */
+const MODE_LABEL = { text: '文本', image: '图片', fa: 'FontAwesome' };
+let rows = [
+  { mode: 'text', text: 'K' },
+  { mode: 'text', text: 'ICON' },
+  { mode: 'text', text: 'A' },
+  { mode: 'text', text: 'B' },
+  { mode: 'text', text: 'C' },
+  { mode: 'text', text: 'D' },
+  { mode: 'text', text: 'E' },
+  { mode: 'text', text: 'F' },
+  { mode: 'text', text: 'G' }
+];
+let rowCount = 2;
+let activeRow = 0;
+
+function rowLabel(r) {
+  if (r.mode === 'text') return r.text || '空';
+  if (r.mode === 'image') return '图片.png';
+  return 'fa-star';
+}
+
+/* 行数按钮 */
+function renderRowCount() {
+  const box = $('#rowCount');
+  box.innerHTML = '';
+  for (let i = 1; i <= 9; i++) {
+    const b = document.createElement('button');
+    b.className = 'pill' + (i === rowCount ? ' active' : '');
+    b.textContent = i;
+    b.onclick = () => {
+      rowCount = i;
+      if (activeRow >= rowCount) activeRow = rowCount - 1;
+      renderRowCount();
+      renderContentTabs();
+      renderContentBody();
+      renderStyle();
+      $('#layerParam').style.display = rowCount > 1 ? '' : 'none';
+    };
+    box.appendChild(b);
+  }
+}
+
+/* 内容竖向标签 */
+function renderContentTabs() {
+  const list = $('#contentTabs');
+  list.innerHTML = '';
+  for (let i = 0; i < rowCount; i++) {
+    const r = rows[i];
+    const el = document.createElement('div');
+    el.className = 'vtab' + (i === activeRow ? ' active' : '');
+    el.innerHTML = `
+      <div class="vtab-head">
+        <span class="rownum">${i + 1}</span>
+        <div class="mode-mini">
+          <button data-mode="text" class="${r.mode === 'text' ? 'on' : ''}">文</button>
+          <button data-mode="image" class="${r.mode === 'image' ? 'on' : ''}">图</button>
+          <button data-mode="fa" class="${r.mode === 'fa' ? 'on' : ''}">F</button>
+        </div>
+      </div>
+      <input class="vtab-input" value="${r.mode === 'text' ? (r.text || '') : rowLabel(r)}" ${r.mode !== 'text' ? 'readonly' : ''}>
+    `;
+
+    el.addEventListener('click', e => {
+      const mb = e.target.closest('.mode-mini button');
+      if (mb) {
+        e.stopPropagation();
+        rows[i].mode = mb.dataset.mode;
+        activeRow = i;
+        renderContentTabs(); renderContentBody(); renderStyle();
+        return;
+      }
+      activeRow = i;
+      renderContentTabs(); renderContentBody(); renderStyle();
+    });
+
+    const input = $('.vtab-input', el);
+    input.addEventListener('input', () => {
+      rows[i].text = input.value;
+      if (i === 0) drawIcon();
+      if (i === activeRow) renderStyle();
+    });
+    input.addEventListener('focus', () => {
+      if (activeRow !== i) { activeRow = i; renderContentTabs(); renderContentBody(); renderStyle(); }
+    });
+
+    list.appendChild(el);
+  }
+}
+
+/* 内容右侧面板 */
+function renderContentBody() {
+  const r = rows[activeRow];
+  const body = $('#contentBody');
+  const idx = activeRow + 1;
+
+  if (r.mode === 'text') {
+    body.innerHTML = `
+      <div class="cp-label">第 ${idx} 行 · 文本模式</div>
+      <div class="cp-text-preview">${(r.text || '空').slice(0, 40)}</div>
+      <div style="margin-top:8px;font-size:10.5px;color:var(--muted);line-height:1.6">
+        直接在左侧标签的输入框中编辑文本内容，字体、字号等参数请到「样式」模块设置。
+      </div>`;
+  } else if (r.mode === 'image') {
+    body.innerHTML = `
+      <div class="cp-label">第 ${idx} 行 · 图片模式</div>
+      <div class="cp-actions">
+        <button class="btn sm">打开图片</button>
+        <button class="btn ghost sm">剪裁</button>
+      </div>
+      <div class="cp-thumb">图片预览<br>（剪裁后）</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--muted)">大于 1MB 的图片可能造成卡顿</div>`;
+  } else {
+    const icons = ['★','♥','⚡','☀','☁','✦','✿','◆','▲','●','☂','♫','✔','✈','☕','♠','♦','♣','⚙','✎','⌘','☘','☯','⚑'];
+    body.innerHTML = `
+      <div class="cp-label">第 ${idx} 行 · FontAwesome 6</div>
+      <input class="fa-search" placeholder="搜索图标 / 别名 / 关键词…">
+      <div class="fa-grid">${icons.map(i => `<div class="fa-cell">${i}</div>`).join('')}</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--warn);line-height:1.5">
+        FA6 免费版仅部分图标可用于商用，请遵循其授权条款。
+      </div>`;
+  }
+}
+
+/* ============================================================
+   样式模块
+   ============================================================ */
+function paneSize() {
+  return `
+    ${paramRow('大小', 100, 1, 300, '%')}
+    ${paramRow('角度', 0, 0, 360, '°')}
+    ${paramRow('水平拉伸', 100, 1, 300, '%')}
+    ${paramRow('垂直拉伸', 100, 1, 300, '%')}
+    ${paramRow('横向偏移', 0, -100, 100, '%')}
+    ${paramRow('纵向偏移', 0, -100, 100, '%')}
+    <div class="param" style="padding-top:8px">
+      <label class="check-row" style="padding:0">
+        <input type="checkbox" checked> 显示超出形状范围的内容
+      </label>
+    </div>`;
+}
+
+function paneColor(r) {
+  if (r.mode === 'image') {
+    return `
+      <div class="param">
+        <span class="pname">颜色</span>
+        <div class="pctrl">
+          <label class="check-row" style="padding:0">
+            <input type="checkbox"> 设置图片中的白色为透明
+          </label>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="param stacked" style="padding-top:0">
+      <span class="pname">颜色模式</span>
+      <div class="segmented" style="align-self:flex-start">
+        <button class="active">单色</button><button>渐变</button>
+      </div>
+    </div>
+    <div class="param">
+      <span class="pname">颜色 1</span>
+      <div class="pctrl">
+        <button class="fill-swatch" style="background:linear-gradient(135deg,#6c8cff,#9b5cff);width:24px;height:24px;border-radius:7px"></button>
+        <input class="mini-input" value="#6C8CFF" style="flex:1">
+      </div>
+    </div>
+    <div class="param stacked">
+      <span class="pname">颜色建议</span>
+      <div class="chip-row">
+        ${['#4d6ef5','#7c5cff','#22c55e','#f59e0b','#ef4444','#0ea5e9','#ec4899','#14b8a6']
+          .map(c => `<button class="fill-swatch" style="background:${c};width:22px;height:22px;border-radius:7px"></button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function paneShadow() {
+  return `
+    <label class="check-row" style="padding-top:0"><input type="checkbox" checked> 启用阴影</label>
+    <div class="param">
+      <span class="pname">颜色</span>
+      <div class="pctrl">
+        <button class="fill-swatch" style="background:#1d2333;width:24px;height:24px;border-radius:7px"></button>
+        <input class="mini-input" value="#1D2333" style="flex:1">
+      </div>
+    </div>
+    ${paramRow('大小', 12, 0, 100, '')}
+    ${paramRow('模糊', 10, 0, 100, '')}
+    ${paramRow('X 偏移', 0, -100, 100, '')}
+    ${paramRow('Y 偏移', 4, -100, 100, '')}`;
+}
+
+function renderStyle() {
+  const r = rows[activeRow];
+  $('#styleSub').textContent = `第 ${activeRow + 1} 行 · ${MODE_LABEL[r.mode]} · “${rowLabel(r)}”`;
+
+  const active = $('#styleTabs .tab.active')?.dataset.pane || 'size';
+  $('#styleBody').innerHTML = `
+    <div class="pane${active === 'size' ? ' active' : ''}" data-pane="size">${paneSize()}</div>
+    <div class="pane${active === 'color' ? ' active' : ''}" data-pane="color">${paneColor(r)}</div>
+    <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">${paneShadow()}</div>`;
+  syncRanges($('#styleBody'));
+}
+
+/* ============================================================
+   形状模块
+   ============================================================ */
+function renderShapeBody() {
+  const active = $('#shapeTabs .tab.active')?.dataset.pane || 'shape';
+  $('#shapeBody').innerHTML = `
+    <div class="pane${active === 'shape' ? ' active' : ''}" data-pane="shape">
+      <div class="param stacked" style="padding-top:0">
+        <span class="pname">基础</span>
+        <div class="chip-row">
+          <button class="chip">无</button>
+          <button class="chip active">圆形</button>
+          <button class="chip">圆角方形</button>
+        </div>
+      </div>
+      <div class="param stacked">
+        <span class="pname">边形</span>
+        <div class="chip-row">
+          ${[3,4,5,6,7,8].map(n => `<button class="chip">${n}</button>`).join('')}
+        </div>
+      </div>
+      <div class="param stacked">
+        <span class="pname">角星</span>
+        <div class="chip-row">
+          ${[3,4,5,6,7,8].map(n => `<button class="chip">${n}</button>`).join('')}
+        </div>
+      </div>
+      <div class="divider"></div>
+      ${paramRow('尺寸', 100, 1, 200, '%')}
+      ${paramRow('拉伸', 100, 1, 200, '%')}
+      ${paramRow('方向', 0, 0, 360, '°')}
+      ${paramRow('弧度', 0, 0, 100, '%')}
+      <div class="param">
+        <span class="pname"></span>
+        <div class="pctrl"><button class="btn ghost sm" style="flex:1">填满绘图区域</button></div>
+      </div>
+    </div>
+
+    <div class="pane${active === 'border' ? ' active' : ''}" data-pane="border">
+      <label class="check-row" style="padding-top:0"><input type="checkbox" checked> 启用边框</label>
+      ${paramRow('边框宽度', 6, 0, 100, 'px')}
+      <div class="param">
+        <span class="pname">颜色</span>
+        <div class="pctrl">
+          <button class="fill-swatch" style="background:#ffffff;width:24px;height:24px;border-radius:7px"></button>
+          <input class="mini-input" value="#FFFFFF" style="flex:1">
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);padding-top:6px">边框从形状边界向外延伸</div>
+    </div>
+
+    <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow">
+      <label class="check-row" style="padding-top:0"><input type="checkbox" checked> 启用形状阴影</label>
+      ${paramRow('大小', 16, 0, 100, '')}
+      ${paramRow('模糊', 14, 0, 100, '')}
+      ${paramRow('X 偏移', 0, -100, 100, '')}
+      ${paramRow('Y 偏移', 8, -100, 100, '')}
+    </div>`;
+  syncRanges($('#shapeBody'));
+}
+
+/* ============================================================
+   填充模块
+   ============================================================ */
+function renderFillBody() {
+  const active = $('#fillTabs .tab.active')?.dataset.pane || 'layout';
+  $('#fillBody').innerHTML = `
+    <div class="pane${active === 'layout' ? ' active' : ''}" data-pane="layout">
+      <div class="param stacked" style="padding-top:0">
+        <span class="pname">布局形式</span>
+        <div class="chip-row">
+          <button class="chip active">矩阵布局</button>
+          <button class="chip">饼图布局</button>
+        </div>
+      </div>
+      ${paramRow('层数', 1, 1, 6, '')}
+      ${paramRow('层间比例', 50, 0, 100, '%')}
+      ${paramRow('层内比例', 50, 0, 100, '%')}
+      ${paramRow('方向', 0, 0, 360, '°')}
+      ${paramRow('X 偏移', 0, -100, 100, '%')}
+      ${paramRow('Y 偏移', 0, -100, 100, '%')}
+      ${paramRow('X 拉伸', 100, 1, 300, '%')}
+      ${paramRow('Y 拉伸', 100, 1, 300, '%')}
+    </div>
+
+    <div class="pane${active === 'edge' ? ' active' : ''}" data-pane="edge">
+      ${paramRow('过渡宽度', 0, 0, 100, '%')}
+      <div class="param stacked">
+        <span class="pname">边界形状</span>
+        <div class="chip-row">
+          <button class="chip active">直线</button>
+          <button class="chip">sin</button>
+          <button class="chip">tan</button>
+          <button class="chip">锯齿</button>
+        </div>
+      </div>
+      <div class="param stacked">
+        <span class="pname">边界参数</span>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          ${['A','ω','φ','k'].map(p => `
+            <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
+              <span style="font-size:10px;color:var(--muted)">${p}</span>
+              <input class="num" style="width:100%;flex:1" value="1">
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="param stacked">
+        <span class="pname">过渡样式</span>
+        <div class="chip-row">
+          <button class="chip active">单色</button>
+          <button class="chip">渐变</button>
+          <button class="chip">加深</button>
+          <button class="chip">变浅</button>
+          <button class="chip">透明</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane${active === 'advice' ? ' active' : ''}" data-pane="advice">
+      <div class="cp-label">根据文本颜色提供的填充组合建议</div>
+      ${[
+        { n: '互补色', cs: ['#4d6ef5', '#f5a04d'] },
+        { n: '类似色', cs: ['#4d6ef5', '#7c5cff'] },
+        { n: '柔和色', cs: ['#a8b8f0', '#f0c9a8'] },
+        { n: '明亮色', cs: ['#22d3ee', '#facc15'] }
+      ].map(g => `
+        <div class="param">
+          <span class="pname">${g.n}</span>
+          <div class="pctrl" style="gap:5px">
+            ${g.cs.map(c => `<button class="fill-swatch" style="background:${c};width:24px;height:24px;border-radius:7px"></button>`).join('')}
+            <button class="btn ghost sm" style="margin-left:auto">填充</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  syncRanges($('#fillBody'));
+}
+
+/* ============================================================
+   内部填充色块
+   ============================================================ */
+const FILL_COLORS = [
+  { bg: 'linear-gradient(135deg,#6c8cff,#9b5cff)' },
+  { bg: 'linear-gradient(135deg,#22c55e,#14b8a6)' },
+  { bg: 'linear-gradient(135deg,#f97316,#ef4444)' },
+  { bg: 'linear-gradient(135deg,#0ea5e9,#6366f1)' },
+  { bg: 'linear-gradient(135deg,#facc15,#f97316)' },
+  { bg: 'linear-gradient(135deg,#ec4899,#8b5cf6)' }
+];
+let fillCount = 2;
+let activeFill = 0;
+
+function renderFillList() {
+  const list = $('#fillList');
+  list.innerHTML = '';
+  for (let i = 0; i < fillCount; i++) {
+    const b = document.createElement('button');
+    b.className = 'fill-swatch' + (i === activeFill ? ' active' : '');
+    b.style.background = FILL_COLORS[i].bg;
+    b.textContent = i + 1;
+    b.onclick = () => { activeFill = i; renderFillList(); renderFillBody2(); };
+    list.appendChild(b);
+  }
+}
+
+function renderFillBody2() {
+  const c = FILL_COLORS[activeFill];
+  $('#fillBody2').innerHTML = `
+    <div class="segmented" style="margin-bottom:9px">
+      <button class="active">纯</button><button>渐</button><button>图</button>
+    </div>
+    <div class="param" style="padding-top:0">
+      <span class="pname">颜色</span>
+      <div class="pctrl">
+        <button class="fill-swatch" style="background:${c.bg};width:24px;height:24px;border-radius:7px"></button>
+        <input class="mini-input" value="#6C8CFF" style="flex:1">
+      </div>
+    </div>
+    ${paramRow('色相', 220, 0, 360, '°')}
+    ${paramRow('饱和度', 90, 0, 100, '%')}
+    ${paramRow('明度', 70, 0, 100, '%')}
+    <div class="param stacked">
+      <span class="pname">颜色建议</span>
+      <div class="chip-row">
+        ${['#4d6ef5','#7c5cff','#22c55e','#f59e0b','#ef4444','#0ea5e9']
+          .map(x => `<button class="fill-swatch" style="background:${x};width:22px;height:22px;border-radius:7px"></button>`).join('')}
+      </div>
+    </div>`;
+  syncRanges($('#fillBody2'));
+}
+
+/* ============================================================
+   预设 & 历史
+   ============================================================ */
+const PRESETS = [
+  { text: 'K', c1: '#6c8cff', c2: '#9b5cff', r: 26 },
+  { text: 'A', c1: '#22c55e', c2: '#0ea5e9', r: 26 },
+  { text: '图', c1: '#f97316', c2: '#ef4444', r: 26 },
+  { text: '★', c1: '#1e293b', c2: '#475569', r: 26 },
+  { text: 'B', c1: '#ec4899', c2: '#8b5cf6', r: 26 },
+  { text: 'K', c1: '#facc15', c2: '#f97316', r: 9 },
+  { text: '7', c1: '#14b8a6', c2: '#06b6d4', r: 26 },
+  { text: 'M', c1: '#64748b', c2: '#0f172a', r: 26 }
+];
+
+function paintIcon(canvas, p, S = 96) {
+  canvas.width = S; canvas.height = S;
+  const c = canvas.getContext('2d');
+  c.clearRect(0, 0, S, S);
+  const g = c.createLinearGradient(0, 0, S, S);
+  g.addColorStop(0, p.c1); g.addColorStop(1, p.c2);
+  c.fillStyle = g;
+  roundRect(c, 2, 2, S - 4, S - 4, p.r * S / 96);
+  c.fill();
+  c.fillStyle = '#fff';
+  c.font = `800 ${Math.round(S * 0.46)}px -apple-system,"Segoe UI","PingFang SC",sans-serif`;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(p.text, S / 2, S / 2 + S * 0.02);
+}
+
+function renderPresets() {
+  const grid = $('#presetGrid');
+  grid.innerHTML = '';
+  PRESETS.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'preset-item';
+    d.title = '点击应用预设';
+    const c = document.createElement('canvas');
+    d.appendChild(c);
+    paintIcon(c, p);
+    grid.appendChild(d);
+  });
+}
+
+function renderHistory() {
+  const list = $('#historyList');
+  list.innerHTML = '';
+  const now = new Date();
+  const stamp = now.getFullYear().toString()
+    + String(now.getMonth() + 1).padStart(2, '0')
+    + String(now.getDate()).padStart(2, '0')
+    + String(now.getHours()).padStart(2, '0')
+    + String(now.getMinutes()).padStart(2, '0')
+    + String(now.getSeconds()).padStart(2, '0');
+
+  PRESETS.slice(0, 5).forEach((p, i) => {
+    const d = document.createElement('div');
+    d.className = 'history-item';
+    const c = document.createElement('canvas');
+    paintIcon(c, p, 52);
+    d.appendChild(c);
+    const s = document.createElement('div');
+    s.className = 'hname';
+    s.textContent = `KIcon-256-${p.text}-${stamp.slice(0, 14 - i * 2)}.png`;
+    d.appendChild(s);
+    list.appendChild(d);
+  });
+}
+
+/* ============================================================
+   参数滑块填充同步
+   ============================================================ */
+function syncRanges(root) {
+  $$('input[type=range]', root).forEach(r => {
+    const upd = () => {
+      const min = +r.min || 0, max = +r.max || 100, v = +r.value;
+      r.style.setProperty('--fill', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
+      const num = r.parentElement.querySelector('.num');
+      if (num && document.activeElement !== num) num.value = v;
+    };
+    upd();
+    r.addEventListener('input', upd);
+    const num = r.parentElement.querySelector('.num');
+    if (num) {
+      num.addEventListener('input', () => {
+        const v = parseFloat(num.value);
+        if (!isNaN(v)) { r.value = v; upd(); }
+      });
+    }
+  });
+}
+
+/* ============================================================
+   预览缩放
+   ============================================================ */
+let zoom = 1;
+const wrap = $('#canvasWrap');
+const stage = $('#stage');
+
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom = Math.min(3, Math.max(0.5, zoom + (e.deltaY > 0 ? -0.08 : 0.08)));
+  wrap.style.transform = `scale(${zoom})`;
+}, { passive: false });
+
+stage.addEventListener('dblclick', () => {
+  zoom = 1;
+  wrap.style.transform = 'scale(1)';
+});
+
+$('#guideSelect').addEventListener('change', drawIcon);
+$('#safeChk').addEventListener('change', drawIcon);
+
+/* 尺寸联动 */
+$('#sizePreset').addEventListener('change', e => {
+  $('#sizeInput').value = e.target.value;
+  updateSize();
+});
+$('#sizeInput').addEventListener('change', e => {
+  let v = parseInt(e.target.value, 10);
+  if (isNaN(v) || v < 0) v = 16;
+  if (v > 10000) v = 8192;
+  e.target.value = v;
+  updateSize();
+});
+
+function updateSize() {
+  iconSize = parseInt($('#sizeInput').value, 10) || 256;
+  $('#sizeTag').textContent = `${iconSize} × ${iconSize}`;
+  drawIcon();
+  updateFileName();
+}
+
+function updateFileName() {
+  const now = new Date();
+  const stamp = now.getFullYear().toString()
+    + String(now.getMonth() + 1).padStart(2, '0')
+    + String(now.getDate()).padStart(2, '0')
+    + String(now.getHours()).padStart(2, '0')
+    + String(now.getMinutes()).padStart(2, '0')
+    + String(now.getSeconds()).padStart(2, '0');
+  const text = (rows[0].text || 'icon').replace(/[\\/:*?"<>|\s]/g, '').slice(0, 20);
+  $('#fileName').textContent = `KIcon-${iconSize}-${text}-${stamp}.png`;
+}
+
+/* ============================================================
+   初始化
+   ============================================================ */
+function init() {
+  bindTabs(document);
+
+  renderRowCount();
+  renderContentTabs();
+  renderContentBody();
+  renderStyle();
+  renderShapeBody();
+  renderFillBody();
+  renderFillList();
+  renderFillBody2();
+  renderPresets();
+  renderHistory();
+
+  drawIcon();
+  updateSize();
+
+  // 通用：chip 单选组
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('.chip-row .chip');
+    if (chip) {
+      $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
+    }
+    const seg = e.target.closest('.segmented button');
+    if (seg && seg.parentElement.classList.contains('segmented') && !seg.parentElement.classList.contains('icon-only')) {
+      if (seg.parentElement.id === 'themeSwitch') return;
+      $$('button', seg.parentElement).forEach(b => b.classList.toggle('active', b === seg));
+    }
+    const sw = e.target.closest('.fill-swatch');
+    if (sw) {
+      const group = sw.parentElement;
+      $$('.fill-swatch', group).forEach(s => s.classList.toggle('active', s === sw));
+    }
+  });
+
+  // 滑块填充同步（事件委托）
+  document.addEventListener('input', e => {
+    if (e.target.matches('input[type=range]')) {
+      const min = +e.target.min || 0, max = +e.target.max || 100, v = +e.target.value;
+      e.target.style.setProperty('--fill', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
+      const num = e.target.parentElement.querySelector('.num');
+      if (num) num.value = v;
+    }
+    if (e.target.id === 'sizeInput') updateFileName();
+  });
+
+  // 联动按钮
+  document.addEventListener('click', e => {
+    const chain = e.target.closest('.chain');
+    if (chain) chain.classList.toggle('on');
+  });
+
+  // 联动状态按钮
+  const lb = $('#linkageBtn');
+  let ls = 0;
+  lb.addEventListener('click', () => {
+    ls = (ls + 1) % 3;
+    lb.classList.remove('partial', 'all');
+    const txt = $('.lbl', lb);
+    if (ls === 0) { txt.textContent = '参数联动：无'; }
+    if (ls === 1) { txt.textContent = '参数联动：部分'; lb.classList.add('partial'); }
+    if (ls === 2) { txt.textContent = '参数联动：全部'; lb.classList.add('all'); }
+  });
+
+  // 快捷键提示（不拦截浏览器原生撤销）
+  document.addEventListener('keydown', e => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      console.log('[KIcon] 撤销');
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      console.log('[KIcon] 重做');
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
