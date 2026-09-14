@@ -159,3 +159,68 @@ L1342 重复 canvas（canvas/ico/json/html/canvas/zip）→ 去重为 canvas/ico
 | 歧义清单 7 条 | 经确认的正文覆盖 | ✅ 全部覆盖 |
 | typo | 重复 canvas | ✅ 去重 |
 | 默认值一致性 | direction=0 / arc=0 | ✅ 两处 schema 统一 |
+
+---
+
+## v0.01 豆包第五轮评审修订（2026-09-14）
+
+### 本轮修订清单（6 处）
+
+| # | 优先级 | 问题 | 修订 |
+|---|--------|------|------|
+| 1 | P0 | saveCurrent 会话预设不该剪裁量化（会导致 refCount 暴涨） | 改为直接 ref 现有 imageId，不生成新剪裁副本；只有 export() 导出 JSON 才剪裁量化 |
+| 2 | P0 | clearAllLinks 接口注释太简容易误导为遍历整个 state | 明确仅遍历 content.lines[*].links，绝对不触碰 background 任何对象 |
+| 3 | P0 | faIcon 过度简化为"iconName 或 unicode 二选一" | 强约束：必须存储 iconName（'heart'/'star'），禁止 unicode（'f004'）。文件名拼接取 iconName |
+| 4 | P0 | Path2D.offset 回退方案（stroke 2×width）有缺陷：向内一半覆盖形状内部填充 | 补正确回退：构造形状放大版副本 Path2D（外法线偏移 width/2） |
+| 5 | P0 | state.set() `path.split('.')[2]` 对 background.fills.0.color 误解析 lineIdx=0 触发内容行联动分支 | 加 `if (path.startsWith('content.lines.'))` 守卫 |
+| 6 | P1 | history.record() 注释没提禁止调 pushUndo | 加强约束：record() 只写下载历史，绝对不能调用 pushUndo。需求四明确"下载不产生撤销栈" |
+
+---
+
+## v0.01 deepseek + GLM5.3 共识 P0 修订（2026-09-14）
+
+### 两家共识 P0（2 项，直接导致架构与需求冲突）
+
+| # | 优先级 | 问题 | 来源 | 修订 |
+|---|--------|------|------|------|
+| 7 | **P0** | **透明色白色键控：架构自相矛盾！** L145-146 写"不依赖此开关，shape 非 none 时导出层始终做白色键控"——完全错误。需求 L29 明确"勾选后默认白色为透明色导出"——**勾选才做**！架构还在 L684 写了相反的正确版本，两处互斥。 | deepseek #1 + GLM5.3 P0-2 | 统一为：canvas.transparent=true → 做白色键控；canvas.transparent=false → 不做。L144-151 schema 注释重写，L687-692 渲染约束同步更新 |
+| 8 | **P0** | **边界参数联动被错误降级到 P2**：架构 L401-404 写"需求未要求联动链条 UI"，把 boundary.params.A/ω/φ/k 从 LINKABLE_PARAMS_P2 砍了后放进 P2。但需求 L106 白纸黑字写边界参数有"滑块、输入框、**联动**、重置按钮"！ | deepseek #2 + GLM5.3 P0-1 | 恢复到 V2：新增 LINKABLE_BOUNDARY_PARAMS（A/ω/φ/k），schema boundary.params 加 links 字段，clearAllLinks 纳入 boundary.params，V2 强约束全面更新。歧义清单保留：boundary 是单副本对象，"跨行同步"语义待产品确认 |
+
+---
+
+## v0.01 自我勘误全量扫描（2026-09-14）
+
+**扫描范围**：需求文档 242 行全量 × 架构文档内部一致性 × 三家评审条目复核
+
+### 本轮修订（1 个新 P0）
+
+| # | 优先级 | 问题 | 发现方式 | 修订 |
+|---|--------|------|---------|------|
+| 9 | **P0** | **state.set() 伪代码漏掉 boundary.params 联动分支**！刚把 boundary.params 加进 V2（schema 加了 links 字段、LINKABLE_BOUNDARY_PARAMS 注册表、clearAllLinks 纳入），但 set() 伪代码只有 `if (path.startsWith('content.lines.'))` 一个分支——boundary.params 的路径完全被跳过。如果用户 toggleLink('background.boundary.params.A') 再 set()，联动永远不触发 | 读 set() 伪代码 vs 刚加的 boundary.params.links 字段 | L481-491 加 else if 分支：`path.startsWith('background.boundary.params.')` → 检查 links 字段。boundary 是单副本对象（无跨行语义），分支内实际无操作（同步目标就是自己），但保证路径不被误处理 |
+
+### 全量扫描确认一致的点（不需修订）
+
+| 维度 | 扫描结果 | 结论 |
+|------|---------|------|
+| `_lineDef.links` vs `LINKABLE_LINE_PARAMS` 键集合 | 各 18 键完全对齐 | ✅ 一致 |
+| 透明色白色键控语义 | schema L144-151 + render L687-692 统一为 `canvas.transparent=true` 才做键控 | ✅ 一致（之前架构内部两处互斥已修）|
+| `layerRatios` vs `ratios`（层间/层内比例）| schema L271/L275 两个独立字段，需求 L98-99 明确对应 | ✅ 一致 |
+| ImageRepo 字段定义 | L336 + L1196-1200 统一为 `{ data, refCount, name, disposeTimer }` | ✅ 一致 |
+| undo/redo ref 记账 | L1303 ref +1 + L1307 derefOnlyIn -1，净变化 0 | ✅ 一致 |
+| clearRedoWithDeref | L485 + L1329-1330 多处覆盖 | ✅ 一致 |
+| direction 旋转中心 | schema L279 + fillers L634 统一为形状几何中心 | ✅ 一致 |
+| `saveCurrent` vs `export` 剪裁量化职责 | 会话内 ref 现有 imageId；只有 export() 才剪裁 | ✅ 一致 |
+| `faIcon` 存储约束 | schema L186 强约束 iconName 禁止 unicode | ✅ 一致 |
+| Path2D.offset 回退 | schema L298-306 补了旧方案缺陷 + 正确回退（外法线偏移副本 Path2D）| ✅ 一致 |
+| set() path 前缀守卫 | L471 content.lines. + L485 boundary.params. 两个分支 | ✅ 一致（之前漏了 boundary 分支已修）|
+| history.record() 禁止 pushUndo | L1071-1072 显式强约束 | ✅ 一致 |
+| clearAllLinks 作用域 | L362 纳入 content.lines + boundary.params，不碰 _fillDef/shape/layout | ✅ 一致（之前写"绝对不碰 background"已修正）|
+
+### 批判性拒绝纳入 V2 的 P2 级 UI 遗漏（详细设计层处理）
+
+| 需求 | 内容 | 拒绝理由 |
+|------|------|---------|
+| L132 | 顶部工具栏显示"作者 Kong" | ui.js 模块接口已有 createHeaderToolBar，详细设计时补 author 字段 |
+| L32-33 | 下载栏三个勾选框（多尺寸/代码/原始）| export.js ZIP 选项参数已预留，UI 层补复选框组件 |
+| L62 | FA 标签内商用版权提醒 + 页面底部版权 | ui.js FA 选择器组件详细设计时补 |
+| L106 边界联动语义 | boundary 单副本"联动"到底是什么 | 歧义清单保留，产品确认后再定 set() 分支内是否加实际逻辑 |

@@ -141,11 +141,14 @@ main.js ─┬─ schema.js
   "version": "2.02",
   "canvas": {
     "size": 256,        /* 默认 256；<0→16, >10000→8192；快速下拉+自定义 */
-    "transparent": false /* **统一语义**：画布背景是否透明（shape=none 时决定"按白导出还是透明导出"）；
-       白色键控透明是**导出层独立后处理**（getImageData 把接近白色像素 alpha 置 0），
-       不依赖此开关，shape 非 none 时导出层始终做白色键控；
-       行图片白色转透明 = line.whiteToTransparent（行级独立参数），
-       三者正交，互不替代；JPG 不支持透明 → 强制 opaque 并提示 */
+    "transparent": false /* **deepseek+GLM5.3 共识 P0 修正**：
+       三层语义统一，全部由此开关控制（之前架构自相矛盾！）：
+       1. 画布背景：shape=none 时决定"按白导出还是透明导出"
+       2. 白色键控导出（核心）：**canvas.transparent=true 才做白色键控**
+          （需求 L29"勾选后默认白色为透明色导出"——勾选才做，不是始终做！）
+          键控方式：getImageData 把接近白色像素 alpha 置 0
+       3. 行图片白色转透明 = line.whiteToTransparent（行级独立参数，与此开关正交）
+       三者互不替代；JPG 不支持透明 → 强制 opaque 并提示 */
   },
   "theme": "bright",     /* bright | retro | dark */
   
@@ -183,7 +186,7 @@ main.js ─┬─ schema.js
     "whiteToTransparent": false,  /* 每行独立开关 */
     
     /* —— FA 模式专用 —— */
-    "faIcon": null,   /* fa_map.js 中的 iconName 键（如 'heart'） */
+    "faIcon": null,   /* **豆包 P0 强约束**：必须存储 FA 图标名字（如 'heart'、'star'），禁止存储 unicode（'f004'）。文件名拼接直接取此字段。fa_map.js 内同时维护 iconName→unicode 映射用于绘制 */
     
     /* —— 通用样式（所有模式共享） —— */
     "size": 100,          /* 1~300% */
@@ -273,7 +276,7 @@ main.js ─┬─ schema.js
       "directions": [0],      /* **P0 修正：数组，长度=层数**
                                  matrix type → 整个填充旋转
                                  pie type + layers≥2 → 每层独立方向
-                                 **旋转中心 = 形状中心（画布中心）** */
+                                 **旋转中心 = 形状几何中心（= 画布中心 + shape.offset，由 shape.size / stretchX / stretchY / offset 计算；仅当 size=100、offset=0 时碰巧等于画布中心）** */
       "offsetX": 0, "offsetY": 0,
       "scaleX": 100, "scaleY": 100
     },
@@ -287,7 +290,11 @@ main.js ─┬─ schema.js
          tan ω=0 → 返回直线 fallback（除零保护）
          渲染超 10 倍画布截断
       */
-      "params": {"A": 0.1, "ω": 1.0, "φ": 0, "k": 0},
+      "params": {"A": 0.1, "ω": 1.0, "φ": 0, "k": 0,
+          "links": {"A": false, "ω": false, "φ": false, "k": false}
+          /* deepseek #2 + GLM5.3 P0-1 共识 P0 修正：边界参数加 links 字段。
+             单副本对象——"跨行同步"语义不存在，联动语义待产品确认（歧义清单）。 */
+       },
       "zigzag": {"height": 0.05, "width": 0.1},
       "transitionStyle": "solid"  /* solid | gradient | darker | lighter | transparent */
     },
@@ -295,11 +302,15 @@ main.js ─┬─ schema.js
     "border": {
       "enabled": false, "width": 2, "color": "#000000"
       /* 边框从形状边框向外延伸 */
-      /* **实现策略**：Canvas stroke 默认线宽一半内一半外。
-         完全向外需要：用 Path2D.offset(border.width/2) 外扩路径 → stroke 外扩路径。
-         如果 offset 在浏览器不支持，则退而用 stroke 时线宽 = 2×border.width
-         + 先 fill 形状 + 再 stroke（线宽内外各半 → 视觉上向外半部分盖在形状外）。
-         架构层标注为风险点，详细设计时选定策略。 */
+      /* **豆包 P0 完善实现策略**：Canvas stroke 默认线宽一半内一半外。
+         主路径：Path2D.offset(border.width/2) 外扩路径 → stroke 外扩路径。
+         回退（浏览器不支持 offset）：
+           ❌ 旧方案（有缺陷）：stroke 线宽 = 2×width + fill + stroke ——
+              stroke 向内一半会覆盖形状内部填充色，视觉脏污。
+           ✅ 正确回退：构造形状放大版副本 Path2D（每条路径点沿法线外扩 width/2）
+              → stroke 放大版路径。放大算法：对形状路径的每段线段，计算外法线方向
+              偏移 border.width/2，重新连接成放大副本路径。
+         架构层标注为风险点，详细设计时实现放大版算法。 */
     },
     "shadow": {
       "enabled": false, "size": 10, "blur": 10, "offX": 0, "offY": 0
@@ -352,7 +363,7 @@ const State = {
   set(path, value, { history: true }),    // 自动处理联动（标记传播 + 值同步），可选记录历史
   batchSet(changes, { history: true }),   // 批量设置（原子快照）
   toggleLink(linkPath, { propagate: true }), // **P0 新增：单独处理"勾选某参数联动"**
-  clearAllLinks(bool),                    // 顶部工具栏：全部联动/全部不联动
+  clearAllLinks(bool),                    // **deepseek #2 + GLM5.3 P0-1 P0 修正**：遍历 content.lines[*].links + boundary.params.links；不触碰 _fillDef/shape/layout（P2）
   undo(),
   redo(),
   getLinkState(),                         // 返回 'all' | 'partial' | 'none'
@@ -391,24 +402,31 @@ const LINKABLE_LINE_PARAMS = {
   // （内容参数联动如果后续有需求再加）
 }
 
-// —— P2 后续版本扩展：背景参数联动（V2.02 不启用）——
-// 需求三 2.3 有"重置"能力但未要求联动链条 UI。
-// V2 不在 _fillDef / shape / layout / boundary 对象上序列化 links 字段，
-// 避免预设/快照产生冗余字段。P2 启用时再给 schema 加 links。
+// V2-2：边界参数可联动（单副本对象，links 存在 boundary.params 上）
+// **deepseek #2 + GLM5.3 P0-1 共识 P0 修正**：需求 L106 明确写了。
+// 但需求 L79 对"联动"的定义是"跨行同步"，boundary 是单副本——语义待确认（歧义清单）
+const LINKABLE_BOUNDARY_PARAMS = {
+  'A': true, 'ω': true, 'φ': true, 'k': true,
+}
+
+// —— P2 后续版本扩展：背景其他参数联动（V2.02 不启用）——
+// **deepseek #2 + GLM5.3 P0-1 共识 P0 修正**：
+// 需求 L106 明确写边界参数 A/ω/φ/k "有滑块、输入框、**联动**、重置按钮"——
+// 之前错误地把 boundary.params 全部降到 P2。已恢复到 V2（见上面 LINKABLE_BOUNDARY_PARAMS）。
+// V2 仅不给 _fillDef / shape / layout 对象序列化 links 字段。
 const LINKABLE_PARAMS_P2 = {
   'background.fills.*.color',
   'background.layout.directions.*',
-  'background.boundary.params.A', 'ω', 'φ', 'k',
   'background.shape.direction',
 }
 ```
 
-**V2 架构强约束**：
-- 只有 `content.lines[i].links` 存在并参与 JSON 序列化
-- `_fillDef` / `shape` / `layout` / `boundary` 对象 **没有 links 字段**
-- 联动链条图标只出现在内容参数栏对应参数后面
-- 顶部工具栏"全部联动/全部不联动"只作用于内容参数栏
-- 核心联动逻辑（两阶段状态机）不变，作用域限定为 `content.lines.i.{paramKey}`
+**V2 架构强约束（deepseek #2 + GLM5.3 P0-1 共识 P0 修正）**：
+- 有 links 字段并参与 JSON 序列化的：`content.lines[i].links`（18 键）+ `background.boundary.params.links`（4 键 A/ω/φ/k）
+- **没有 links 字段**（P2）：`_fillDef` / `shape` / `layout` 对象——boundary 的 links 只在 params 子对象上
+- 联动链条图标：内容参数栏各参数后 + 边界参数 A/ω/φ/k 后
+- 顶部工具栏"全部联动/全部不联动"作用于：内容参数栏（跨行同步）+ 边界参数（单副本，直接设）
+- 核心联动逻辑（两阶段状态机）：content.lines 跨行同步不变；boundary.params 单副本走独立简化路径（见歧义清单）
 
 #### 参数联动两阶段状态机（**P0 修正**）
 
@@ -445,24 +463,39 @@ function set(path, value, opts = { history: true }) {
   if (oldVal === value) return;
   // 1. 修改当前行
   setDirect(path, value);
-  
+
   // 2. **始终同步所有标记了联动的其它行**（拖动中 history=false 也要实时联动！）
   //    GLM5.3 评审指出原逻辑把同步放在 if (opts.history) 里 → 拖动中不联动
-  const lineIdx = parseInt(path.split('.')[2]);
-  const subPath = path.split('.').slice(3).join('.');
-  state.content.lines.forEach((line, i) => {
-    if (i === lineIdx) return;
-    if (line.links[subPath]) {
+  //    **豆包 P0 修正：加 content.lines 前缀守卫！**
+  //    否则 path='background.fills.0.color' 会误解析 lineIdx=0 触发内容行联动分支
+  if (path.startsWith('content.lines.')) {
+    const lineIdx = parseInt(path.split('.')[2]);
+    const subPath = path.split('.').slice(3).join('.');
+    state.content.lines.forEach((line, i) => {
+      if (i === lineIdx) return;
+      if (line.links[subPath]) {
         setDirect(`content.lines.${i}.${subPath}`, value);
       }
     });
-  
+  }
+  // **deepseek #2 + GLM5.3 P0-1 共识 P0 补充：boundary.params 联动**
+  // boundary 是全局单副本对象——"跨行同步"不存在，同步目标就是自己（无操作）
+  // 但需要遍历 links 字段做一致性检查，且为未来扩展留好路径
+  // 当前实际效果：boundary.params 的联动 UI 存在，但 set() 不做额外同步（只有一份无需同步）
+  else if (path.startsWith('background.boundary.params.')) {
+    const paramKey = path.split('.')[3]; // 'A' | 'ω' | 'φ' | 'k'
+    if (state.background.boundary.params.links?.[paramKey]) {
+      // boundary 是单副本对象——同步目标就是自己，无需额外 setDirect
+      // 歧义：需求 L79 联动定义是"跨行同步"，boundary 单副本语义待产品确认
+    }
+  }
+
   // 3. 快照 + 清空 redo
   if (opts.history) {
     pushUndo();
     clearRedoWithDeref();  // **P0 新增**：清空 redo 时必须 deref redo 栈所有快照图片引用
   }
-  
+
   emit('state:changed', path);
 }
 
@@ -609,7 +642,7 @@ const Fillers = {
     //     矩阵 → 竖线左右移动
     //     饼图 → 每层内从 0° 起的扇形分界线角度
     // —— 无法均分时分配最外层/最上层
-    // —— 方向（directions[]）旋转整个填充：**旋转中心 = 形状中心（画布中心）**
+    // —— 方向（directions[]）旋转整个填充：**旋转中心 = 形状几何中心**（见 schema L276 注释）
     //     matrix type directions[0] → 整块填充整体旋转
     //     pie type directions[i] → 每层独立旋转
     // —— offsetX/offsetY 整体偏移填充；scaleX/scaleY 整体拉伸填充
@@ -673,7 +706,12 @@ const Colors = {
 1. **clip 必须包裹 save/restore**：Canvas 2D 的 clip 是累积状态，任何 save 之后的 clip 必须在 restore 时解除。禁止全局持久修改 `ctx.clip`。
 2. **DPR 隔离**：预览 canvas 做 DPR 适配（canvas.width = size×DPR, CSS 缩放到 size）；**导出临时 canvas 强制 1:1**（width=height=state.canvas.size，不乘 DPR）。
 3. **预览层与导出层严格分离**：辅助线、灰白格子背景、安全边距属于预览层，不导出。导出路径不画这些。
-4. **透明色语义**：`canvas.transparent=true` + shape 非 none → 导出时跳过白色填充 + 白色键控透明；shape=none → 导出按白色（默认）或透明（勾选）背景。JPG 强制跳过透明处理并提示。
+4. **透明色语义（deepseek+GLM5.3 共识 P0 修正）**：**必须由 canvas.transparent 开关控制**（不是始终键控！）：
+   - canvas.transparent=true → 导出层做白色键控透明（getImageData 把接近白色像素 alpha 置 0）
+   - canvas.transparent=false → **不做键控**，保持原样导出
+   - shape=none → 画布背景按白色（transparent=false）或透明（transparent=true）导出
+   - JPG 强制 opaque 跳过所有透明处理并提示
+   - 行级 line.whiteToTransparent 与此开关正交，单独控制行图片白色转透明
 5. **tan 边界截断保护**：fillers.boundary 返回曲线后，render 在绘制过渡带时检查 y 值，超出 canvas 10 倍立即截断。
 
 #### 渲染流水线（导出路径）
@@ -776,9 +814,9 @@ const Export = {
     const textContent = collectAllContentText(state);
     // textContent 拼接规则：
     //   text 模式 → 实际文本
-    //   FA 模式 → 直接使用 faIcon（= fa_map.js 中的 iconName，如 'heart'；不是 unicode）
+    //   FA 模式 → faIcon（FA 代号）
     //   image 模式 → image.name（原文件名，去扩展名）
-    //   多行 → 直接拼接无分隔符
+    //   多行直接拼接无分隔符。三种 mode 全覆盖，**绝不会出现空**。
     const filtered = textContent.replace(/[\/\\:*?"<>|]/g, '').slice(0, 30);
     const ts = formatTS(new Date());  // YYYYMMDDHHmmss
     const sizeStr = ['canvas','ico','json','html','zip'].includes(ext) ? '' : `${size}-`;
@@ -809,7 +847,7 @@ const UI = {
   // 标题分两个部分：
   //   [组件] "文/图/F" 小按钮（切换模式）→ 点击即切换当前行 mode
   //   [组件] 文本输入框（嵌入标题上，强制居中，超出可左右滚动）
-  //   [展示] 图片模式显示文件名；FA 模式显示 iconName
+  //   [展示] 图片模式显示文件名；FA 模式显示 faIcon
   createLineTabTitle({ lineId, mode, text, faIcon, imageName })
   
   // —— **填充色块标签标题特殊组件**（背景参数栏 3.1）——
@@ -986,13 +1024,14 @@ const Presets = {
   
   // —— 保存当前为预设 ——
   saveCurrent(name) {
-    // **P0 修正：会话内预设只存 imageId 引用，不存 base64**（deepseek 评审）
-    // 1. 遍历当前 state 的所有 imageId → 对每张图片：
-    //    a. 如果有裁剪 → 剪裁量化（canvas.drawImage + toDataURL）→ 注册进 ImageRepo → 得到新 imageId
-    //    b. 如果全图可见 → 直接 ImageRepo.ref 现 imageId
-    // 2. 组装预设 JSON（**只有业务参数 + imageId，没有 base64**）
+    // **豆包 P0 修正：会话内保存预设直接 ref 现有 imageId，不做剪裁量化**
+    // 需求写"效果等同于导出+导入，简化流程"——这里的"简化"就是：
+    //   导出 JSON = 剪裁量化图片 → toDataURL 嵌入 JSON
+    //   saveCurrent（会话内）= 直接复用 ImageRepo 现有 imageId 引用，不生成新剪裁副本
+    //   否则每次保存都会把已裁剪状态重新剪裁量化生成重复 base64，refCount 暴涨
+    // 1. 遍历当前 state 的所有 imageId → ImageRepo.ref(id)（+1）
+    // 2. 组装预设 JSON（只有业务参数 + imageId，没有 base64）
     // 3. push 到 state.session.presets
-    // 4. 对新增的 imageId 各 +1（ImageRepo 引用）
     // 【UI 细节】保存按钮 hover 提示："保存仅本次有效，刷新页面丢失"
   },
   
@@ -1040,6 +1079,8 @@ const Presets = {
 const History = {
   record(state, mode) {
     // 下载后自动入列，等同下载了一份预设
+    // **豆包 P1 强约束：record() 只是写入下载历史列表，绝对不能调用 pushUndo！**
+    // 需求四顶部工具栏 2："下载动作不产生动作历史" — 下载历史 ≠ 撤销栈
     // 缩略图：render → canvas 缩放 ≤50px → toBlob
     // data：完整 state 快照（imageId 引用，无 base64）
     // 最多 20 条 FIFO；入栈时对快照内所有 imageIds 调用 ImageRepo.ref
@@ -1346,7 +1387,7 @@ undo() / redo() **净变化为 0，但两步都要做**（GLM5.3 P0-1 勘误）�
 KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
   canvas/ico/json/html/zip → 去 {size}
   text 模式 → 实际文本
-  FA 模式 → iconName（FA 代号）
+  FA 模式 → faIcon（FA 代号，fa_map.js 统一存储）
   image 模式 → 原文件名（去扩展名）
   多行直接拼接无分隔符
   过滤 /\:*?"<>| 非法字符
@@ -1438,13 +1479,13 @@ KIcon-{size}-{文本拼接}-{YYYYMMDDHHmmss}.{ext}
 
 以下是需求原文中发现的歧义，已标注确认状态：
 
-1. **填充 [参数]方向 旋转中心**（原需求三2.3 末尾写"旋转中心为内容/图片/图标的中心"）— 经确认，**旋转中心 = 形状中心（画布中心）**（需求原文为笔误，不应引用内容章节描述）。架构中 schema.layout.directions、fillers.split()、render 流水线均按形状中心处理。
+1. **填充方向旋转中心**（原需求三2.3 末尾写"旋转中心为内容/图片/图标的中心"）— 经确认，**旋转中心 = 形状几何中心**（由 shape.size / stretchX / stretchY / offset 计算；= 画布中心 + shape.offset；仅当 size=100、offset=0 时碰巧等于画布中心）。需求原文末尾"内容/图片/图标中心"是内容章节描述，不应套用到背景填充旋转。架构 schema.layout.directions、fillers.split()、render 流水线均按形状几何中心处理。
 
 2. **填充色块标签标题规格**（原需求三3.1 "宽度与高度相同为方向"）— 经确认，**填充色块标签标题为正方形**：宽高相同，都 = 2×文本高度；底色为该色块 canvas 预览色。架构 ui.js 新增 createFillTabTitle 组件。
 
 3. **边界 params A、ω、φ、k 的合法数值范围** — 需求说"按函数安全给定范围"但未给具体数值。**架构暂定：A ∈ [-0.5, 0.5]，ω ∈ [0.01, 10]**。实现后可根据实际视觉效果调整。
 
-4. **命名规则 FA 代号与空文本兜底** — 需求写"FA 使用 FA 代号"，架构确认 = `fa_map.js` 中的 iconName（如 'heart'），不是 unicode。**全部图片/FA、无文本场景，文件名中间片段兜底为 "icon"**。
+4. **命名规则三模式全覆盖无空** — 需求 3.4 写"文本内容为所有行的文本拼接，FA使用FA代号，图片使用原图片名"。三种 mode（text/image/fa）全覆盖，**不可能出现空**——text 有实际文本、image 有原文件名、fa 有 faIcon。无需空文本兜底。
 
 5. **命名截断长度** — 需求只说"做总长度截断"，架构暂定 30 字符（超出截取）。
 
