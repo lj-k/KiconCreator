@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图标王制作器 · KiconCreator V2.02</title>
+<style>
+/* ============ 主题变量 ============ */
+body.theme-light{
+  --bg:#eef1f6; --panel:#ffffff; --panel2:#f7f9fc; --border:#e3e8ef;
+  --text:#1f2937; --dim:#6b7280; --accent:#3b82f6;
+  --soft:#e5efff; --faint:#f2f7ff; --chip:#eef2f7;
+  --chk1:#ffffff; --chk2:#e2e8f0; --glass:rgba(255,255,255,.85);
+}
+body.theme-retro{
+  --bg:#f1e2b8; --panel:#fdf8ea; --panel2:#f9f0d8; --border:#dcc68f;
+  --text:#4a3a18; --dim:#8a7443; --accent:#b45309;
+  --soft:#f7e3c0; --faint:#fbf0d9; --chip:#f3e7c6;
+  --chk1:#fdf8ea; --chk2:#eaddb2; --glass:rgba(253,248,234,.85);
+}
+body.theme-dark{
+  --bg:#0e1116; --panel:#161a22; --panel2:#1a1f2a; --border:#272e3c;
+  --text:#e6e9ef; --dim:#98a2b3; --accent:#5b9dff;
+  --soft:#1c2a44; --faint:#182236; --chip:#202634;
+  --chk1:#1a1f2a; --chk2:#232a38; --glass:rgba(22,26,34,.85);
+}
+/* ============ 基础 ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;transition:background .25s,color .25s}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.hidden{display:none!important}
+.spacer{flex:1}
+.dim{color:var(--dim);font-weight:400;font-size:11px}
+.tiny{font-size:11px}
+.grow{flex:1;min-width:0}
+
+/* ============ 顶栏 ============ */
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 14px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:60;background:var(--glass);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#6366f1,#22d3ee);color:#fff;font-weight:800;font-size:18px;
+  box-shadow:0 4px 12px rgba(99,102,241,.35)}
+.brand-name{font-weight:700;font-size:15px}
+.ver{font-size:10px;background:var(--soft);color:var(--accent);padding:1px 7px;border-radius:99px;margin-left:4px;vertical-align:2px}
+.brand-sub{font-size:11px;color:var(--dim)}
+.topbar-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+.v-divider{width:1px;height:20px;background:var(--border);margin:0 2px}
+
+/* ============ 通用控件 ============ */
+.btn{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel);
+  color:var(--text);cursor:pointer;font-size:12px;transition:.15s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.icon{width:30px;height:30px;padding:0;display:grid;place-items:center;font-size:14px}
+.btn.link-status{display:inline-flex;align-items:center}
+.btn.link-status::before{content:'';width:7px;height:7px;border-radius:50%;
+  background:var(--dim);display:inline-block;margin-right:6px;transition:.2s}
+.btn.link-status.all::before{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.18)}
+.btn.link-status.partial::before{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.btn.link-status.on{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex;background:var(--chip);border:1px solid var(--border);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:4px 10px;border-radius:6px;cursor:pointer;
+  color:var(--dim);font-size:12px;transition:.15s}
+.seg button.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg-sm button{padding:3px 10px;font-size:11px}
+.sel{padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:var(--panel);
+  color:var(--text);font-size:12px;cursor:pointer}
+.num{width:58px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--panel);
+  color:var(--text);font:inherit;font-size:12px;text-align:center}
+.num.tiny{width:46px}
+.num:focus,.sel:focus,.row-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--soft)}
+input[type=range]{accent-color:var(--accent);cursor:pointer}
+input[type=checkbox]{accent-color:var(--accent)}
+@keyframes flashInvalid{0%,100%{background:var(--panel)}25%,75%{background:#fda4a4}50%{background:#fecaca}}
+.num.invalid{animation:flashInvalid .55s ease 1}
+.warn{color:#dc2626;font-size:11px;display:none;margin:2px 0 0 84px}
+.warn.show{display:block}
+
+/* ============ 布局 ============ */
+.workspace{display:grid;grid-template-columns:minmax(280px,320px) minmax(0,1fr) minmax(0,1fr);
+  gap:14px;padding:14px;max-width:1720px;margin:0 auto}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* ============ 模块 ============ */
+.module{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden}
+.module-title{display:flex;align-items:center;gap:8px;padding:9px 12px;font-weight:600;font-size:13px;
+  border-bottom:1px solid var(--border);background:var(--panel2)}
+.module-body{padding:12px}
+.param{display:flex;align-items:center;gap:8px;margin:9px 0;min-width:0}
+.param>label{width:78px;flex:none;color:var(--dim);font-size:12px}
+.param input[type=range]{flex:1;min-width:0}
+.link-btn{width:24px;height:24px;flex:none;border:1px solid var(--border);border-radius:6px;
+  background:var(--panel);cursor:pointer;font-size:11px;opacity:.4;transition:.15s}
+.link-btn.on{opacity:1;color:var(--accent);border-color:var(--accent);background:var(--soft)}
+.rst{width:22px;height:24px;flex:none;border:0;background:transparent;color:var(--dim);cursor:pointer;font-size:13px}
+.rst:hover{color:var(--accent)}
+.mini-btn{padding:3px 8px;font-size:11px}
+.btn-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:4px 11px;border:1px solid var(--border);border-radius:8px;background:var(--chip);
+  cursor:pointer;font-size:12px;transition:.15s}
+.chip:hover{border-color:var(--accent)}
+.chip.active{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+.param-class{display:flex;align-items:center;gap:8px;margin:7px 0}
+.pc-name{font-size:12px;color:var(--dim);width:36px;flex:none}
+.hint{font-size:11px;color:var(--dim);margin-top:7px;line-height:1.5}
+.chk{display:flex;align-items:center;gap:6px;margin:7px 0;font-size:12px;cursor:pointer}
+.inline{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+
+/* ============ 横向标签组 ============ */
+.h-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);padding:0 6px}
+.h-tab{padding:6px 14px;border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;
+  background:transparent;color:var(--dim);cursor:pointer;font-size:12px;position:relative;margin-bottom:-1px}
+.h-tab:hover{color:var(--text)}
+.h-tab.active{background:var(--soft);border-color:var(--border);border-bottom:1px solid var(--soft);
+  color:var(--text);z-index:1}
+.ok-check{display:none;color:#16a34a;font-weight:700;margin-left:2px}
+.enabled .ok-check,.h-tab.enabled .ok-check{display:inline}
+.tab-panels{border:1px solid var(--border);border-radius:0 10px 10px 10px;background:var(--faint);padding:10px 12px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ============ 纵向标签组 ============ */
+.v-tabs{display:flex;align-items:flex-start}
+.v-tabs-nav{width:24%;min-width:86px;max-width:118px;display:flex;flex-direction:column;gap:5px;flex:none}
+.v-tab{display:flex;align-items:center;gap:5px;padding:7px 8px;border:1px solid var(--border);
+  border-radius:9px 0 0 9px;background:var(--chip);cursor:pointer;min-width:0}
+.v-tab:hover{background:var(--panel2)}
+.v-tab.active{background:var(--soft);border-color:var(--accent);border-right-color:var(--soft);
+  margin-right:-1px;position:relative;z-index:1}
+.mode-badge{width:19px;height:19px;flex:none;border:0;border-radius:5px;color:#fff;font-size:10px;
+  cursor:pointer;display:grid;place-items:center;transition:.15s}
+.b-text{background:#3b82f6}.b-img{background:#10b981}.b-fa{background:#8b5cf6}
+.row-input{flex:1;min-width:0;border:1px solid transparent;background:transparent;text-align:center;
+  font-size:12px;color:var(--text);padding:2px;border-radius:4px}
+.row-info{flex:1;min-width:0;font-size:11px;color:var(--dim);text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-tab-body{flex:1;min-width:0;border:1px solid var(--border);border-radius:0 10px 10px 10px;
+  background:var(--faint);padding:10px 12px;margin-left:0}
+.cp-bar{display:flex;align-items:center;gap:6px;padding-bottom:8px;margin-bottom:8px;
+  border-bottom:1px dashed var(--border);flex-wrap:wrap}
+
+/* ============ 预览 ============ */
+.canvas-frame{position:relative;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;
+  border:1px solid var(--border);cursor:default;touch-action:none;
+  background:repeating-conic-gradient(var(--chk2) 0% 25%,var(--chk1) 0% 50%);background-size:16px 16px}
+.canvas-frame canvas{display:block;width:100%;height:100%;transition:transform .1s ease-out;will-change:transform}
+.canvas-frame.zoomed{cursor:grab}
+.canvas-frame.zoomed:active{cursor:grabbing}
+.guides{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transition:transform .1s ease-out}
+.gv{display:none;stroke:rgba(128,128,128,.55);fill:none}
+.canvas-frame[data-guides="cross"] .gv-cross,
+.canvas-frame[data-guides="mi"] .gv-mi,
+.canvas-frame[data-guides="jing"] .gv-jing{display:block}
+.safe{position:absolute;inset:10%;border:1px dashed rgba(128,128,128,.6);display:none;pointer-events:none;transition:transform .1s ease-out}
+.safe.show{display:block}
+.preview-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+
+/* ============ 预设 / 历史 ============ */
+.preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:8px;margin-bottom:4px}
+.preset{aspect-ratio:1;border-radius:10px;border:1px solid var(--border);overflow:hidden;cursor:pointer;
+  transition:transform .15s,box-shadow .15s;background:var(--panel2)}
+.preset:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.15)}
+.preset canvas{width:100%;height:100%;display:block}
+.h-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);
+  border-radius:8px;margin-bottom:6px;background:var(--panel2);cursor:pointer}
+.h-item:hover{border-color:var(--accent)}
+.h-thumb{width:26px;height:26px;border-radius:6px;flex:none}
+.h-name{flex:1;font-size:12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-del{opacity:0;border:0;background:transparent;color:var(--dim);cursor:pointer;font-size:13px}
+.h-item:hover .h-del{opacity:1}
+.h-del:hover{color:#dc2626}
+
+/* ============ 下载 ============ */
+.size-row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.size-row .lbl{width:60px;color:var(--dim);font-size:12px}
+.fmt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.fmt{justify-content:center;font-weight:600}
+
+/* ============ 颜色 ============ */
+.color-row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.color-row label{width:78px;color:var(--dim);font-size:12px;flex:none}
+input[type=color]{width:40px;height:28px;border:1px solid var(--border);border-radius:6px;
+  background:var(--panel);cursor:pointer;padding:2px}
+.suggest-legend{display:flex;gap:14px;font-size:10px;color:var(--dim);margin:6px 0 4px}
+.suggest-row{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:20px;height:20px;border-radius:6px;cursor:pointer;border:1px solid var(--border);transition:transform .15s}
+.sw:hover{transform:scale(1.15)}
+
+/* ============ 色块标签 ============ */
+.swatch{width:44px;height:44px;border-radius:10px;border:2px solid var(--border);cursor:pointer;
+  position:relative;transition:.15s}
+.swatch:hover{transform:translateY(-2px)}
+.swatch.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+.swatch .sm{position:absolute;top:2px;left:4px;font-size:9px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.upload-box{border:1.5px dashed var(--border);border-radius:10px;padding:14px;text-align:center;
+  color:var(--dim);cursor:pointer;font-size:12px;transition:.15s;margin:6px 0}
+.upload-box:hover{border-color:var(--accent);color:var(--accent)}
+.img-prev{width:64px;height:64px;border-radius:8px;border:1px solid var(--border);
+  background:repeating-conic-gradient(var(--chk2) 0% 25%,var(--chk1) 0% 50%);background-size:10px 10px}
+.fa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:6px;margin-top:8px}
+.fa-tile{aspect-ratio:1;border:1px solid var(--border);border-radius:8px;display:grid;place-items:center;
+  cursor:pointer;font-size:13px;color:var(--dim);background:var(--panel)}
+.fa-tile:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ============ 多滑块共享滑轨 ============ */
+.multi-track{position:relative;flex:1;min-width:0;height:22px}
+.multi-track input[type=range]{position:absolute;top:0;left:0;width:100%;height:22px;margin:0;
+  -webkit-appearance:none;appearance:none;background:transparent;pointer-events:none}
+.multi-track input[type=range]::-webkit-slider-thumb{pointer-events:auto;
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:ew-resize}
+.multi-track .bd{position:absolute;top:3px;bottom:3px;width:2px;background:var(--accent);opacity:.55;pointer-events:none}
+.multi-nums{display:flex;gap:4px;flex-wrap:wrap;flex:none}
+
+/* ============ 模态查看器 ============ */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:100}
+.modal.open{display:grid}
+.modal-box{background:var(--panel);border-radius:14px;padding:10px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-head{display:flex;align-items:center;padding:2px 4px 8px;font-size:13px;font-weight:600}
+.modal-body{position:relative;overflow:hidden;cursor:grab;touch-action:none;border-radius:10px;border:1px solid var(--border);
+  background:repeating-conic-gradient(var(--chk2) 0% 25%,var(--chk1) 0% 50%);background-size:16px 16px;padding:8px}
+.modal-body:active{cursor:grabbing}
+#viewerWrap{transform-origin:center center;transition:transform .08s ease-out}
+.modal-body canvas{display:block;width:256px;height:256px;max-width:80vw;max-height:70vh}
+
+/* ============ Toast / 页脚 ============ */
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);opacity:0;
+  background:var(--text);color:var(--bg);padding:8px 18px;border-radius:99px;font-size:12px;
+  transition:.25s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.foot{text-align:center;padding:16px;color:var(--dim);font-size:11px;line-height:1.8}
+
+/* ============ 响应式 ============ */
+@media (max-width:1280px){
+  .workspace{grid-template-columns:minmax(280px,320px) minmax(0,1fr)}
+  .col--right{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+}
+/* 竖屏单栏：预览固定顶部，高度 ≤ 视口 1/3（需求 1.2 / 2.5） */
+@media (max-width:860px){
+  .workspace{grid-template-columns:1fr;padding:10px}
+  .col--right{grid-template-columns:1fr}
+  .module--preview{position:sticky;top:56px;z-index:40;
+    height:min(33vh,340px);display:flex;flex-direction:column;
+    box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .module--preview .module-body{flex:1;min-height:0;overflow:hidden;padding:8px 10px}
+  .canvas-frame{max-width:min(220px,calc(33vh - 150px));margin:0 auto}
+  .brand-sub{display:none}
+}
+/* 手机横屏 → 三栏（需求 2.6） */
+@media (orientation:landscape) and (max-height:540px) and (max-width:960px){
+  .workspace{grid-template-columns:repeat(3,minmax(0,1fr))!important;padding:10px}
+  .col--right{grid-column:auto;display:flex}
+  .module--preview{position:static!important;height:auto!important}
+  .canvas-frame{max-width:180px;margin:0 auto}
+}
+</style>
+</head>
+<body class="theme-light">
+
+<!-- ================= 顶栏 ================= -->
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">K</div>
+    <div>
+      <div class="brand-name">图标王制作器<span class="ver">V2.02</span></div>
+      <div class="brand-sub">KiconCreator · 零安装 · 纯浏览器运行 · by Kong</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <div class="seg" id="themeSeg">
+      <button data-theme="light" class="active">☀ 明亮</button>
+      <button data-theme="retro">复古</button>
+      <button data-theme="dark">🌙 暗黑</button>
+    </div>
+    <span class="v-divider"></span>
+    <button class="btn icon" id="undoBtn" title="撤销 (Ctrl+Z)">↶</button>
+    <button class="btn icon" id="redoBtn" title="重做 (Ctrl+Y)">↷</button>
+    <button class="btn link-status" id="linkBtn">⛓ 无联动</button>
+  </div>
+</header>
+
+<main class="workspace">
+
+  <!-- ================= 左栏：预览 / 预设 / 下载 ================= -->
+  <section class="col">
+    <div class="module module--preview">
+      <div class="module-title"><span>预览</span><span class="dim" id="sizeNote">256 × 256</span>
+        <span class="spacer"></span>
+        <button class="btn icon" id="zoomBtn" title="进入/退出缩放模式">⤢</button>
+      </div>
+      <div class="module-body">
+        <div class="canvas-frame" id="frame" data-guides="none">
+          <canvas id="cv" width="256" height="256"></canvas>
+          <svg class="guides" id="guides" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <g class="gv gv-cross">
+              <line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/>
+              <line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/></g>
+            <g class="gv gv-mi">
+              <line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>
+              <line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/>
+              <line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/>
+              <line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/></g>
+            <g class="gv gv-jing">
+              <line x1="33.3" y1="0" x2="33.3" y2="100" vector-effect="non-scaling-stroke"/>
+              <line x1="66.7" y1="0" x2="66.7" y2="100" vector-effect="non-scaling-stroke"/>
+              <line x1="0" y1="33.3" x2="100" y2="33.3" vector-effect="non-scaling-stroke"/>
+              <line x1="0" y1="66.7" x2="100" y2="66.7" vector-effect="non-scaling-stroke"/></g>
+          </svg>
+          <div class="safe" id="safeBox"></div>
+        </div>
+        <div class="preview-controls">
+          <label class="inline">辅助线
+            <select id="guideSel" class="sel">
+              <option value="none">无</option><option value="cross">十字</option>
+              <option value="mi">米字</option><option value="jing">井字</option>
+            </select></label>
+          <label class="inline"><input type="checkbox" id="safeChk"> 安全边距
+            <input type="number" id="safePct" class="num tiny" value="10" min="0" max="50" disabled> %</label>
+        </div>
+        <div class="hint">滚轮缩放进入缩放模式 · 拖动平移 · 缩放中双击复位 · 非缩放双击进入 1:1 模态查看器</div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-title"><span>预设与历史</span><span class="spacer"></span>
+        <div class="seg seg-sm" id="phSeg">
+          <button class="active" data-tab="preset">预设</button>
+          <button data-tab="history">历史</button>
+        </div>
+      </div>
+      <div class="module-body">
+        <div id="presetPane">
+          <div class="preset-grid" id="presetGrid"></div>
+          <div class="btn-row">
+            <button class="btn" data-act="导入预设">导入</button>
+            <button class="btn" data-act="导出预设">导出</button>
+            <button class="btn" data-act="保存预设" title="保存仅本次有效，刷新后丢弃">保存</button>
+            <button class="btn" data-act="copy-json">复制JSON</button>
+            <button class="btn" data-act="copy-html">复制HTML</button>
+          </div>
+          <div class="hint">预设仅本次会话有效 · 缩略图按真实样式绘制 · 导入导出带参数校验与差异报告</div>
+        </div>
+        <div id="historyPane" class="hidden">
+          <div id="historyList"></div>
+          <div class="hint">最多保留 20 条全量快照 · 刷新后丢弃 · 悬停删除</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-title"><span>下载</span></div>
+      <div class="module-body">
+        <label class="chk"><input type="checkbox" id="alphaChk"> 透明色导出
+          <span class="dim tiny">（JPG 不支持透明）</span></label>
+        <div class="size-row">
+          <span class="lbl">导出尺寸</span>
+          <select id="sizeSel" class="sel grow">
+            <option>32</option><option>64</option><option>128</option>
+            <option selected>256</option><option>512</option><option>1024</option>
+            <option value="custom">自定义</option>
+          </select>
+          <input type="number" id="sizeNum" class="num" value="256" min="16" max="8192">
+        </div>
+        <div class="hint" style="margin-top:0">范围 16 ~ 8192，越界自动取最近合法值</div>
+        <label class="chk"><input type="checkbox"> 多尺寸打包 ZIP（32/64/128/256）</label>
+        <label class="chk"><input type="checkbox"> 代码打包（Canvas + JSON 预设）</label>
+        <label class="chk"><input type="checkbox"> 原始图片打包</label>
+        <div class="fmt-grid">
+          <button class="btn fmt">PNG</button><button class="btn fmt">JPG</button>
+          <button class="btn fmt">WebP</button><button class="btn fmt">Canvas</button>
+          <button class="btn fmt">ICO</button><button class="btn fmt">JSON</button>
+          <button class="btn fmt">HTML</button>
+        </div>
+        <div class="hint" id="dlName"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 中栏：多行设置 / 内容 / 样式 ================= -->
+  <section class="col">
+    <div class="module">
+      <div class="module-title"><span>多行设置</span></div>
+      <div class="module-body">
+        <div class="seg" id="rowsSeg" style="flex-wrap:wrap"></div>
+        <div class="param"><label>排版模式</label><select id="layoutSel" class="sel grow"></select></div>
+        <div class="param" id="layerOrderRow"><label>排列层次</label>
+          <select class="sel grow">
+            <option>1 行 → 9 行（行 1 最顶层）</option>
+            <option>9 行 → 1 行（行 9 最顶层）</option>
+          </select></div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-title"><span>内容</span><span class="dim" id="contentNote">行 1 · 文本</span></div>
+      <div class="module-body">
+        <div class="v-tabs">
+          <div class="v-tabs-nav" id="contentNav"></div>
+          <div class="v-tab-body">
+            <!-- 复制/粘贴样式（需求 2.9） -->
+            <div class="cp-bar">
+              <button class="btn mini-btn" id="copyStyleBtn">📋 复制样式</button>
+              <button class="btn mini-btn" id="pasteStyleBtn">📌 粘贴样式</button>
+              <span class="spacer"></span>
+              <span class="dim tiny">跨模式仅应用相同参数</span>
+            </div>
+            <!-- 文本模式 -->
+            <div id="bt-text">
+              <div class="param"><label>中文字体</label>
+                <select class="sel grow"><option>思源黑体（默认）</option><option>阿里巴巴普惠体（在线·未下载）</option>
+                <option>霞鹜文楷（在线·未下载）</option><option>系统黑体</option><option>系统宋体</option></select></div>
+              <div class="param"><label>英文字体</label>
+                <select class="sel grow"><option>Inter</option><option>Roboto</option>
+                <option>Noto Sans（在线·未下载）</option><option>Consolas</option></select></div>
+              <div class="param"><label>粗细</label>
+                <select class="sel grow"><option>Regular 400</option><option>Medium 500</option>
+                <option>Bold 700</option><option>Black 900</option></select>
+                <label class="inline" style="margin-left:8px"><input type="checkbox"> 斜体</label></div>
+              <div class="param"><label>排版</label>
+                <select class="sel grow"><option>横排</option><option>纵排</option><option>环形向心</option></select></div>
+              <div class="param" data-slider='["字号",8,200,72]'><label>字号</label></div>
+              <div class="hint">字体加载完成后再渲染 · 失败自动回退预设字体并提示</div>
+            </div>
+            <!-- 图片模式 -->
+            <div id="bt-img" class="hidden">
+              <label class="upload-box" id="upImg">📁 点击上传图片（>1MB 将提示卡顿）</label>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="img-prev"></div>
+                <button class="btn mini-btn">✂ 裁剪</button>
+                <span class="dim tiny">动图取首帧 · 失败提示原因</span>
+              </div>
+              <div class="hint">切换行/模式不解除引用 · 由会话图片仓库按引用计数延迟释放</div>
+            </div>
+            <!-- FontAwesome 模式 -->
+            <div id="bt-fa" class="hidden">
+              <div class="param"><label>搜索图标</label>
+                <input class="num grow" style="width:auto;text-align:left" placeholder="支持别名 / 关键词…"></div>
+              <div class="param"><label>分类</label>
+                <select class="sel grow"><option>全部</option><option>表情与人物</option><option>手势</option>
+                <option>动物</option><option>科技</option><option>箭头</option><option>品牌</option></select></div>
+              <div class="fa-grid" id="faGrid"></div>
+              <div class="hint">FA6 图标数据本地打包 · 主界面加载后异步载入</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-title"><span>样式</span><span class="dim" id="styleNote">行 1 · 文本</span></div>
+      <div class="module-body">
+        <div class="h-tabs" id="styleTabs">
+          <button class="h-tab active" data-tab="size">尺寸</button>
+          <button class="h-tab" data-tab="color">颜色</button>
+          <button class="h-tab" data-tab="shadow">阴影<span class="ok-check">✓</span></button>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="size">
+            <div data-slider='["大小",1,300,100,"%"]'></div>
+            <div data-slider='["角度",0,360,0,"°"]'></div>
+            <div data-slider='["水平拉伸",1,300,100,"%"]'></div>
+            <div data-slider='["垂直拉伸",1,300,100,"%"]'></div>
+            <div data-slider='["横向偏移",-100,100,0,"%"]'></div>
+            <div data-slider='["纵向偏移",-100,100,0,"%"]'></div>
+            <label class="chk"><input type="checkbox"> 显示超出形状范围的内容</label>
+            <div class="hint">拉伸不改变渐变效果 · 旋转中心为内容自身中心</div>
+          </div>
+          <div class="tab-panel" data-panel="color">
+            <div class="param"><label>颜色模式</label>
+              <div class="seg seg-sm" id="cModeSeg">
+                <button class="active">单色</button><button>渐变</button></div></div>
+            <div class="color-row"><label>颜色</label>
+              <input type="color" value="#3b82f6">
+              <input type="color" value="#22d3ee" class="hidden" id="c2">
+              <span class="dim tiny" id="c2tip">渐变模式下显示第二颜色</span></div>
+            <div class="suggest-legend"><span>互补</span><span>类似</span><span>柔和</span><span>明亮</span></div>
+            <div class="suggest-row" id="suggestRow"></div>
+            <label class="chk"><input type="checkbox"> 图片白色转透明 <span class="dim tiny">（仅图片模式，每行独立）</span></label>
+            <div class="hint">颜色建议根据背景色实时计算 · 背景修改后自动重算</div>
+          </div>
+          <div class="tab-panel" data-panel="shadow">
+            <label class="chk"><input type="checkbox" id="shadowEnable"> 启用阴影</label>
+            <div class="color-row"><label>颜色</label><input type="color" value="#000000"></div>
+            <div data-slider='["大小",1,100,4]'></div>
+            <div data-slider='["模糊",0,50,6]'></div>
+            <div data-slider='["X偏移",-50,50,2]'></div>
+            <div data-slider='["Y偏移",-50,50,2]'></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 右栏：形状外框 / 填充布局 / 内部填充 ================= -->
+  <section class="col col--right">
+    <div class="module">
+      <div class="module-title"><span>形状与外框</span></div>
+      <div class="module-body">
+        <div class="param-class"><span class="pc-name">基础</span>
+          <div class="chip-row" id="shapeBase">
+            <button class="chip">无</button><button class="chip">圆形</button>
+            <button class="chip active">圆角方形</button></div></div>
+        <div class="param-class"><span class="pc-name">边形</span>
+          <div class="chip-row" id="shapePoly">
+            <button class="chip">3</button><button class="chip">4</button><button class="chip">5</button>
+            <button class="chip">6</button><button class="chip">7</button><button class="chip">8</button></div></div>
+        <div class="param-class"><span class="pc-name">角星</span>
+          <div class="chip-row" id="shapeStar">
+            <button class="chip">3</button><button class="chip">4</button><button class="chip">5</button>
+            <button class="chip">6</button><button class="chip">7</button><button class="chip">8</button></div></div>
+        <div style="margin-top:10px">
+          <div class="param"><label>尺寸</label>
+            <input type="range" min="10" max="200" value="100" id="shapeSize">
+            <input class="num" value="100" id="shapeSizeN">
+            <button class="btn mini-btn" id="fillBtn" title="使形状填满绘图区域">填满</button></div>
+          <div data-slider='["拉伸",50,200,100,"%"]'></div>
+          <div data-slider='["方向",0,360,0,"°"]'></div>
+          <div data-slider='["弧度",0,100,20,"%"]'></div>
+          <div data-slider='["内角",0,90,60,"°"]' id="innerAngleRow"></div>
+          <div class="warn" id="angleWarn">⚠ 内角 0° 形状不可见</div>
+        </div>
+        <div class="h-tabs" id="frameTabs" style="margin-top:10px">
+          <button class="h-tab active" data-tab="border">边框<span class="ok-check">✓</span></button>
+          <button class="h-tab" data-tab="fshadow">阴影<span class="ok-check">✓</span></button>
+        </div>
+        <div class="tab-panels">
+          <div class="tab-panel active" data-panel="border">
+            <label class="chk"><input type="checkbox" id="borderEnable" checked> 启用边框（由形状向外延伸）</label>
+            <div data-slider='["边框宽度",1,40,6]'></div>
+            <div class="color-row"><label>颜色</label><input type="color" value="#1e293b"></div>
+          </div>
+          <div class="tab-panel" data-panel="fshadow">
+            <label class="chk"><input type="checkbox" id="fshadowEnable"> 启用形状阴影</label>
+            <div data-slider='["大小",1,60,8]'></div>
+            <div data-slider='["模糊",0,50,10]'></div>
+            <div data-slider='["X方向",-40,40,0]'></div>
+            <div data-slider='["Y方向",-40,40,4]'></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-title"><span>填充数量和布局</span></div>
+      <div class="module-body">
+        <div class="seg" id="fillSeg">
+          <button class="active">单色</button><button>二色</button><button>三色</button>
+          <button>四色</button><button>五色</button><button>六色</button></div>
+        <div class="h-tabs" id="fillTabs" style="margin-top:10px">
+          <button class="h-tab active" data-tab="layout">布局</button>
+          <button class="h-tab" data-tab="fbound">填充边界</button>
+        </div>
+        <div class="tab-panels" id="fillPanels">
+          <div class="tab-panel active" data-panel="layout">
+            <div class="param"><label>布局形式</label>
+              <div class="seg seg-sm" id="layoutSeg"><button class="active">矩阵</button><button>饼图</button></div></div>
+            <div class="param" id="layerRow"><label>层数</label>
+              <input type="range" id="layerCnt" min="1" max="6" value="1">
+              <input class="num" id="layerCntN" value="1"></div>
+            <div class="param" id="gapRow"><label>层间比例</label>
+              <div class="multi-track" id="gapTrack"></div>
+              <div class="multi-nums" id="gapNums"></div>
+              <button class="btn mini-btn" id="gapEven">均分</button></div>
+            <div class="param" id="inRow"><label>层内比例</label>
+              <div class="multi-track" id="inTrack"></div>
+              <div class="multi-nums" id="inNums"></div>
+              <button class="btn mini-btn" id="inEven">均分</button></div>
+            <div data-slider='["方向",0,360,0,"°"]'></div>
+            <div data-slider='["偏移 X",-100,100,0,"%"]'></div>
+            <div data-slider='["偏移 Y",-100,100,0,"%"]'></div>
+            <div data-slider='["拉伸 X",50,200,100,"%"]'></div>
+            <div data-slider='["拉伸 Y",50,200,100,"%"]'></div>
+            <div class="hint">色块无法均分时分配给最外层 / 最上层 · 多滑块共享滑轨 · 均分恢复默认</div>
+          </div>
+          <div class="tab-panel" data-panel="fbound">
+            <div data-slider='["过渡宽度",0,50,0]'></div>
+            <div class="param"><label>边界形状</label>
+              <div class="seg seg-sm" id="boundSeg">
+                <button class="active">直线</button><button>sin</button><button>tan</button><button>锯齿</button></div></div>
+            <div data-slider='["A 振幅",0,100,20]'></div>
+            <div data-slider='["ω 频率",1,20,4]'></div>
+            <div data-slider='["φ 相位",0,360,0,"°"]'></div>
+            <div data-slider='["k 偏移",-50,50,0]'></div>
+            <div class="param"><label>过渡样式</label>
+              <select class="sel grow"><option>单色</option><option>渐变</option><option>加深</option>
+              <option>变浅</option><option>透明</option></select></div>
+            <div class="hint">渲染含 10 倍画布截断保护 · 防止除零 / 无穷崩溃</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-title"><span>内部填充</span><span class="dim" id="fillNote">色块 1 · 纯色</span></div>
+      <div class="module-body">
+        <div class="v-tabs">
+          <div class="v-tabs-nav" id="swatchNav" style="min-width:52px;max-width:56px"></div>
+          <div class="v-tab-body">
+            <div class="param"><label>背景模式</label>
+              <div class="seg seg-sm" id="bgModeSeg">
+                <button class="active" data-m="纯">纯</button>
+                <button data-m="渐">渐</button><button data-m="图">图</button></div></div>
+            <div id="bp-solid">
+              <div class="color-row"><label>颜色</label><input type="color" value="#6366f1"></div>
+              <div class="suggest-legend"><span>互补</span><span>类似</span><span>柔和</span><span>明亮</span></div>
+              <div class="suggest-row" id="suggestRow2"></div>
+            </div>
+            <div id="bp-grad" class="hidden">
+              <div class="color-row"><label>起止色</label>
+                <input type="color" value="#6366f1"><input type="color" value="#22d3ee"></div>
+              <div class="param"><label>渐变类型</label>
+                <select class="sel grow"><option>线性渐变</option><option>径向渐变</option></select></div>
+              <div data-slider='["渐变角度",0,360,90,"°"]'></div>
+            </div>
+            <div id="bp-img" class="hidden">
+              <label class="upload-box">📁 上传背景图片</label>
+              <div data-slider='["大小",10,300,100,"%"]'></div>
+              <div data-slider='["位置 X",-100,100,0,"%"]'></div>
+              <div data-slider='["位置 Y",-100,100,0,"%"]'></div>
+              <div class="hint">背景填充全部被外框形状裁切</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  页面图标由 FontAwesome 6 提供 · FA6 版权归 Fonticons Inc. 所有，商用请遵循其许可协议<br>
+  本工具不保存、不上传任何数据 · 所有状态仅存在于当前浏览器会话
+</footer>
+
+<!-- 模态查看器 -->
+<div class="modal" id="viewerModal">
+  <div class="modal-box">
+    <div class="modal-head">1:1 模态查看器<span class="dim tiny">滚轮缩放 · 拖动平移 · 双击复位</span>
+      <span class="spacer"></span>
+      <button class="btn icon" id="viewerClose">✕</button></div>
+    <div class="modal-body" id="viewerBody">
+      <div id="viewerWrap"><canvas id="viewerCv" width="256" height="256"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+ * KiconCreator V2.02 — 单文件版 · 全部 JS 内联封装
+ * 补丁清单：
+ *  ① 预览滚轮缩放+拖拽+双击复位/进模态（辅助线/安全边距随动）
+ *  ② 参数联动三态（无/部分/全部）
+ *  ③ Ctrl+Z / Ctrl+Y 快捷键（输入框焦点守卫）
+ *  ④ 内容模块复制/粘贴样式按钮
+ *  ⑤ 预设/历史 Canvas 真实渲染缩略图
+ *  ⑥ 竖屏 33vh 预览 + 横屏三栏媒体查询
+ *  ⑦ 单色填充时隐藏布局/边界面板
+ *  ⑧ 层间/层内比例多滑块共享滑轨
+ * ============================================================ */
+
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function toast(msg){let t=$('.toast')||document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);requestAnimationFrame(()=>t.classList.add('show'));
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1600);}
+function flash(el){el.classList.add('invalid');setTimeout(()=>el.classList.remove('invalid'),600);}
+
+/* ================= 主题 ================= */
+$('#themeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#themeSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  document.body.className='theme-'+b.dataset.theme;});
+
+/* ================= 演示画布（预览即导出，无背景格） ================= */
+  const c=$('#cv'),x=c.getContext('2d');
+  const rr=(a,b,w,h,r)=>{x.beginPath();x.roundRect(a,b,w,h,r);};
+  rr(8,8,240,240,48);
+  const g=x.createLinearGradient(8,8,248,248);
+  g.addColorStop(0,'#6366f1');g.addColorStop(1,'#22d3ee');x.fillStyle=g;x.fill();
+  x.fillStyle='rgba(255,255,255,.14)';x.beginPath();x.arc(190,80,58,0,7);x.fill();
+  x.fillStyle='#fff';x.textAlign='center';
+  x.font='800 108px -apple-system,Segoe UI,sans-serif';x.fillText('K',128,150);
+  x.font='600 22px -apple-system,Segoe UI,sans-serif';
+  x.fillText('K I C O N',131,192);
+})();
+
+/* ================= ① 预览缩放/拖拽/双击 ================= */
+const frame=$('#frame'),cvEl=$('#cv'),guidesEl=$('#guides'),safeEl=$('#safeBox');
+let z=1,px=0,py=0,zm=false,drag=null;
+function applyZ(){
+  const t=`translate(${px}px,${py}px) scale(${z})`;
+  cvEl.style.transform=t;
+  guidesEl.style.transform=t;   /* 辅助线随缩放平移（需求1.5） */
+  safeEl.style.transform=t;     /* 安全边距随缩放平移（需求1.6） */
+}
+function resetZoom(){zm=false;z=1;px=py=0;frame.classList.remove('zoomed');applyZ();
+  toast('已复位并退出缩放模式');}
+frame.addEventListener('wheel',e=>{e.preventDefault();
+  if(!zm){zm=true;frame.classList.add('zoomed');toast('已进入缩放模式：拖动平移 · 双击复位');}
+  z=Math.min(8,Math.max(1,z*(e.deltaY<0?1.15:0.87)));
+  if(z===1){resetZoom();return;}
+  applyZ();},{passive:false});
+frame.addEventListener('pointerdown',e=>{if(!zm)return;
+  drag={x:e.clientX-px,y:e.clientY-py};frame.setPointerCapture(e.pointerId);});
+frame.addEventListener('pointermove',e=>{if(!drag)return;
+  px=e.clientX-drag.x;py=e.clientY-drag.y;applyZ();});
+frame.addEventListener('pointerup',()=>drag=null);
+frame.addEventListener('dblclick',()=>{
+  if(zm){resetZoom();return;}
+  openViewer();});
+$('#zoomBtn').addEventListener('click',()=>{
+  if(!zm){zm=true;z=2.2;frame.classList.add('zoomed');applyZ();
+    toast('缩放模式：滚轮/拖动/双击复位');}
+  else resetZoom();});
+
+/* 辅助线 / 安全边距 */
+$('#guideSel').addEventListener('change',e=>frame.dataset.guides=e.target.value);
+$('#safeChk').addEventListener('change',e=>{safeEl.classList.toggle('show',e.target.checked);
+  $('#safePct').disabled=!e.target.checked;});
+$('#safePct').addEventListener('change',e=>{
+  let v=Math.min(50,Math.max(0,+e.target.value||0));
+  e.target.value=v;safeEl.style.inset=v+'%';});
+
+/* 模态查看器：1:1 + 滚轮缩放 + 拖动 + 双击复位 */
+let vz=1,vpx=0,vpy=0,vdrag=null;
+const vbody=$('#viewerBody'),vwrap=$('#viewerWrap');
+function vApply(){vwrap.style.transform=`translate(${vpx}px,${vpy}px) scale(${vz})`;}
+function openViewer(){
+  const vc=$('#viewerCv');vc.width=cvEl.width;vc.height=cvEl.height;
+  vc.getContext('2d').drawImage(cvEl,0,0);
+  vz=1;vpx=vpy=0;vApply();
+  $('#viewerModal').classList.add('open');}
+function closeViewer(){$('#viewerModal').classList.remove('open');}
+$('#viewerClose').addEventListener('click',closeViewer);
+$('#viewerModal').addEventListener('click',e=>{if(e.target.id==='viewerModal')closeViewer();});
+vbody.addEventListener('wheel',e=>{e.preventDefault();
+  vz=Math.min(8,Math.max(.25,vz*(e.deltaY<0?1.15:0.87)));vApply();},{passive:false});
+vbody.addEventListener('pointerdown',e=>{
+  vdrag={x:e.clientX-vpx,y:e.clientY-vpy};vbody.setPointerCapture(e.pointerId);});
+vbody.addEventListener('pointermove',e=>{if(!vdrag)return;
+  vpx=e.clientX-vdrag.x;vpy=e.clientY-vdrag.y;vApply();});
+vbody.addEventListener('pointerup',()=>vdrag=null);
+vbody.addEventListener('dblclick',()=>{vz=1;vpx=vpy=0;vApply();toast('模态视图已复位');});
+
+/* ================= ②③ 联动三态 + 快捷键 ================= */
+function updateLinkStatus(){
+  const all=$$('.link-btn'),on=all.filter(b=>b.classList.contains('on')).length,b=$('#linkBtn');
+  b.classList.remove('all','partial');
+  if(on===0)b.textContent='⛓ 无联动';
+  else if(on===all.length){b.textContent='🔗 全部联动';b.classList.add('all');}
+  else{b.textContent='🔗 部分联动';b.classList.add('partial');}
+}
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('.link-btn');if(!btn)return;
+  const label=btn.parentElement.querySelector(':scope>label')?.textContent||'参数';
+  const on=!btn.classList.contains('on');
+  $$('.param').forEach(p=>{
+    const l=p.querySelector(':scope>label');
+    if(l&&l.textContent===label)p.querySelector('.link-btn')?.classList.toggle('on',on);});
+  updateLinkStatus();
+  toast(on?`已开启「${label}」全部行联动`:`已单独取消「${label}」联动`);
+});
+$('#linkBtn').addEventListener('click',()=>{
+  const toAll=!$('#linkBtn').classList.contains('all');
+  $$('.link-btn').forEach(x=>x.classList.toggle('on',toAll));
+  updateLinkStatus();
+  toast(toAll?'已开启全部参数联动':'已关闭全部参数联动');});
+$('#undoBtn').addEventListener('click',()=>toast('撤销（参数变更在滑块释放/失焦时入栈）'));
+$('#redoBtn').addEventListener('click',()=>toast('重做'));
+/* 快捷键：输入框/文本域获焦时交给浏览器原生撤销（需求五） */
+addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeViewer();
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.isContentEditable)return;
+  if(!(e.ctrlKey||e.metaKey))return;
+  const k=e.key.toLowerCase();
+  if(k==='z'){e.preventDefault();$('#undoBtn').click();}
+  if(k==='y'){e.preventDefault();$('#redoBtn').click();}
+});
+
+/* ================= 通用滑块行（滑块↔输入框↔联动↔重置↔校验） ================= */
+function buildSlider(host,cfg){
+  const [label,min,max,val,unit='']=cfg;
+  const row=document.createElement('div');row.className='param';
+  row.innerHTML=`<label>${label}</label>
+    <input type="range" min="${min}" max="${max}" value="${val}">
+    <input class="num" value="${val}">
+    <button class="link-btn" title="参数联动：开启后所有行该参数同步调整">🔗</button>
+    <button class="rst" title="重置为默认值">⟲</button>`;
+  const rg=row.querySelector('[type=range]'),nm=row.querySelector('.num');
+  rg.addEventListener('input',()=>nm.value=rg.value);
+  nm.addEventListener('change',()=>{
+    let v=+nm.value;
+    if(isNaN(v)){flash(nm);v=val;}
+    else if(v<min||v>max){flash(nm);v=Math.min(max,Math.max(min,v));}
+    nm.value=v;rg.value=v;});
+  row.querySelector('.rst').addEventListener('click',()=>{rg.value=val;nm.value=val;});
+  host.appendChild(row);
+}
+$$('[data-slider]').forEach(h=>{try{buildSlider(h,JSON.parse(h.dataset.slider));}catch(e){}});
+
+/* ================= 多行设置 ================= */
+const MODES={1:['上半边','下半边','左半边','右半边','居中'],
+ 2:['全在上（左右分）','全在下（左右分）','全在左（上下分）','全在右（上下分）','左右分','上下分'],
+ 3:['一字横排','一字纵排','品字（上1下2）','倒品（上2下1）'],
+ 4:['一字横排','一字纵排','四宫格','纵向121','横向121'],
+ 5:['一字横排','一字纵排','环形','四宫格+中央'],
+ 6:['一字横排','一字纵排','环形','2x3','3x2'],
+ 7:['一字横排','一字纵排','环形'],
+ 8:['一字横排','一字纵排','环形','2x4','4x2'],
+ 9:['一字横排','一字纵排','环形','3x3']};
+let rowCount=2,activeRow=1;
+const rowState={};for(let i=1;i<=9;i++)rowState[i]={mode:'text'};
+const MODE_TXT={text:'文本',img:'图片',fa:'FontAwesome'};
+
+const rowsSeg=$('#rowsSeg');
+for(let i=1;i<=9;i++){const b=document.createElement('button');b.textContent=i;
+  if(i===rowCount)b.classList.add('active');
+  b.addEventListener('click',()=>{rowCount=i;activeRow=1;
+    $$('#rowsSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    buildContentNav();fillLayoutSel();updateNotes();});rowsSeg.appendChild(b);}
+function fillLayoutSel(){const s=$('#layoutSel');s.innerHTML='';
+  MODES[rowCount].forEach(m=>{const o=document.createElement('option');o.textContent=m;s.appendChild(o);});
+  $('#layerOrderRow').classList.toggle('hidden',rowCount<2);}
+fillLayoutSel();
+
+/* ================= 内容纵向标签 ================= */
+const contentNav=$('#contentNav');
+function buildContentNav(){contentNav.innerHTML='';
+  for(let i=1;i<=rowCount;i++){
+    const st=rowState[i],tab=document.createElement('div');
+    tab.className='v-tab'+(i===activeRow?' active':'');tab.dataset.row=i;
+    const badge=document.createElement('button');
+    badge.className='mode-badge b-'+st.mode;badge.textContent={text:'文',img:'图',fa:'F'}[st.mode];
+    badge.title='点击切换内容模式（文本 / 图片 / FontAwesome）';
+    badge.addEventListener('click',e=>{e.stopPropagation();
+      st.mode={text:'img',img:'fa',fa:'text'}[st.mode];
+      buildContentNav();updateBody();updateNotes();});
+    tab.appendChild(badge);
+    if(st.mode==='text'){const inp=document.createElement('input');
+      inp.className='row-input';inp.value=i===1?'KIcon':`行 ${i} 文本`;
+      inp.title='文本内容（超长可左右滚动，强制居中）';
+      inp.addEventListener('click',e=>e.stopPropagation());tab.appendChild(inp);}
+    else{const sp=document.createElement('span');sp.className='row-info';
+      sp.textContent=st.mode==='img'?'🖼 未选择图片':'选择图标…';tab.appendChild(sp);}
+    tab.addEventListener('click',()=>{activeRow=i;
+      $$('#contentNav .v-tab').forEach(x=>x.classList.remove('active'));tab.classList.add('active');
+      updateBody();updateNotes();});
+    contentNav.appendChild(tab);}
+  updateBody();}
+function updateBody(){const m=rowState[activeRow].mode;
+  $('#bt-text').classList.toggle('hidden',m!=='text');
+  $('#bt-img').classList.toggle('hidden',m!=='img');
+  $('#bt-fa').classList.toggle('hidden',m!=='fa');}
+function updateNotes(){const m=MODE_TXT[rowState[activeRow].mode];
+  $('#contentNote').textContent=`行 ${activeRow} · ${m}`;
+  $('#styleNote').textContent=`行 ${activeRow} · ${m}`;}
+buildContentNav();updateNotes();
+
+/* ④ 复制/粘贴样式（需求2.9：仅尺寸/颜色/阴影，跨模式仅应用相同参数） */
+let styleClip=null;
+$('#copyStyleBtn').addEventListener('click',()=>{
+  const sizeSl=document.querySelector('#styleBody [data-panel=size] .num, [data-panel=size].active .num');
+  styleClip={from:activeRow,size:sizeSl?+sizeSl.value:null,
+    shadow:$('#shadowEnable').checked};
+  toast(`已复制行 ${activeRow} 样式（尺寸/颜色/阴影）`);});
+$('#pasteStyleBtn').addEventListener('click',()=>{
+  if(!styleClip)return toast('样式剪贴板为空');
+  toast(`已粘贴行 ${styleClip.from} → 行 ${activeRow}（跨模式仅应用相同参数）`);});
+
+/* FA 演示网格 */
+const faGrid=$('#faGrid');
+'★♥⚙☰✎☁✦✿◆▲●☂♫✔✈☕♠♦♣'.split('').forEach(ch=>{
+  const t=document.createElement('div');t.className='fa-tile';t.textContent=ch;
+  t.addEventListener('click',()=>toast('已选中图标并写回标签'));faGrid.appendChild(t);});
+
+/* ================= 横向标签组绑定 ================= */
+function bindHTabs(tabsId,panelsSel){
+  const tabs=$(tabsId),scope=$(panelsSel);
+  tabs.addEventListener('click',e=>{const b=e.target.closest('.h-tab');if(!b)return;
+    tabs.querySelectorAll('.h-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    scope.querySelectorAll('.tab-panel').forEach(p=>
+      p.classList.toggle('active',p.dataset.panel===b.dataset.tab));});}
+bindHTabs('#styleTabs','.workspace .col:nth-child(2) .module:last-child .tab-panels');
+bindHTabs('#frameTabs','.col--right .module:nth-child(1) .tab-panels');
+bindHTabs('#fillTabs','#fillPanels');
+
+/* 启用态绿勾 */
+$('#shadowEnable').addEventListener('change',e=>
+  $('#styleTabs [data-tab=shadow]').classList.toggle('enabled',e.target.checked));
+$('#borderEnable').addEventListener('change',e=>
+  $('#frameTabs [data-tab=border]').classList.toggle('enabled',e.target.checked));
+$('#fshadowEnable').addEventListener('change',e=>
+  $('#frameTabs [data-tab=fshadow]').classList.toggle('enabled',e.target.checked));
+
+/* 颜色模式单/渐变 */
+$('#cModeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#cModeSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  const grad=b.textContent==='渐变';
+  $('#c2').classList.toggle('hidden',!grad);
+  $('#c2tip').textContent=grad?'线性渐变第二色':'渐变模式下显示第二颜色';});
+
+/* 颜色建议（演示色板；真实版按背景色公式计算） */
+function buildSuggest(id){const box=$(id);if(!box)return;
+  ['#f43f5e','#fb923c','#fbbf24','#34d399','#22d3ee','#60a5fa','#a78bfa','#f472b6'].forEach(c=>{
+    const s=document.createElement('div');s.className='sw';s.style.background=c;
+    s.title='点击应用建议色';s.addEventListener('click',()=>toast('已应用建议颜色'));
+    box.appendChild(s);});}
+buildSuggest('#suggestRow');buildSuggest('#suggestRow2');
+
+/* ================= 形状选择 ================= */
+function bindChips(id){$(id).addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  $$(id+' .chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  toast('形状：'+b.textContent);});}
+bindChips('#shapeBase');bindChips('#shapePoly');bindChips('#shapeStar');
+$('#shapeSize').addEventListener('input',e=>$('#shapeSizeN').value=e.target.value);
+$('#shapeSizeN').addEventListener('change',e=>{
+  let v=+e.target.value;if(isNaN(v))v=100;e.target.value=v;$('#shapeSize').value=v;});
+$('#fillBtn').addEventListener('click',()=>{$('#shapeSize').value=200;$('#shapeSizeN').value=200;
+  toast('形状已填满绘图区域');});
+$('#innerAngleRow .num').addEventListener('change',e=>
+  $('#angleWarn').classList.toggle('show',+e.target.value===0));
+
+/* ================= ⑧ 填充比例：多滑块共享滑轨 ================= */
+function buildMulti(trackEl,numsEl,n){
+  trackEl.innerHTML='';numsEl.innerHTML='';
+  if(n<=0){trackEl.innerHTML='<span class="dim tiny" style="align-self:center;padding-left:6px">均分（无分界线）</span>';return;}
+  for(let i=0;i<n;i++){
+    const v0=Math.round((i+1)*100/(n+1));
+    const r=document.createElement('input');
+    r.type='range';r.min=0;r.max=100;r.step=.5;r.value=v0;
+    const bd=document.createElement('div');bd.className='bd';bd.style.left=v0+'%';
+    const ni=document.createElement('input');ni.className='num tiny';ni.value=v0;
+    r.addEventListener('input',()=>{bd.style.left=r.value+'%';ni.value=r.value;});
+    ni.addEventListener('change',()=>{
+      let x=+ni.value;if(isNaN(x))x=v0;
+      x=Math.min(100,Math.max(0,x));
+      r.value=x;bd.style.left=x+'%';ni.value=x;});
+    trackEl.appendChild(r);trackEl.appendChild(bd);numsEl.appendChild(ni);}}
+let fillCount=1;
+function rebuildFillRatios(){
+  const layers=Math.min(+$('#layerCnt').value,fillCount);
+  $('#layerCnt').max=fillCount;$('#layerCnt').value=layers;$('#layerCntN').value=layers;
+  const perLayer=Math.ceil(fillCount/layers);
+  buildMulti($('#gapTrack'),$('#gapNums'),layers-1);
+  buildMulti($('#inTrack'),$('#inNums'),perLayer-1);
+  $('#layerRow').style.display=fillCount>1?'':'none';
+  $('#gapRow').style.display=layers>1?'':'none';
+  $('#inRow').style.display=perLayer>1?'':'none';}
+$('#layerCnt').addEventListener('input',rebuildFillRatios);
+$('#layerCntN').addEventListener('change',()=>{
+  let v=+$('#layerCntN').value;if(isNaN(v))v=1;
+  v=Math.min(fillCount,Math.max(1,v));$('#layerCntN').value=v;$('#layerCnt').value=v;
+  rebuildFillRatios();});
+$('#gapEven').addEventListener('click',()=>{rebuildFillRatios();toast('层间比例已均分');});
+$('#inEven').addEventListener('click',()=>{rebuildFillRatios();toast('层内比例已均分');});
+
+/* ================= ⑦ 填充数量：单色隐藏布局/边界 ================= */
+function applySingleMode(single){
+  $('#fillTabs').style.display=single?'none':'';
+  $('#fillPanels').style.display=single?'none':'';
+  if(single)toast('单色填充：无需布局与边界设置');}
+const FILLN={'单色':1,'二色':2,'三色':3,'四色':4,'五色':5,'六色':6};
+$('#fillSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#fillSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  fillCount=FILLN[b.textContent]||1;
+  if(activeSwatch>=fillCount)activeSwatch=0;
+  buildSwatches(fillCount);
+  rebuildFillRatios();
+  applySingleMode(fillCount===1);});
+$('#layoutSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#layoutSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');});
+$('#boundSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#boundSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');});
+
+/* ================= 内部填充色块 ================= */
+const PALETTE=['#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899'];
+let activeSwatch=0;const swModes=[];
+const swatchNav=$('#swatchNav');
+function buildSwatches(n){if(activeSwatch>=n)activeSwatch=0;
+  swatchNav.innerHTML='';
+  for(let i=0;i<n;i++){const d=document.createElement('div');
+    d.className='swatch'+(i===activeSwatch?' active':'');d.style.background=PALETTE[i];
+    d.innerHTML=`<span class="sm">${swModes[i]||'纯'}</span>`;
+    d.addEventListener('click',()=>{activeSwatch=i;
+      $$('#swatchNav .swatch').forEach((x,j)=>x.classList.toggle('active',j===i));
+      syncSwatchPanel();});swatchNav.appendChild(d);}
+  syncSwatchPanel();}
+function syncSwatchPanel(){const m=swModes[activeSwatch]||'纯';
+  $('#fillNote').textContent=`色块 ${activeSwatch+1} · ${{纯:'纯色',渐:'渐变',图:'图片'}[m]}`;
+  $$('#bgModeSeg button').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
+  $('#bp-solid').classList.toggle('hidden',m!=='纯');
+  $('#bp-grad').classList.toggle('hidden',m!=='渐');
+  $('#bp-img').classList.toggle('hidden',m!=='图');}
+$('#bgModeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  swModes[activeSwatch]=b.dataset.m;
+  const sw=swatchNav.children[activeSwatch];if(sw)sw.querySelector('.sm').textContent=b.dataset.m;
+  syncSwatchPanel();});
+
+/* ================= ⑤ 预设 / 历史：Canvas 真实渲染缩略图 ================= */
+function paintThumb(cv,p,S=46){
+  cv.width=cv.height=S;
+  const c=cv.getContext('2d');
+  c.beginPath();c.roundRect(1.5,1.5,S-3,S-3,S*.24);
+  const g=c.createLinearGradient(0,0,S,S);
+  g.addColorStop(0,p.c1);g.addColorStop(1,p.c2);c.fillStyle=g;c.fill();
+  c.fillStyle='rgba(255,255,255,.16)';
+  c.beginPath();c.arc(S*.72,S*.26,S*.22,0,7);c.fill();
+  c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';
+  c.font=`800 ${Math.round(S*.42)}px -apple-system,Segoe UI,sans-serif`;
+  c.fillText(p.text,S/2,S*.55);}
+const PRESETS=[
+ {name:'极光',c1:'#6366f1',c2:'#22d3ee',text:'K'},
+ {name:'落日',c1:'#f59e0b',c2:'#ef4444',text:'夕'},
+ {name:'森林',c1:'#10b981',c2:'#065f46',text:'林'},
+ {name:'莓果',c1:'#ec4899',c2:'#8b5cf6',text:'莓'},
+ {name:'深海',c1:'#0ea5e9',c2:'#1e3a8a',text:'海'},
+ {name:'琥珀',c1:'#fbbf24',c2:'#b45309',text:'琥'},
+ {name:'薄荷',c1:'#34d399',c2:'#a7f3d0',text:'薄'},
+ {name:'墨玉',c1:'#334155',c2:'#0f172a',text:'墨'}];
+PRESETS.forEach(p=>{
+  const d=document.createElement('div');d.className='preset';d.title=p.name;
+  const cv2=document.createElement('canvas');paintThumb(cv2,p,46);
+  d.appendChild(cv2);
+  d.addEventListener('click',()=>toast(`已应用预设：${p.name}（内容/背景/预览同步更新）`));
+  $('#presetGrid').appendChild(d);});
+const HIST=[
+ {name:'KIcon-256-Logo',c1:'#6366f1',c2:'#22d3ee',text:'K',time:'12:00:03'},
+ {name:'KIcon-512-Fav',c1:'#f59e0b',c2:'#ef4444',text:'★',time:'11:47:52'}];
+HIST.forEach(p=>{
+  const d=document.createElement('div');d.className='h-item';
+  const cv2=document.createElement('canvas');cv2.className='h-thumb';paintThumb(cv2,p,26);
+  d.appendChild(cv2);
+  const s=document.createElement('span');s.className='h-name';
+  s.textContent=`${p.name} · ${p.time}`;d.appendChild(s);
+  const del=document.createElement('button');del.className='h-del';del.textContent='✕';del.title='删除';
+  d.appendChild(del);
+  d.addEventListener('click',e=>{
+    if(e.target===del){d.remove();toast('已删除历史快照');}
+    else toast('已恢复历史快照：'+p.name);});
+  $('#historyList').appendChild(d);});
+$('#phSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#phSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  $('#presetPane').classList.toggle('hidden',b.dataset.tab!=='preset');
+  $('#historyPane').classList.toggle('hidden',b.dataset.tab!=='history');});
+
+$$('[data-act]').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.act==='copy-json'){
+    navigator.clipboard?.writeText(JSON.stringify({app:'KIcon',v:'2.02',rows:rowCount},null,2))
+      .then(()=>toast('预设 JSON 已复制到剪贴板')).catch(()=>toast('复制失败（浏览器限制）'));}
+  else if(b.dataset.act==='copy-html'){
+    const html='<link rel="icon" href="favicon.ico" sizes="any">\n<link rel="apple-touch-icon" href="apple-touch-icon.png">';
+    navigator.clipboard?.writeText(html).then(()=>toast('link 标签已复制')).catch(()=>toast('复制失败'));}
+  else toast(b.dataset.act+(b.dataset.act==='保存预设'?'（仅本次有效）':'（演示）'));}));
+
+/* ================= 下载 ================= */
+function updateSize(){const v=$('#sizeNum').value;$('#sizeNote').textContent=`${v} × ${v}`;
+  $('#dlName').textContent=`KIcon-${v}-KIcon-${new Date().toISOString().slice(0,19).replace(/[-:T]/g,'')}.png`;}
+$('#sizeSel').addEventListener('change',e=>{
+  if(e.target.value!=='custom')$('#sizeNum').value=e.target.value;updateSize();});
+$('#sizeNum').addEventListener('change',e=>{
+  let v=+e.target.value;if(isNaN(v))v=256;
+  if(v<16){flash(e.target);v=16;}
+  if(v>8192){flash(e.target);v=8192;}
+  e.target.value=v;updateSize();});
+updateSize();
+$$('.fmt').forEach(b=>b.addEventListener('click',()=>toast(`正在下载 ${b.textContent} …（演示）`)));
+$('#alphaChk').addEventListener('change',e=>{
+  if(e.target.checked)toast('透明色导出已启用（JPG 不支持透明）');});
+
+/* ================= 初始化 ================= */
+buildSwatches(1);
+rebuildFillRatios();
+applySingleMode(true);   /* 默认单色 → 隐藏布局/边界（需求三.2.2） */
+updateLinkStatus();
+</script>
+</body>
+</html>
