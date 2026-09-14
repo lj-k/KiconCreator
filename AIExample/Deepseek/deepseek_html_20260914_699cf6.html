@@ -365,7 +365,7 @@ input[type=range]::-moz-range-thumb{
 }
 
 /* ============================================================
-   内容竖向标签组 —— 每行标签只占一行，并与右侧内容连成一体
+   内容竖向标签组 —— 激活与未激活标签底色明显不同
    ============================================================ */
 .vtab-group{display:flex; align-items:flex-start; gap:0; min-width:0}
 .vtab-list{
@@ -381,17 +381,22 @@ input[type=range]::-moz-range-thumb{
   cursor:pointer;
   border:1px solid var(--border); border-right:0;
   border-radius:10px 0 0 10px;
-  background:var(--tag-bg);
+  background:var(--panel-2);          /* 未激活：近白 / 近 panel-2 */
+  color:var(--muted);
   margin-bottom:-1px;
   position:relative;
-  transition:background .15s, box-shadow .15s;
+  transition:background .18s, color .18s, border-color .18s, box-shadow .18s;
 }
 .vtab:last-child{margin-bottom:0}
-.vtab:hover{background:color-mix(in srgb, var(--accent) 8%, var(--tag-bg))}
+.vtab:hover{
+  background:color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  color:var(--text);
+}
 .vtab.active{
-  background:var(--accent-soft);
-  border-color:var(--border);
-  box-shadow:inset 3px 0 0 var(--accent);
+  background:color-mix(in srgb, var(--accent) 16%, var(--panel));  /* 激活：浅蓝底 */
+  color:var(--text);
+  border-color:color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow:inset 4px 0 0 var(--accent);
   z-index:2;
 }
 
@@ -401,7 +406,9 @@ input[type=range]::-moz-range-thumb{
   display:grid;place-items:center;
   font-size:9.5px;font-weight:800;color:var(--muted);
 }
-.vtab.active .rownum{background:var(--accent);border-color:transparent;color:#fff}
+.vtab.active .rownum{
+  background:var(--accent);border-color:transparent;color:#fff;
+}
 
 .mode-mini{
   display:flex;gap:1px;background:var(--panel);
@@ -416,21 +423,26 @@ input[type=range]::-moz-range-thumb{
 
 .vtab-input{
   flex:1 1 auto; min-width:30px; height:20px;
-  border:1px solid transparent; background:var(--panel);
+  border:1px solid var(--border); background:var(--panel);
   border-radius:5px; text-align:center;
   color:var(--text); font-size:10.5px; font-weight:600;
   padding:0 3px; overflow:hidden;
+  transition:border-color .18s, box-shadow .18s;
 }
 .vtab-input:focus{
   outline:none;border-color:var(--accent);
   box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent);
 }
 .vtab-input[readonly]{opacity:.72;cursor:default;text-align:left;font-weight:500}
+.vtab.active .vtab-input{
+  border-color:color-mix(in srgb, var(--accent) 30%, var(--border));
+}
 
 .vtab-body{
   flex:1; min-width:0;
-  background:var(--accent-soft);
-  border:1px solid var(--border); border-left:0;
+  background:color-mix(in srgb, var(--accent) 16%, var(--panel));   /* 与激活标签同色，连成一体 */
+  border:1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-left:0;
   border-radius:0 10px 10px 10px;
   padding:10px 11px;
   min-height:150px;
@@ -495,13 +507,56 @@ input[type=range]::-moz-range-thumb{
   }
   .col-right .module{margin-bottom:0}
 }
+
+/* ============================================================
+   竖屏单栏：预览模块浮动固定于视口上方，最大高度 ≤ 视口 1/3
+   ============================================================ */
 @media (max-width:860px){
   .layout{grid-template-columns:1fr;gap:10px;padding:10px}
   .col-left,.col-mid,.col-right{grid-column:1/-1}
   .col-right{grid-template-columns:1fr}
-  .module-preview{position:sticky;top:56px;z-index:40}
-  .preview-stage{padding:10px;min-height:130px}
-  #iconCanvas{max-height:24vh}
+
+  .module-preview{
+    position:sticky;
+    top:54px;                             /* 顶栏高度之下 */
+    z-index:40;
+    height:33vh;                          /* 最大高度不超过视口 1/3 */
+    min-height:170px;
+    display:flex;
+    flex-direction:column;
+    background:var(--panel);
+    box-shadow:
+      0 14px 34px rgba(16,24,40,.18),
+      0 2px 8px rgba(16,24,40,.08);
+    margin-bottom:12px;
+    overflow:hidden;
+  }
+  .module-preview .module-head{flex:0 0 auto}
+  .module-preview .module-body{
+    flex:1;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    padding:8px 10px 10px;
+    overflow:hidden;
+  }
+  .preview-stage{
+    flex:1;
+    min-height:0;
+    padding:8px;
+    border-radius:10px;
+  }
+  #iconCanvas{
+    max-width:100%;
+    max-height:calc(33vh - 108px);        /* 头部+底部+内边距预留 */
+  }
+  .preview-foot{
+    flex:0 0 auto;
+    margin-top:6px;
+    font-size:10px;
+    gap:5px;
+  }
+
   .topbar{padding:8px 12px;gap:9px}
   .brand-text p{display:none}
   .vtab-list{width:min(52%,170px)}
@@ -935,7 +990,6 @@ function drawIcon() {
   if (cvs.width !== S) { cvs.width = S; cvs.height = S; }
   ctx.clearRect(0, 0, S, S);
 
-  // 背景形状：渐变圆角方形
   const r = S * 0.22;
   roundRect(ctx, S * 0.03, S * 0.03, S * 0.94, S * 0.94, r);
   const g = ctx.createLinearGradient(0, 0, S, S);
@@ -944,7 +998,6 @@ function drawIcon() {
   ctx.fillStyle = g;
   ctx.fill();
 
-  // 文字内容
   const text = (rows[0] && rows[0].text) ? rows[0].text : 'K';
   ctx.fillStyle = '#ffffff';
   ctx.font = `800 ${Math.round(S * 0.52)}px -apple-system, "Segoe UI", "PingFang SC", sans-serif`;
@@ -1000,9 +1053,7 @@ function renderRowCount() {
   }
 }
 
-/* ============================================================
-   内容竖向标签 —— 每行只占一行： [序号] [文/图/F] [输入框]
-   ============================================================ */
+/* 内容竖向标签 —— 每行只占一行： [序号] [文/图/F] [输入框] */
 function updateActiveTab() {
   $$('#contentTabs .vtab').forEach((el, i) => el.classList.toggle('active', i === activeRow));
 }
@@ -1027,7 +1078,6 @@ function renderContentTabs() {
     `;
 
     el.addEventListener('click', e => {
-      // 切换模式
       const mb = e.target.closest('.mode-mini button');
       if (mb) {
         e.stopPropagation();
@@ -1036,7 +1086,6 @@ function renderContentTabs() {
         renderContentTabs(); renderContentBody(); renderStyle();
         return;
       }
-      // 激活行（不重建 DOM，避免输入框失焦）
       if (activeRow !== i) {
         activeRow = i;
         updateActiveTab();
@@ -1077,7 +1126,6 @@ function renderContentBody() {
   const idx = activeRow + 1;
   const body = $('#contentBody');
 
-  /* ---------- 文本模式：字体相关参数 ---------- */
   if (r.mode === 'text') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 文本模式</div>
@@ -1147,7 +1195,6 @@ function renderContentBody() {
     syncRanges(body);
   }
 
-  /* ---------- 图片模式 ---------- */
   else if (r.mode === 'image') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 图片模式</div>
@@ -1162,7 +1209,6 @@ function renderContentBody() {
       </div>`;
   }
 
-  /* ---------- FontAwesome 模式 ---------- */
   else {
     const icons = ['★','♥','⚡','☀','☁','✦','✿','◆','▲','●','☂','♫','✔','✈','☕','♠','♦','♣','⚙','✎','⌘','☘','☯','⚑'];
     body.innerHTML = `
