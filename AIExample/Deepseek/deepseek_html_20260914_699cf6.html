@@ -12,6 +12,7 @@
   --shadow-lg:0 12px 34px rgba(16,24,40,.12);
   --topbar-h: 54px;
   --merge-tabs-h: 44px;
+  --preview-max-h: 33vh; /* 由 JS 动态更新 */
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 html[data-theme="light"]{
@@ -200,7 +201,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
   background:var(--panel); border:1px solid var(--border);
   border-radius:var(--radius); box-shadow:var(--shadow);
   overflow:hidden; min-width:0;
-  flex:0 0 auto;   /* 不压缩，让标签组折叠/滚动来处理溢出 */
+  flex:0 0 auto;
 }
 .module-head{
   display:flex;align-items:center;gap:8px;
@@ -234,8 +235,21 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .btn.icon{padding:5px 7px;display:grid;place-items:center}
 .btn.icon svg{width:14px;height:14px}
 
-/* ================= 预览 ================= */
-.module-preview{max-height:33vh;display:flex;flex-direction:column}
+/* ============================================================
+   预览 —— 高度由 CSS 变量 --preview-max-h 控制（JS 动态计算）
+   规则：
+   - 栏内空间充足：尽量大（不超过栏高 55%）
+   - 栏内空间不足：不超过栏高 1/3
+   ============================================================ */
+.module-preview{
+  height: var(--preview-max-h, 33vh);
+  min-height: 160px;
+  max-height: var(--preview-max-h, 33vh);
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  transition: height .18s ease-out, max-height .18s ease-out;
+}
 .module-preview .module-body{
   flex:1 1 auto;min-height:0;
   display:flex;flex-direction:column;gap:6px;
@@ -243,8 +257,8 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .preview-stage{
   position:relative; display:flex; align-items:center; justify-content:center;
   padding:12px; border-radius:var(--radius-sm);
-  border:1px solid var(--border); min-height:140px;
-  flex:1 1 auto;
+  border:1px solid var(--border); min-height:100px;
+  flex:1 1 auto; min-height:0;
   background-color:var(--checker-a);
   background-image:
     linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),
@@ -350,7 +364,6 @@ body.preview-float .preview-placeholder{
 
 /* ============================================================
    标签组展开：栏高度充足时，全部 pane 纵向展开
-   —— 由 JS 在模块上加 .expanded
    ============================================================ */
 .module.expanded .tabs{display:none}
 .module.expanded .tab-body{
@@ -770,7 +783,6 @@ input[type=range]::-moz-range-thumb{
 
 <main class="layout" data-mode="three">
 
-  <!-- ============ 左栏 ============ -->
   <section class="col col-left">
 
     <section class="module module-preview">
@@ -916,7 +928,6 @@ input[type=range]::-moz-range-thumb{
 
   </section>
 
-  <!-- ============ 中栏 ============ -->
   <section class="col col-mid">
 
     <section class="module">
@@ -979,7 +990,6 @@ input[type=range]::-moz-range-thumb{
 
   </section>
 
-  <!-- ============ 右栏 ============ -->
   <section class="col col-right">
 
     <section class="module" id="moduleShape">
@@ -1142,7 +1152,7 @@ function updateLayoutMode(){
 }
 
 /* ============================================================
-   两栏合并标签栏：fixed 悬浮在第 2 栏顶部
+   两栏合并标签栏
    ============================================================ */
 function syncMergeTabs(){
   const mt = $('#mergeTabs');
@@ -1224,14 +1234,73 @@ function syncPreviewLayout(){
 }
 
 /* ============================================================
-   标签组展开/折叠检测（核心：先折叠，再考虑滚动条）
+   预览高度自适应
    ------------------------------------------------------------
-   需求：
-   1. 栏高度足够容纳所有模块展开态 → 全部展开（expanded）
-   2. 否则 → 折叠为标签组（tabs），保留一个 pane
-   3. 若折叠态仍装不下 → 栏出现纵向滚动条（由 CSS overflow 自动处理）
-   ------------------------------------------------------------
-   实现：用一个不可见的临时快照测量两态高度，避免可见抖动
+   规则：
+   - 先测量栏内「其他模块」总高度（预览不参与，防止循环依赖）
+   - 计算剩余可用空间
+   - 空间充足 → 预览尽量大（不超过栏高 55%，也不超过可用空间）
+   - 空间不足 → 预览不超过栏高 1/3
+   - 结果写入 CSS 变量 --preview-max-h
+   ============================================================ */
+function updatePreviewHeight(){
+  const preview = $('.module-preview');
+  if (!preview) return;
+  const mode = document.documentElement.dataset.layout;
+
+  /* 找到预览所在栏容器 */
+  let col;
+  if (mode === 'one'){
+    col = $('.layout');
+  } else {
+    col = preview.parentElement; /* .col-left */
+  }
+  if (!col) return;
+
+  /* 栏可用高度 */
+  let colH = col.clientHeight;
+  if (mode === 'one'){
+    const topbarH = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')
+    ) || 54;
+    colH = Math.max(col.clientHeight, window.innerHeight - topbarH - 20);
+  }
+  if (colH <= 0) return;
+
+  /* 测量其他模块（除预览和占位）的总高度 */
+  const siblings = Array.from(col.children).filter(el =>
+    el.classList.contains('module') && !el.classList.contains('module-preview')
+  );
+  const cs = getComputedStyle(col);
+  const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 14;
+
+  let otherH = 0;
+  siblings.forEach(m => {
+    otherH += m.getBoundingClientRect().height;
+  });
+  if (siblings.length > 0) otherH += (siblings.length - 1) * gap;
+
+  /* 剩余可用空间（留一点余量，避免刚好卡在临界点） */
+  const padding = 20;
+  const available = colH - otherH - padding;
+
+  let maxH;
+  if (available >= 320){
+    /* 空间充足：预览尽量大，但不超过栏高 55% */
+    maxH = Math.min(available, colH * 0.55);
+  } else {
+    /* 空间不足：不超过栏高 1/3 */
+    maxH = colH / 3;
+  }
+
+  /* 上下限保护 */
+  maxH = Math.max(150, Math.min(maxH, colH * 0.7));
+
+  document.documentElement.style.setProperty('--preview-max-h', Math.round(maxH) + 'px');
+}
+
+/* ============================================================
+   标签组展开/折叠检测
    ============================================================ */
 function getActiveColumns(){
   const mode = document.documentElement.dataset.layout;
@@ -1245,17 +1314,14 @@ function getActiveColumns(){
                 || document.querySelector('.col-right.active');
     return active ? [active] : [];
   }
-  /* 单栏：默认折叠，无展开需求 */
   return [];
 }
 
 function checkTabExpansion(){
   const mode = document.documentElement.dataset.layout;
 
-  /* 单栏：所有模块默认折叠，让栏出现滚动条 */
   if (mode === 'one'){
     $$('.module').forEach(m => m.classList.remove('expanded'));
-    checkPreviewFloat();
     return;
   }
 
@@ -1268,50 +1334,48 @@ function checkTabExpansion(){
     const colH = col.clientHeight;
     if (colH <= 0) return;
 
-    /* 保存当前状态与滚动位置 */
     const savedScroll = col.scrollTop;
-
-    /* 隐藏栏避免中间态闪烁 */
     const prevVis = col.style.visibility;
     col.style.visibility = 'hidden';
 
-    /* 测量展开态 */
     tabModules.forEach(m => m.classList.add('expanded'));
-    void col.offsetHeight; /* 强制同步重排 */
+    void col.offsetHeight;
     const hExpanded = col.scrollHeight;
 
-    /* 测量折叠态 */
     tabModules.forEach(m => m.classList.remove('expanded'));
     void col.offsetHeight;
     const hCollapsed = col.scrollHeight;
 
-    /* 决策：
-       - 展开态能装下 → 展开
-       - 否则 → 折叠（折叠态若也装不下，则自然出现滚动条） */
     if (hExpanded <= colH + 2){
       tabModules.forEach(m => m.classList.add('expanded'));
     } else {
       tabModules.forEach(m => m.classList.remove('expanded'));
     }
 
-    /* 恢复 */
     col.style.visibility = prevVis;
-    /* 尽量恢复滚动位置 */
     col.scrollTop = Math.min(savedScroll, col.scrollHeight);
   });
-
-  /* 折叠/展开后重新检测预览浮动 */
-  checkPreviewFloat();
 }
 
 /* ============================================================
-   统一刷新：布局 → 合并标签栏 → 标签展开 → 预览浮动
+   统一刷新：严格顺序，避免循环依赖
+   1. 顶栏高度
+   2. 布局模式
+   3. 合并标签栏位置
+   4. 标签展开/折叠（决定各模块高度）
+   5. 预览高度（基于其他模块高度 + 栏高度）
+   6. 预览浮动（基于栏是否滚动）
    ============================================================ */
 function refreshLayout(){
   updateTopbarHeight();
   updateLayoutMode();
   syncMergeTabs();
   checkTabExpansion();
+  updatePreviewHeight();
+  checkPreviewFloat();
+  if (document.body.classList.contains('preview-float')){
+    requestAnimationFrame(syncPreviewLayout);
+  }
 }
 
 /* ============================================================
@@ -1380,10 +1444,11 @@ $$('.merge-tab').forEach(btn => {
     $$('.merge-tab').forEach(b => b.classList.toggle('active', b === btn));
     document.querySelector('.col-mid')?.classList.toggle('active', tab === 'mid');
     document.querySelector('.col-right')?.classList.toggle('active', tab === 'right');
-    /* 切换后重新计算 */
     requestAnimationFrame(() => {
       syncMergeTabs();
       checkTabExpansion();
+      updatePreviewHeight();
+      checkPreviewFloat();
     });
   });
 });
@@ -2422,33 +2487,25 @@ function init() {
   const S = iconSize;
   $('#safeBox').style.inset = (S * 0.1) + 'px';
 
-  /* 首次刷新：布局 → 展开决策 → 预览浮动 */
-  requestAnimationFrame(() => {
-    refreshLayout();
-  });
+  /* 首次刷新：布局 → 展开决策 → 预览高度 → 预览浮动 */
+  requestAnimationFrame(refreshLayout);
 
   /* 视口变化 */
   let resizeRAF = null;
   window.addEventListener('resize', () => {
     if (resizeRAF) cancelAnimationFrame(resizeRAF);
-    resizeRAF = requestAnimationFrame(() => {
-      refreshLayout();
-    });
+    resizeRAF = requestAnimationFrame(refreshLayout);
   });
 
   window.addEventListener('orientationchange', () => {
-    setTimeout(() => {
-      refreshLayout();
-    }, 150);
+    setTimeout(refreshLayout, 150);
   });
 
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      refreshLayout();
-    });
+    document.fonts.ready.then(refreshLayout);
   }
 
-  /* ResizeObserver：栏尺寸变化时重新决策展开/折叠/滚动 */
+  /* ResizeObserver：栏尺寸变化时重跑决策链 */
   if (window.ResizeObserver) {
     let roRAF = null;
     const ro = new ResizeObserver(() => {
@@ -2457,6 +2514,8 @@ function init() {
         updateTopbarHeight();
         syncMergeTabs();
         checkTabExpansion();
+        updatePreviewHeight();
+        checkPreviewFloat();
       });
     });
     const colLeft = $('.col-left');
