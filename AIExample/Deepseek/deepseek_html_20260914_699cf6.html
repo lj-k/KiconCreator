@@ -364,52 +364,84 @@ input[type=range]::-moz-range-thumb{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 
-/* ================= 内容竖向标签组 ================= */
-.vtab-group{display:flex;gap:9px;align-items:flex-start}
+/* ============================================================
+   内容竖向标签组 —— 每行标签只占一行，并与右侧内容连成一体
+   ============================================================ */
+.vtab-group{display:flex; align-items:flex-start; gap:0; min-width:0}
 .vtab-list{
-  flex:0 0 96px;width:96px;display:flex;flex-direction:column;gap:6px;
-  max-height:340px;overflow-y:auto;padding-right:2px;
+  flex:0 0 auto;
+  width:min(46%,196px); min-width:116px;
+  display:flex; flex-direction:column;
+  max-height:360px; overflow-y:auto; overflow-x:hidden;
+  padding-left:1px; padding-top:1px;
 }
 .vtab{
-  border:1px solid var(--border);background:var(--tag-bg);
-  border-radius:10px;padding:6px;cursor:pointer;transition:.15s;
-  display:flex;flex-direction:column;gap:5px;
+  display:flex; align-items:center; gap:5px;
+  padding:4px 7px 4px 5px;
+  cursor:pointer;
+  border:1px solid var(--border); border-right:0;
+  border-radius:10px 0 0 10px;
+  background:var(--tag-bg);
+  margin-bottom:-1px;
+  position:relative;
+  transition:background .15s, box-shadow .15s;
 }
-.vtab:hover{border-color:var(--accent)}
+.vtab:last-child{margin-bottom:0}
+.vtab:hover{background:color-mix(in srgb, var(--accent) 8%, var(--tag-bg))}
 .vtab.active{
-  background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent);
-  box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 14%,transparent);
+  background:var(--accent-soft);
+  border-color:var(--border);
+  box-shadow:inset 3px 0 0 var(--accent);
+  z-index:2;
 }
-.vtab-head{display:flex;align-items:center;gap:5px}
+
 .rownum{
-  width:17px;height:17px;border-radius:6px;flex:none;
+  width:16px;height:16px;border-radius:5px;flex:none;
   background:var(--panel);border:1px solid var(--border);
-  display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--muted);
+  display:grid;place-items:center;
+  font-size:9.5px;font-weight:800;color:var(--muted);
 }
 .vtab.active .rownum{background:var(--accent);border-color:transparent;color:#fff}
-.mode-mini{display:flex;gap:2px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1px}
+
+.mode-mini{
+  display:flex;gap:1px;background:var(--panel);
+  border:1px solid var(--border);border-radius:6px;padding:1px;flex:none;
+}
 .mode-mini button{
-  border:0;background:transparent;color:var(--muted);font-size:9.5px;font-weight:800;
-  padding:2px 4px;border-radius:4px;cursor:pointer;line-height:1.2;
+  border:0;background:transparent;color:var(--muted);
+  font-size:9.5px;font-weight:800;
+  padding:2px 4px;border-radius:4px;cursor:pointer;line-height:1.1;
 }
 .mode-mini button.on{background:var(--accent);color:#fff}
+
 .vtab-input{
-  width:100%;height:22px;border-radius:6px;text-align:center;
-  border:1px solid var(--border);background:var(--panel);color:var(--text);
-  font-size:11px;font-weight:600;padding:0 4px;
+  flex:1 1 auto; min-width:30px; height:20px;
+  border:1px solid transparent; background:var(--panel);
+  border-radius:5px; text-align:center;
+  color:var(--text); font-size:10.5px; font-weight:600;
+  padding:0 3px; overflow:hidden;
 }
-.vtab-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent)}
+.vtab-input:focus{
+  outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 16%,transparent);
+}
+.vtab-input[readonly]{opacity:.72;cursor:default;text-align:left;font-weight:500}
+
 .vtab-body{
-  flex:1;min-width:0;background:var(--accent-soft);
-  border:1px solid var(--border);border-radius:0 10px 10px 10px;
-  padding:10px;min-height:120px;
+  flex:1; min-width:0;
+  background:var(--accent-soft);
+  border:1px solid var(--border); border-left:0;
+  border-radius:0 10px 10px 10px;
+  padding:10px 11px;
+  min-height:150px;
 }
+
 .cp-label{font-size:10.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
 .cp-text-preview{
   background:var(--panel);border:1px solid var(--border);border-radius:9px;
-  min-height:64px;display:grid;place-items:center;
-  font-size:26px;font-weight:800;letter-spacing:1px;
-  color:var(--text);padding:12px;word-break:break-all;
+  min-height:52px;display:grid;place-items:center;
+  font-size:22px;font-weight:800;letter-spacing:1px;
+  color:var(--text);padding:10px;word-break:break-all;margin-bottom:8px;
 }
 .cp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
 .cp-thumb{
@@ -472,7 +504,7 @@ input[type=range]::-moz-range-thumb{
   #iconCanvas{max-height:24vh}
   .topbar{padding:8px 12px;gap:9px}
   .brand-text p{display:none}
-  .vtab-list{flex:0 0 82px;width:82px}
+  .vtab-list{width:min(52%,170px)}
 }
 @media (max-width:520px){
   .format-grid{grid-template-columns:repeat(3,1fr)}
@@ -767,7 +799,7 @@ input[type=range]::-moz-range-thumb{
       <div class="module-head">
         <span class="mh-title">内部填充</span>
         <span class="mh-spacer"></span>
-        <span class="mh-sub">每个色块独立设置</span>
+        <span class="mh-sub" id="fillSub">共 2 个色块</span>
       </div>
       <div class="module-body">
         <div class="fill-group">
@@ -796,6 +828,10 @@ const CHAIN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
   <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
   <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
 </svg>`;
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 function roundRect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
@@ -964,7 +1000,13 @@ function renderRowCount() {
   }
 }
 
-/* 内容竖向标签 */
+/* ============================================================
+   内容竖向标签 —— 每行只占一行： [序号] [文/图/F] [输入框]
+   ============================================================ */
+function updateActiveTab() {
+  $$('#contentTabs .vtab').forEach((el, i) => el.classList.toggle('active', i === activeRow));
+}
+
 function renderContentTabs() {
   const list = $('#contentTabs');
   list.innerHTML = '';
@@ -973,18 +1015,19 @@ function renderContentTabs() {
     const el = document.createElement('div');
     el.className = 'vtab' + (i === activeRow ? ' active' : '');
     el.innerHTML = `
-      <div class="vtab-head">
-        <span class="rownum">${i + 1}</span>
-        <div class="mode-mini">
-          <button data-mode="text" class="${r.mode === 'text' ? 'on' : ''}">文</button>
-          <button data-mode="image" class="${r.mode === 'image' ? 'on' : ''}">图</button>
-          <button data-mode="fa" class="${r.mode === 'fa' ? 'on' : ''}">F</button>
-        </div>
+      <span class="rownum">${i + 1}</span>
+      <div class="mode-mini">
+        <button data-mode="text" class="${r.mode === 'text' ? 'on' : ''}" title="文本">文</button>
+        <button data-mode="image" class="${r.mode === 'image' ? 'on' : ''}" title="图片">图</button>
+        <button data-mode="fa" class="${r.mode === 'fa' ? 'on' : ''}" title="FontAwesome">F</button>
       </div>
-      <input class="vtab-input" value="${r.mode === 'text' ? (r.text || '') : rowLabel(r)}" ${r.mode !== 'text' ? 'readonly' : ''}>
+      <input class="vtab-input"
+             value="${escapeHtml(r.mode === 'text' ? (r.text || '') : rowLabel(r))}"
+             ${r.mode !== 'text' ? 'readonly' : ''}>
     `;
 
     el.addEventListener('click', e => {
+      // 切换模式
       const mb = e.target.closest('.mode-mini button');
       if (mb) {
         e.stopPropagation();
@@ -993,38 +1036,119 @@ function renderContentTabs() {
         renderContentTabs(); renderContentBody(); renderStyle();
         return;
       }
-      activeRow = i;
-      renderContentTabs(); renderContentBody(); renderStyle();
+      // 激活行（不重建 DOM，避免输入框失焦）
+      if (activeRow !== i) {
+        activeRow = i;
+        updateActiveTab();
+        renderContentBody();
+        renderStyle();
+      }
     });
 
     const input = $('.vtab-input', el);
     input.addEventListener('input', () => {
       rows[i].text = input.value;
       if (i === 0) drawIcon();
-      if (i === activeRow) renderStyle();
+      if (i === activeRow) {
+        const pv = $('#cpTextPreview');
+        if (pv) pv.textContent = input.value || '空';
+        $('#styleSub').textContent = `第 ${i + 1} 行 · 文本 · “${input.value || '空'}”`;
+      }
+      updateFileName();
     });
     input.addEventListener('focus', () => {
-      if (activeRow !== i) { activeRow = i; renderContentTabs(); renderContentBody(); renderStyle(); }
+      if (activeRow !== i) {
+        activeRow = i;
+        updateActiveTab();
+        renderContentBody();
+        renderStyle();
+      }
     });
 
     list.appendChild(el);
   }
 }
 
-/* 内容右侧面板 */
+/* ============================================================
+   内容右侧面板 —— 随模式展示对应参数
+   ============================================================ */
 function renderContentBody() {
   const r = rows[activeRow];
-  const body = $('#contentBody');
   const idx = activeRow + 1;
+  const body = $('#contentBody');
 
+  /* ---------- 文本模式：字体相关参数 ---------- */
   if (r.mode === 'text') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 文本模式</div>
-      <div class="cp-text-preview">${(r.text || '空').slice(0, 40)}</div>
-      <div style="margin-top:8px;font-size:10.5px;color:var(--muted);line-height:1.6">
-        直接在左侧标签的输入框中编辑文本内容，字体、字号等参数请到「样式」模块设置。
+
+      <div class="cp-text-preview" id="cpTextPreview">${escapeHtml(r.text || '空')}</div>
+
+      <div class="param">
+        <span class="pname">中文字体</span>
+        <div class="pctrl">
+          <select class="sel" style="flex:1">
+            <option>系统默认（黑体）</option>
+            <option>思源黑体</option>
+            <option>思源宋体</option>
+            <option>站酷高端黑</option>
+            <option>阿里巴巴普惠体</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="param">
+        <span class="pname">英文字体</span>
+        <div class="pctrl">
+          <select class="sel" style="flex:1">
+            <option>系统默认</option>
+            <option>Inter</option>
+            <option>Roboto</option>
+            <option>Montserrat</option>
+            <option>未下载 · Poppins</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="param stacked">
+        <span class="pname">粗细</span>
+        <div class="chip-row">
+          <button class="chip">细</button>
+          <button class="chip active">常规</button>
+          <button class="chip">中粗</button>
+          <button class="chip">粗</button>
+          <button class="chip">特粗</button>
+        </div>
+      </div>
+
+      <div class="param">
+        <span class="pname">斜体</span>
+        <div class="pctrl">
+          <label class="mini-check"><input type="checkbox"> 倾斜显示</label>
+          <span style="flex:1"></span>
+          <button class="chain" title="参数联动">${CHAIN_SVG}</button>
+        </div>
+      </div>
+
+      <div class="param stacked">
+        <span class="pname">排版</span>
+        <div class="chip-row">
+          <button class="chip active">横排</button>
+          <button class="chip">纵排</button>
+          <button class="chip">环形向心</button>
+        </div>
+      </div>
+
+      ${paramRow('字号', 100, 1, 300, '%')}
+
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
+        字体优先加载 Web 字体，加载失败自动回退系统字体；正在加载时预览会显示“字体加载中”。
       </div>`;
-  } else if (r.mode === 'image') {
+    syncRanges(body);
+  }
+
+  /* ---------- 图片模式 ---------- */
+  else if (r.mode === 'image') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 图片模式</div>
       <div class="cp-actions">
@@ -1032,8 +1156,14 @@ function renderContentBody() {
         <button class="btn ghost sm">剪裁</button>
       </div>
       <div class="cp-thumb">图片预览<br>（剪裁后）</div>
-      <div style="margin-top:8px;font-size:10px;color:var(--muted)">大于 1MB 的图片可能造成卡顿</div>`;
-  } else {
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
+        动图仅取首帧；大于 1MB 的图片可能造成卡顿。<br>
+        切换图片时旧图按会话图片仓库引用计数延迟释放。
+      </div>`;
+  }
+
+  /* ---------- FontAwesome 模式 ---------- */
+  else {
     const icons = ['★','♥','⚡','☀','☁','✦','✿','◆','▲','●','☂','♫','✔','✈','☕','♠','♦','♣','⚙','✎','⌘','☘','☯','⚑'];
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · FontAwesome 6</div>
@@ -1162,6 +1292,7 @@ function renderShapeBody() {
         <span class="pname"></span>
         <div class="pctrl"><button class="btn ghost sm" style="flex:1">填满绘图区域</button></div>
       </div>
+      <div style="font-size:10px;color:var(--muted);padding-top:6px">角星内角为 0° 时形状不可见</div>
     </div>
 
     <div class="pane${active === 'border' ? ' active' : ''}" data-pane="border">
@@ -1192,56 +1323,66 @@ function renderShapeBody() {
    ============================================================ */
 function renderFillBody() {
   const active = $('#fillTabs .tab.active')?.dataset.pane || 'layout';
+  const single = fillCount === 1;
+
   $('#fillBody').innerHTML = `
     <div class="pane${active === 'layout' ? ' active' : ''}" data-pane="layout">
-      <div class="param stacked" style="padding-top:0">
-        <span class="pname">布局形式</span>
-        <div class="chip-row">
-          <button class="chip active">矩阵布局</button>
-          <button class="chip">饼图布局</button>
+      ${single ? `
+        <div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">
+          单色填充无需设置布局与边界，直接到下方「内部填充」调整颜色即可。
+        </div>` : `
+        <div class="param stacked" style="padding-top:0">
+          <span class="pname">布局形式</span>
+          <div class="chip-row">
+            <button class="chip active">矩阵布局</button>
+            <button class="chip">饼图布局</button>
+          </div>
         </div>
-      </div>
-      ${paramRow('层数', 1, 1, 6, '')}
-      ${paramRow('层间比例', 50, 0, 100, '%')}
-      ${paramRow('层内比例', 50, 0, 100, '%')}
-      ${paramRow('方向', 0, 0, 360, '°')}
-      ${paramRow('X 偏移', 0, -100, 100, '%')}
-      ${paramRow('Y 偏移', 0, -100, 100, '%')}
-      ${paramRow('X 拉伸', 100, 1, 300, '%')}
-      ${paramRow('Y 拉伸', 100, 1, 300, '%')}
+        ${paramRow('层数', 1, 1, fillCount, '')}
+        ${paramRow('层间比例', 50, 0, 100, '%')}
+        ${paramRow('层内比例', 50, 0, 100, '%')}
+        ${paramRow('方向', 0, 0, 360, '°')}
+        ${paramRow('X 偏移', 0, -100, 100, '%')}
+        ${paramRow('Y 偏移', 0, -100, 100, '%')}
+        ${paramRow('X 拉伸', 100, 1, 300, '%')}
+        ${paramRow('Y 拉伸', 100, 1, 300, '%')}`}
     </div>
 
     <div class="pane${active === 'edge' ? ' active' : ''}" data-pane="edge">
-      ${paramRow('过渡宽度', 0, 0, 100, '%')}
-      <div class="param stacked">
-        <span class="pname">边界形状</span>
-        <div class="chip-row">
-          <button class="chip active">直线</button>
-          <button class="chip">sin</button>
-          <button class="chip">tan</button>
-          <button class="chip">锯齿</button>
+      ${single ? `
+        <div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">
+          单色填充没有内部边界，无需设置过渡与边界形状。
+        </div>` : `
+        ${paramRow('过渡宽度', 0, 0, 100, '%')}
+        <div class="param stacked">
+          <span class="pname">边界形状</span>
+          <div class="chip-row">
+            <button class="chip active">直线</button>
+            <button class="chip">sin</button>
+            <button class="chip">tan</button>
+            <button class="chip">锯齿</button>
+          </div>
         </div>
-      </div>
-      <div class="param stacked">
-        <span class="pname">边界参数</span>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-          ${['A','ω','φ','k'].map(p => `
-            <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
-              <span style="font-size:10px;color:var(--muted)">${p}</span>
-              <input class="num" style="width:100%;flex:1" value="1">
-            </div>`).join('')}
+        <div class="param stacked">
+          <span class="pname">边界参数</span>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+            ${['A','ω','φ','k'].map(p => `
+              <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
+                <span style="font-size:10px;color:var(--muted)">${p}</span>
+                <input class="num" style="width:100%;flex:1" value="1">
+              </div>`).join('')}
+          </div>
         </div>
-      </div>
-      <div class="param stacked">
-        <span class="pname">过渡样式</span>
-        <div class="chip-row">
-          <button class="chip active">单色</button>
-          <button class="chip">渐变</button>
-          <button class="chip">加深</button>
-          <button class="chip">变浅</button>
-          <button class="chip">透明</button>
-        </div>
-      </div>
+        <div class="param stacked">
+          <span class="pname">过渡样式</span>
+          <div class="chip-row">
+            <button class="chip active">单色</button>
+            <button class="chip">渐变</button>
+            <button class="chip">加深</button>
+            <button class="chip">变浅</button>
+            <button class="chip">透明</button>
+          </div>
+        </div>`}
     </div>
 
     <div class="pane${active === 'advice' ? ' active' : ''}" data-pane="advice">
@@ -1264,7 +1405,7 @@ function renderFillBody() {
 }
 
 /* ============================================================
-   内部填充色块
+   内部填充色块 —— 数量跟随「填充数量」
    ============================================================ */
 const FILL_COLORS = [
   { bg: 'linear-gradient(135deg,#6c8cff,#9b5cff)' },
@@ -1288,11 +1429,13 @@ function renderFillList() {
     b.onclick = () => { activeFill = i; renderFillList(); renderFillBody2(); };
     list.appendChild(b);
   }
+  $('#fillSub').textContent = `共 ${fillCount} 个色块`;
 }
 
 function renderFillBody2() {
   const c = FILL_COLORS[activeFill];
   $('#fillBody2').innerHTML = `
+    <div class="cp-label">色块 ${activeFill + 1} · 独立设置</div>
     <div class="segmented" style="margin-bottom:9px">
       <button class="active">纯</button><button>渐</button><button>图</button>
     </div>
@@ -1479,6 +1622,19 @@ function init() {
 
   drawIcon();
   updateSize();
+
+  /* 填充数量 → 色块数量联动 */
+  $('#fillCount').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const kids = Array.from(chip.parentElement.children);
+    const idx = kids.indexOf(chip);
+    fillCount = idx === 0 ? 1 : idx + 1;
+    if (activeFill >= fillCount) activeFill = 0;
+    renderFillList();
+    renderFillBody2();
+    renderFillBody();
+  });
 
   // 通用：chip 单选组
   document.addEventListener('click', e => {
