@@ -345,7 +345,7 @@ body.preview-float .preview-placeholder{
 }
 
 /* ============================================================
-   标签页 —— 未激活明显更浅
+   标签页
    ============================================================ */
 .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
 .tab{
@@ -887,7 +887,6 @@ input[type=range]::-moz-range-thumb{
     </section>
     <div class="preview-placeholder" aria-hidden="true"></div>
 
-    <!-- ============ 合并模块：预设、历史和下载 ============ -->
     <section class="module" id="modulePreset">
       <div class="module-head">
         <span class="mh-title">预设、历史和下载</span>
@@ -985,15 +984,23 @@ input[type=range]::-moz-range-thumb{
             <div class="pill-row" id="rowCount"></div>
           </div>
         </div>
-        <div class="param stacked">
+
+        <!-- 排版模式：参数名与按钮同行 -->
+        <div class="param inline-chips">
           <span class="pname">排版模式</span>
-          <div class="chip-row" id="layoutChips"></div>
+          <div class="pctrl">
+            <div class="chip-row" id="layoutChips"></div>
+          </div>
         </div>
-        <div class="param stacked" id="layerParam">
+
+        <!-- 多行排列层次：参数名与按钮同行 -->
+        <div class="param inline-chips" id="layerParam">
           <span class="pname">多行排列层次</span>
-          <div class="chip-row">
-            <button class="chip active">1 行 → 9 行</button>
-            <button class="chip">9 行 → 1 行</button>
+          <div class="pctrl">
+            <div class="chip-row">
+              <button class="chip active">1 行 → 9 行</button>
+              <button class="chip">9 行 → 1 行</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1997,7 +2004,6 @@ function paneShadow() {
 }
 
 function bindStylePaneEvents(){
-  /* 颜色模式切换 */
   const seg = $('#colorModeSeg');
   if (seg) {
     seg.addEventListener('click', e => {
@@ -2005,11 +2011,10 @@ function bindStylePaneEvents(){
       const newMode = b.dataset.cmode;
       if (newMode === currentColorMode) return;
       currentColorMode = newMode;
-      renderStyle(); /* 重渲染整个样式面板以更新颜色 2 与建议部分 */
+      renderStyle();
     });
   }
 
-  /* 颜色建议点击 */
   $$('#styleBody .sw[data-c]').forEach(sw => {
     sw.addEventListener('click', () => toast('已应用建议颜色 ' + sw.dataset.c));
   });
@@ -2017,7 +2022,6 @@ function bindStylePaneEvents(){
     pair.addEventListener('click', () => toast(`已应用渐变：${pair.dataset.c1} → ${pair.dataset.c2}`));
   });
 
-  /* 阴影启用 → 标签绿勾 */
   const sh = $('#shadowEnable');
   if (sh) {
     $('#styleTabs [data-pane=shadow]').classList.toggle('enabled', sh.checked);
@@ -2096,7 +2100,6 @@ function renderShapeBody() {
 
   syncRanges($('#shapeBody'));
 
-  /* 形状 chip 互斥 */
   $('#shapeBody').querySelectorAll('[data-group="shape"] .chip').forEach(chip => {
     chip.addEventListener('click', () => {
       $('#shapeBody').querySelectorAll('[data-group="shape"] .chip')
@@ -2235,7 +2238,6 @@ function renderFillBody() {
 
   syncRanges($('#fillBody'));
 
-  /* 边界形状切换 → 重新渲染边界参数 */
   const edgeRow = $('#edgeShapeRow');
   if (edgeRow) {
     edgeRow.querySelectorAll('.chip').forEach(chip => {
@@ -2744,7 +2746,6 @@ $('#styleReset').addEventListener('click', () => {
   toast('已重置当前行样式');
 });
 
-/* 填充数量 → 色块数量 */
 $('#fillCount').addEventListener('click', e => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -2760,7 +2761,6 @@ $('#fillCount').addEventListener('click', e => {
   toast(`填充数量：${fillCount === 1 ? '单色' : fillCount + '色'}`);
 });
 
-/* 通用 chip 单选 */
 document.addEventListener('click', e => {
   const chip = e.target.closest('.chip-row .chip');
   if (chip && !chip.closest('#fillCount')
