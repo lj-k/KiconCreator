@@ -238,7 +238,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .btn.icon svg{width:14px;height:14px}
 
 /* ============================================================
-   预览模块（正方形自适应）
+   预览模块
    ============================================================ */
 .module-preview{
   min-height: 160px;
@@ -345,7 +345,7 @@ body.preview-float .preview-placeholder{
 }
 
 /* ============================================================
-   标签页 —— 未激活明显更浅，激活为浅蓝
+   标签页 —— 未激活明显更浅
    ============================================================ */
 .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
 .tab{
@@ -422,7 +422,7 @@ body.preview-float .preview-placeholder{
 .param+.param{border-top:1px dashed color-mix(in srgb,var(--border) 70%,transparent)}
 .param.stacked+.param.stacked{border-top:none}
 
-/* tight：参数名后立刻开始控件（滑轨） */
+/* tight：参数名后立刻开始控件 */
 .param.tight>.pname{
   flex:0 0 auto;
   padding-right:8px;
@@ -431,7 +431,7 @@ body.preview-float .preview-placeholder{
   opacity:.85;
 }
 
-/* inline-chips：参数名与选项同行，不占用纵向空间 */
+/* inline-chips：参数名与选项同行 */
 .param.inline-chips{align-items:flex-start;padding:6px 0}
 .param.inline-chips>.pname{
   flex:0 0 auto;
@@ -472,6 +472,7 @@ input[type=range]::-moz-range-thumb{
 }
 .num:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
 .num.wide{width:62px;flex:0 0 62px}
+.num.tiny{width:42px;flex:0 0 42px}
 .unit{font-size:10px;color:var(--muted);flex:none;min-width:10px}
 
 @keyframes flashInvalid{
@@ -701,12 +702,19 @@ input[type=range]::-moz-range-thumb{
 
 /* ================= 颜色建议 ================= */
 .suggest-legend{display:flex;gap:12px;font-size:10px;color:var(--muted);margin:8px 0 4px}
-.suggest-row{display:flex;gap:6px;flex-wrap:wrap}
+.suggest-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .sw{
   width:22px;height:22px;border-radius:7px;cursor:pointer;
   border:1px solid var(--border-strong);transition:.15s;
 }
 .sw:hover{transform:scale(1.15);border-color:var(--accent)}
+.sw-pair{
+  display:inline-flex;gap:3px;padding:2px;border-radius:9px;
+  border:1px solid var(--border-strong);cursor:pointer;transition:.15s;
+}
+.sw-pair:hover{transform:scale(1.1);border-color:var(--accent)}
+.sw-pair .sw{border:0;border-radius:5px;width:18px;height:18px}
+.sw-pair .sw:hover{transform:none}
 
 /* ================= 填充色块 ================= */
 .fill-group{display:flex;gap:9px;align-items:flex-start}
@@ -765,6 +773,8 @@ input[type=range]::-moz-range-thumb{
 }
 .modal-body:active{cursor:grabbing}
 .modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
+
+.hidden{display:none !important}
 
 /* ================= 小屏适配 ================= */
 @media (max-width:520px){
@@ -877,14 +887,16 @@ input[type=range]::-moz-range-thumb{
     </section>
     <div class="preview-placeholder" aria-hidden="true"></div>
 
-    <section class="module">
+    <!-- ============ 合并模块：预设、历史和下载 ============ -->
+    <section class="module" id="modulePreset">
       <div class="module-head">
-        <span class="mh-title">预设与历史</span>
+        <span class="mh-title">预设、历史和下载</span>
       </div>
       <div class="module-body">
-        <div class="tabs" id="phTabs">
+        <div class="tabs" id="phdTabs">
           <button class="tab active" data-pane="preset">预设</button>
           <button class="tab" data-pane="history">历史</button>
+          <button class="tab" data-pane="download">下载</button>
         </div>
         <div class="tab-body">
           <div class="pane active" data-pane="preset" data-label="预设">
@@ -900,69 +912,61 @@ input[type=range]::-moz-range-thumb{
           <div class="pane" data-pane="history" data-label="历史">
             <div class="history-list" id="historyList"></div>
           </div>
-        </div>
-      </div>
-    </section>
+          <div class="pane" data-pane="download" data-label="下载">
+            <label class="check-row">
+              <input type="checkbox" id="transparentChk">
+              白色作为透明色导出
+              <span class="hint">JPG 不支持透明</span>
+            </label>
 
-    <section class="module">
-      <div class="module-head">
-        <span class="mh-title">下载</span>
-        <span class="mh-spacer"></span>
-        <span class="mh-sub">导出即所见</span>
-      </div>
-      <div class="module-body">
-        <label class="check-row">
-          <input type="checkbox" id="transparentChk">
-          白色作为透明色导出
-          <span class="hint">JPG 不支持透明</span>
-        </label>
+            <div class="param">
+              <span class="pname">导出尺寸</span>
+              <div class="pctrl">
+                <select class="sel" id="sizePreset">
+                  <option value="16">16 × 16</option>
+                  <option value="32">32 × 32</option>
+                  <option value="64">64 × 64</option>
+                  <option value="128">128 × 128</option>
+                  <option value="256" selected>256 × 256</option>
+                  <option value="512">512 × 512</option>
+                  <option value="1024">1024 × 1024</option>
+                </select>
+                <input class="num wide" id="sizeInput" value="256">
+                <span class="unit">px</span>
+              </div>
+            </div>
 
-        <div class="param">
-          <span class="pname">导出尺寸</span>
-          <div class="pctrl">
-            <select class="sel" id="sizePreset">
-              <option value="16">16 × 16</option>
-              <option value="32">32 × 32</option>
-              <option value="64">64 × 64</option>
-              <option value="128">128 × 128</option>
-              <option value="256" selected>256 × 256</option>
-              <option value="512">512 × 512</option>
-              <option value="1024">1024 × 1024</option>
-            </select>
-            <input class="num wide" id="sizeInput" value="256">
-            <span class="unit">px</span>
+            <label class="check-row">
+              <input type="checkbox" id="multiSizeChk">
+              多尺寸打包
+              <span class="hint">32 / 64 / 128 / 256</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="codeChk">
+              代码打包
+              <span class="hint">canvas + json</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="rawChk">
+              原始图片打包
+            </label>
+
+            <div class="divider"></div>
+
+            <div class="format-grid">
+              <button class="fmt" data-fmt="png">PNG</button>
+              <button class="fmt" data-fmt="jpg">JPG</button>
+              <button class="fmt" data-fmt="webp">WEBP</button>
+              <button class="fmt" data-fmt="ico">ICO</button>
+              <button class="fmt" data-fmt="canvas">CANVAS</button>
+              <button class="fmt" data-fmt="json">JSON</button>
+              <button class="fmt" data-fmt="html">HTML</button>
+              <button class="fmt" data-fmt="svg">SVG</button>
+            </div>
+
+            <div class="filename" id="fileName">KIcon-256-K-20260914153000.png</div>
           </div>
         </div>
-
-        <label class="check-row">
-          <input type="checkbox" id="multiSizeChk">
-          多尺寸打包
-          <span class="hint">32 / 64 / 128 / 256</span>
-        </label>
-        <label class="check-row">
-          <input type="checkbox" id="codeChk">
-          代码打包
-          <span class="hint">canvas + json</span>
-        </label>
-        <label class="check-row">
-          <input type="checkbox" id="rawChk">
-          原始图片打包
-        </label>
-
-        <div class="divider"></div>
-
-        <div class="format-grid">
-          <button class="fmt" data-fmt="png">PNG</button>
-          <button class="fmt" data-fmt="jpg">JPG</button>
-          <button class="fmt" data-fmt="webp">WEBP</button>
-          <button class="fmt" data-fmt="ico">ICO</button>
-          <button class="fmt" data-fmt="canvas">CANVAS</button>
-          <button class="fmt" data-fmt="json">JSON</button>
-          <button class="fmt" data-fmt="html">HTML</button>
-          <button class="fmt" data-fmt="svg">SVG</button>
-        </div>
-
-        <div class="filename" id="fileName">KIcon-256-K-20260914153000.png</div>
       </div>
     </section>
 
@@ -1413,7 +1417,6 @@ function refreshLayout(){
 
 /* ============================================================
    通用参数行构造
-   —— 默认不带联动；opts.chain=true 才显示
    ============================================================ */
 function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
   const step = opts.step ?? 1;
@@ -1432,7 +1435,6 @@ function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
   </div>`;
 }
 
-/* 参数名与选项同行的 chip 组 */
 function inlineChips(name, chips, activeIdx = 0, opts = {}) {
   const showChain = opts.chain === true;
   const groupAttr = opts.group ? `data-group="${opts.group}"` : '';
@@ -1446,7 +1448,6 @@ function inlineChips(name, chips, activeIdx = 0, opts = {}) {
   </div>`;
 }
 
-/* 兼容旧调用 */
 function stackedChips(name, chips, activeIdx = 0) {
   return inlineChips(name, chips, activeIdx);
 }
@@ -1477,6 +1478,7 @@ function bindTabs(root) {
         $$('.pane', body).forEach(p => {
           p.classList.toggle('active', p.dataset.pane === tab.dataset.pane);
         });
+        requestAnimationFrame(refreshLayout);
       });
     });
   });
@@ -1592,6 +1594,7 @@ let rows = [
 let rowCount = 2;
 let activeRow = 0;
 let styleClipboard = null;
+let currentColorMode = '单色';
 
 function rowLabel(r) {
   if (r.mode === 'text') return r.text || '空';
@@ -1708,14 +1711,13 @@ function renderContentTabs() {
 }
 
 /* ============================================================
-   内容右侧面板（随模式展示）
+   内容右侧面板
    ============================================================ */
 function renderContentBody() {
   const r = rows[activeRow];
   const idx = activeRow + 1;
   const body = $('#contentBody');
 
-  /* ---------- 文本模式 ---------- */
   if (r.mode === 'text') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 文本模式</div>
@@ -1783,7 +1785,7 @@ function renderContentBody() {
         </div>
       </div>
 
-      <div class="param tight">
+      <div class="param tight" title="字体优先加载 Web 字体，加载失败自动回退系统字体；正在加载时预览会显示『字体加载中』">
         <span class="pname">字号</span>
         <div class="pctrl">
           <input type="range" min="1" max="300" value="100">
@@ -1791,13 +1793,8 @@ function renderContentBody() {
           <span class="unit">%</span>
           <button class="chain" title="参数联动">${CHAIN_SVG}</button>
         </div>
-      </div>
-
-      <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
-        字体优先加载 Web 字体，加载失败自动回退系统字体；正在加载时预览会显示"字体加载中"。
       </div>`;
   }
-  /* ---------- 图片模式 ---------- */
   else if (r.mode === 'image') {
     body.innerHTML = `
       <div class="cp-label">第 ${idx} 行 · 图片模式</div>
@@ -1811,7 +1808,6 @@ function renderContentBody() {
         切换图片时旧图按会话图片仓库引用计数延迟释放。
       </div>`;
   }
-  /* ---------- FontAwesome 模式 ---------- */
   else {
     const icons = ['★','♥','⚡','☀','☁','✦','✿','◆','▲','●','☂','♫','✔','✈','☕','♠','♦','♣','⚙','✎','⌘','☘','☯','⚑'];
     body.innerHTML = `
@@ -1874,6 +1870,48 @@ function renderContentBody() {
 /* ============================================================
    样式模块
    ============================================================ */
+const ADVICE_SINGLE = [
+  { name: '互补色', colors: ['#4d6ef5', '#f5a04d', '#f5d74d', '#4df5a0'] },
+  { name: '类似色', colors: ['#4d6ef5', '#7c5cff', '#a04df5', '#c04de0'] },
+  { name: '柔和色', colors: ['#a8b8f0', '#f0c9a8', '#f0e6a8', '#a8f0c2'] },
+  { name: '明亮色', colors: ['#22d3ee', '#facc15', '#f97316', '#22c55e'] }
+];
+const ADVICE_PAIR = [
+  { name: '互补色', colors: [['#4d6ef5','#f5a04d'], ['#f5d74d','#4df5a0'], ['#a04df5','#f54d6e'], ['#22d3ee','#4df5d7']] },
+  { name: '类似色', colors: [['#4d6ef5','#7c5cff'], ['#a04df5','#c04de0'], ['#4da0f5','#4df5d7'], ['#7c5cff','#a04df5']] },
+  { name: '柔和色', colors: [['#a8b8f0','#f0c9a8'], ['#f0e6a8','#a8f0c2'], ['#d8a8f0','#f0a8c9'], ['#a8f0e6','#c2f0a8']] },
+  { name: '明亮色', colors: [['#22d3ee','#facc15'], ['#f97316','#22c55e'], ['#ec4899','#8b5cf6'], ['#facc15','#22d3ee']] }
+];
+
+function buildAdviceHTML(mode){
+  const single = mode === '单色';
+  if (single){
+    return ADVICE_SINGLE.map(g => `
+      <div class="param tight">
+        <span class="pname">${g.name}</span>
+        <div class="pctrl">
+          <div class="suggest-row">
+            ${g.colors.map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}
+          </div>
+        </div>
+      </div>`).join('');
+  } else {
+    return ADVICE_PAIR.map(g => `
+      <div class="param tight">
+        <span class="pname">${g.name}</span>
+        <div class="pctrl">
+          <div class="suggest-row">
+            ${g.colors.map(p => `
+              <button class="sw-pair" data-c1="${p[0]}" data-c2="${p[1]}">
+                <span class="sw" style="background:${p[0]}"></span>
+                <span class="sw" style="background:${p[1]}"></span>
+              </button>`).join('')}
+          </div>
+        </div>
+      </div>`).join('');
+  }
+}
+
 function paneSize() {
   return `
     ${paramRow('大小', 100, 1, 300, '%', {chain:true})}
@@ -1891,7 +1929,7 @@ function paneSize() {
 function paneColor(r) {
   if (r.mode === 'image') {
     return `
-      <div class="param">
+      <div class="param tight">
         <span class="pname">颜色</span>
         <div class="pctrl">
           <label class="check-row" style="padding:0">
@@ -1900,35 +1938,43 @@ function paneColor(r) {
         </div>
       </div>`;
   }
+
+  const grad = currentColorMode === '渐变';
   return `
-    <div class="param stacked" style="padding-top:0">
+    <div class="param tight">
       <span class="pname">颜色模式</span>
-      <div class="segmented" id="colorModeSeg" style="align-self:flex-start">
-        <button class="active" data-cmode="单色">单色</button>
-        <button data-cmode="渐变">渐变</button>
+      <div class="pctrl">
+        <div class="segmented" id="colorModeSeg" style="flex:0 0 auto">
+          <button data-cmode="单色" class="${grad ? '' : 'active'}">单色</button>
+          <button data-cmode="渐变" class="${grad ? 'active' : ''}">渐变</button>
+        </div>
+        <span style="flex:1"></span>
+        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
       </div>
     </div>
+
     <div class="param tight">
       <span class="pname">颜色 1</span>
       <div class="pctrl">
         <button class="fill-swatch" style="background:linear-gradient(135deg,#6c8cff,#9b5cff);width:24px;height:24px;border-radius:7px"></button>
         <input class="mini-input" value="#6C8CFF" style="flex:1">
+        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
       </div>
     </div>
-    <div class="param tight hidden" id="c2Row">
+
+    ${grad ? `
+    <div class="param tight">
       <span class="pname">颜色 2</span>
       <div class="pctrl">
         <button class="fill-swatch" style="background:linear-gradient(135deg,#22d3ee,#a78bfa);width:24px;height:24px;border-radius:7px"></button>
         <input class="mini-input" value="#22D3EE" style="flex:1">
+        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
       </div>
-    </div>
-    <div class="param stacked">
-      <span class="pname">颜色建议</span>
-      <div class="suggest-legend"><span>互补</span><span>类似</span><span>柔和</span><span>明亮</span></div>
-      <div class="suggest-row">
-        ${['#4d6ef5','#7c5cff','#22c55e','#f59e0b','#ef4444','#0ea5e9','#ec4899','#14b8a6']
-          .map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}
-      </div>
+    </div>` : ''}
+
+    <div class="param stacked" style="margin-top:6px">
+      <span class="pname">颜色建议${grad ? '（渐变对）' : '（单色）'}</span>
+      <div id="colorAdviceWrap">${buildAdviceHTML(currentColorMode)}</div>
     </div>`;
 }
 function paneShadow() {
@@ -1941,12 +1987,44 @@ function paneShadow() {
       <div class="pctrl">
         <button class="fill-swatch" style="background:#1d2333;width:24px;height:24px;border-radius:7px"></button>
         <input class="mini-input" value="#1D2333" style="flex:1">
+        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
       </div>
     </div>
     ${paramRow('大小', 12, 0, 100, '', {chain:true})}
     ${paramRow('模糊', 10, 0, 100, '', {chain:true})}
     ${paramRow('X 偏移', 0, -100, 100, '', {chain:true})}
     ${paramRow('Y 偏移', 4, -100, 100, '', {chain:true})}`;
+}
+
+function bindStylePaneEvents(){
+  /* 颜色模式切换 */
+  const seg = $('#colorModeSeg');
+  if (seg) {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const newMode = b.dataset.cmode;
+      if (newMode === currentColorMode) return;
+      currentColorMode = newMode;
+      renderStyle(); /* 重渲染整个样式面板以更新颜色 2 与建议部分 */
+    });
+  }
+
+  /* 颜色建议点击 */
+  $$('#styleBody .sw[data-c]').forEach(sw => {
+    sw.addEventListener('click', () => toast('已应用建议颜色 ' + sw.dataset.c));
+  });
+  $$('#styleBody .sw-pair').forEach(pair => {
+    pair.addEventListener('click', () => toast(`已应用渐变：${pair.dataset.c1} → ${pair.dataset.c2}`));
+  });
+
+  /* 阴影启用 → 标签绿勾 */
+  const sh = $('#shadowEnable');
+  if (sh) {
+    $('#styleTabs [data-pane=shadow]').classList.toggle('enabled', sh.checked);
+    sh.addEventListener('change', () => {
+      $('#styleTabs [data-pane=shadow]').classList.toggle('enabled', sh.checked);
+    });
+  }
 }
 
 function renderStyle() {
@@ -1960,30 +2038,8 @@ function renderStyle() {
     <div class="pane${active === 'color' ? ' active' : ''}" data-pane="color" data-label="颜色">${paneColor(r)}</div>
     <div class="pane${active === 'shadow' ? ' active' : ''}" data-pane="shadow" data-label="阴影">${paneShadow()}</div>`;
   syncRanges($('#styleBody'));
+  bindStylePaneEvents();
 
-  /* 颜色模式切换 */
-  const seg = $('#colorModeSeg');
-  if (seg) {
-    seg.addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      $$('button', seg).forEach(x => x.classList.toggle('active', x === b));
-      const isGrad = b.dataset.cmode === '渐变';
-      $('#c2Row')?.classList.toggle('hidden', !isGrad);
-    });
-  }
-
-  /* 阴影启用 → 标签绿勾 */
-  const sh = $('#shadowEnable');
-  if (sh) {
-    $('#styleTabs [data-pane=shadow]').classList.toggle('enabled', sh.checked);
-    sh.addEventListener('change', () => {
-      $('#styleTabs [data-pane=shadow]').classList.toggle('enabled', sh.checked);
-    });
-  }
-
-  $$('#styleBody .sw').forEach(sw => {
-    sw.addEventListener('click', () => toast('已应用建议颜色 ' + sw.dataset.c));
-  });
   $$('#styleBody .chain').forEach(ch => ch.addEventListener('click', () => {
     ch.classList.toggle('on');
   }));
@@ -2040,11 +2096,10 @@ function renderShapeBody() {
 
   syncRanges($('#shapeBody'));
 
-  /* 形状 chip 互斥：三组之间共享唯一选中态 */
-  const shapeBody = $('#shapeBody');
-  shapeBody.querySelectorAll('[data-group="shape"] .chip').forEach(chip => {
+  /* 形状 chip 互斥 */
+  $('#shapeBody').querySelectorAll('[data-group="shape"] .chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      shapeBody.querySelectorAll('[data-group="shape"] .chip')
+      $('#shapeBody').querySelectorAll('[data-group="shape"] .chip')
         .forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       toast('形状：' + chip.textContent);
@@ -2075,20 +2130,54 @@ function renderShapeBody() {
 /* ============================================================
    填充模块
    ============================================================ */
-const ADVICE_PALETTES = {
+const FILL_ADVICE = {
   互补: ['#4d6ef5','#f5a04d','#f5d74d','#4df5a0','#a04df5','#f54d6e'],
   类似: ['#4d6ef5','#7c5cff','#a04df5','#c04de0','#4da0f5','#4df5d7'],
   柔和: ['#a8b8f0','#f0c9a8','#f0e6a8','#a8f0c2','#d8a8f0','#f0a8c9'],
   明亮: ['#22d3ee','#facc15','#f97316','#22c55e','#ec4899','#8b5cf6']
 };
 
+let currentEdgeShape = '直线';
+
+function buildEdgeParams(shape){
+  if (shape === '直线'){
+    return `<div style="font-size:10.5px;color:var(--muted);padding:4px 0">直线边界无可调参数</div>`;
+  }
+  if (shape === 'sin' || shape === 'tan'){
+    return `
+      <div class="param tight">
+        <span class="pname">边界参数</span>
+        <div class="pctrl" style="gap:6px">
+          ${['A','ω','φ','k'].map(p => `
+            <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
+              <span style="font-size:9.5px;color:var(--muted)">${p}</span>
+              <input class="num tiny" style="width:100%;flex:1" value="1">
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+  if (shape === '锯齿'){
+    return `
+      <div class="param tight">
+        <span class="pname">边界参数</span>
+        <div class="pctrl" style="gap:6px">
+          ${['A','ω'].map(p => `
+            <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
+              <span style="font-size:9.5px;color:var(--muted)">${p}</span>
+              <input class="num tiny" style="width:100%;flex:1" value="1">
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+  return '';
+}
+
 function renderFillBody() {
   const active = $('#fillTabs .tab.active')?.dataset.pane || 'layout';
   const single = fillCount === 1;
 
-  /* 颜色建议：数量跟随填充数量 */
   const adviceRow = (name, key) => {
-    const palette = ADVICE_PALETTES[key].slice(0, fillCount);
+    const palette = FILL_ADVICE[key].slice(0, fillCount);
     return `<div class="param tight">
       <span class="pname">${name}</span>
       <div class="pctrl">
@@ -2123,17 +2212,16 @@ function renderFillBody() {
           单色填充没有内部边界，无需设置过渡与边界形状。
         </div>` : `
         ${paramRow('过渡宽度', 0, 0, 100, '%')}
-        ${inlineChips('边界形状', ['直线','sin','tan','锯齿'])}
-        <div class="param stacked">
-          <span class="pname">边界参数</span>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
-            ${['A','ω','φ','k'].map(p => `
-              <div style="display:flex;flex-direction:column;gap:3px;align-items:center">
-                <span style="font-size:10px;color:var(--muted)">${p}</span>
-                <input class="num" style="width:100%;flex:1" value="1">
-              </div>`).join('')}
+        <div class="param inline-chips" id="edgeShapeRow">
+          <span class="pname">边界形状</span>
+          <div class="pctrl">
+            <div class="chip-row">
+              ${['直线','sin','tan','锯齿'].map(s =>
+                `<button class="chip${s === currentEdgeShape ? ' active' : ''}" data-shape="${s}">${s}</button>`).join('')}
+            </div>
           </div>
         </div>
+        <div id="edgeParamsWrap">${buildEdgeParams(currentEdgeShape)}</div>
         ${inlineChips('过渡样式', ['单色','渐变','加深','变浅','透明'])}`}
     </div>
 
@@ -2147,7 +2235,23 @@ function renderFillBody() {
 
   syncRanges($('#fillBody'));
 
+  /* 边界形状切换 → 重新渲染边界参数 */
+  const edgeRow = $('#edgeShapeRow');
+  if (edgeRow) {
+    edgeRow.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        currentEdgeShape = chip.dataset.shape;
+        edgeRow.querySelectorAll('.chip').forEach(c =>
+          c.classList.toggle('active', c === chip));
+        const wrap = $('#edgeParamsWrap');
+        if (wrap) wrap.innerHTML = buildEdgeParams(currentEdgeShape);
+        syncRanges(wrap);
+      });
+    });
+  }
+
   $$('#fillBody .chip-row').forEach(row => {
+    if (row.closest('#edgeShapeRow')) return;
     row.addEventListener('click', e => {
       const chip = e.target.closest('.chip');
       if (!chip) return;
@@ -2172,7 +2276,7 @@ const FILL_COLORS = [
 ];
 let fillCount = 2;
 let activeFill = 0;
-let fillModes = ['纯','纯','纯','纯','纯','纯']; /* 每个色块独立模式 */
+let fillModes = ['纯','纯','纯','纯','纯','纯'];
 
 function renderFillList() {
   const list = $('#fillList');
@@ -2248,13 +2352,13 @@ function renderFillBody2() {
       ${paramRow('渐变角度', 90, 0, 360, '°', {chain:true})}`;
   } else {
     content += `
-      <label class="upload-box" style="display:block;text-align:center;padding:14px;border:1.5px dashed var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;margin:6px 0">
+      <label style="display:block;text-align:center;padding:14px;border:1.5px dashed var(--border);border-radius:10px;color:var(--muted);font-size:12px;cursor:pointer;margin:6px 0">
         📁 上传背景图片
       </label>
       ${paramRow('大小', 100, 10, 300, '%', {chain:true})}
       ${paramRow('位置 X', 0, -100, 100, '%', {chain:true})}
       ${paramRow('位置 Y', 0, -100, 100, '%', {chain:true})}
-      <div class="hint" style="font-size:10px;color:var(--muted);margin-top:6px">
+      <div style="font-size:10px;color:var(--muted);margin-top:6px">
         背景填充全部被外框形状裁切
       </div>`;
   }
@@ -2262,7 +2366,6 @@ function renderFillBody2() {
   $('#fillBody2').innerHTML = content;
   syncRanges($('#fillBody2'));
 
-  /* 模式切换 */
   const seg = $('#fillModeSeg');
   if (seg) {
     seg.addEventListener('click', e => {
@@ -2373,6 +2476,7 @@ function renderHistory() {
    参数滑块填充同步 + 校验
    ============================================================ */
 function syncRanges(root) {
+  if (!root) return;
   $$('input[type=range]', root).forEach(r => {
     const row = r.closest('.param');
     const min = +r.min || 0, max = +r.max || 100;
@@ -2660,7 +2764,8 @@ $('#fillCount').addEventListener('click', e => {
 document.addEventListener('click', e => {
   const chip = e.target.closest('.chip-row .chip');
   if (chip && !chip.closest('#fillCount')
-      && !chip.closest('[data-group="shape"]')){
+      && !chip.closest('[data-group="shape"]')
+      && !chip.closest('#edgeShapeRow')){
     $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
   }
 });
