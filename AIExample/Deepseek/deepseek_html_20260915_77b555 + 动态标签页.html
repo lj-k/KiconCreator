@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KiconCreator · 图标王制作器 V2.02</title>
 <style>
-/* ============================================================
-   主题变量
-   ============================================================ */
+/* ================= 主题变量 ================= */
 :root{
   --radius:12px; --radius-sm:9px;
   --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 22px rgba(16,24,40,.06);
@@ -41,10 +39,7 @@ html[data-theme="dark"]{
   --ok:#3ddc84; --warn:#ff7a59; --err:#ff5f5f;
   --checker-a:#20242e; --checker-b:#171a22;
 }
-
-/* ============================================================
-   基础
-   ============================================================ */
+/* ================= 基础 ================= */
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%;overflow:hidden}
 body{
@@ -64,9 +59,7 @@ button{font-family:inherit}
 input,select{font-family:inherit}
 .hidden{display:none !important}
 
-/* ============================================================
-   顶栏
-   ============================================================ */
+/* ================= 顶栏 ================= */
 .topbar{
   z-index:60;display:flex;align-items:center;gap:14px;padding:9px 18px;
   background:color-mix(in srgb, var(--panel) 88%, transparent);
@@ -84,14 +77,12 @@ input,select{font-family:inherit}
 .ver{font-size:10px;font-weight:600;padding:1.5px 6px;border-radius:99px;background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 26%, transparent)}
 .brand-text p{margin:2px 0 0;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar-actions{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-
 .segmented{display:inline-flex;background:var(--field);border:1px solid var(--border);border-radius:9px;padding:2px;gap:2px}
 .segmented button{border:0;background:transparent;color:var(--muted);font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:7px;cursor:pointer;transition:.15s;line-height:1}
 .segmented button:hover{color:var(--text)}
 .segmented button.active{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
 .segmented.icon-only button{padding:6px 8px;display:grid;place-items:center}
 .segmented.icon-only svg{width:15px;height:15px}
-
 .linkage-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--field);color:var(--muted);font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:9px;cursor:pointer;transition:.15s}
 .linkage-btn:hover{border-color:var(--accent);color:var(--accent)}
 .linkage-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);box-shadow:0 0 0 3px color-mix(in srgb,var(--muted) 18%,transparent)}
@@ -99,49 +90,31 @@ input,select{font-family:inherit}
 .linkage-btn.all .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}
 .linkage-btn.none .dot{background:var(--muted)}
 
-/* ============================================================
-   主布局（三栏/两栏/单栏）
-   ============================================================ */
+/* ================= 布局 ================= */
 .layout{min-height:0;min-width:0;overflow:hidden;display:grid;gap:14px;padding:14px 18px}
-html[data-layout="three"] .layout{
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  grid-template-rows:minmax(0, 1fr);
-}
-html[data-layout="two"] .layout{
-  grid-template-columns:minmax(240px, 1fr) minmax(280px, 1.5fr);
-  grid-template-rows:minmax(0, 1fr);
-}
-html[data-layout="one"] .layout{
-  display:flex;flex-direction:column;
-  overflow-y:auto;overflow-x:hidden;
-  padding:10px 12px;gap:12px;
-}
-
+html[data-layout="three"] .layout{grid-template-columns:repeat(3, minmax(0, 1fr));grid-template-rows:minmax(0, 1fr)}
+html[data-layout="two"] .layout{grid-template-columns:minmax(240px, 1fr) minmax(280px, 1.5fr);grid-template-rows:minmax(0, 1fr)}
+html[data-layout="one"] .layout{display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:10px 12px;gap:12px}
 .col{display:flex;flex-direction:column;gap:14px;min-width:0;min-height:0}
 html[data-layout="three"] .col,
 html[data-layout="two"] .col{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
 html[data-layout="one"] .col{display:contents}
-
 html[data-layout="two"] .col-left{grid-column:1;grid-row:1}
 html[data-layout="two"] .col-mid{grid-column:2;grid-row:1;padding-top:var(--merge-tabs-h)}
 html[data-layout="two"] .col-right{grid-column:2;grid-row:1;padding-top:var(--merge-tabs-h)}
 html[data-layout="two"] .col-mid:not(.active),
 html[data-layout="two"] .col-right:not(.active){display:none}
 
-/* 两栏合并标签栏 */
 .merge-tabs{
   display:none;position:fixed;z-index:50;gap:4px;padding:4px;
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:10px;box-shadow:var(--shadow);
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);
 }
 html[data-layout="two"] .merge-tabs{display:flex}
 .merge-tab{flex:1;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;transition:.15s}
 .merge-tab:hover{color:var(--text)}
 .merge-tab.active{background:var(--accent-soft);color:var(--accent);box-shadow:var(--shadow)}
 
-/* ============================================================
-   模块
-   ============================================================ */
+/* ================= 模块 ================= */
 .module{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;min-width:0;flex:0 0 auto}
 .module-head{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:12.5px;font-weight:700;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--panel-2),var(--panel));min-height:38px}
 .mh-title{letter-spacing:.2px}
@@ -159,9 +132,7 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .btn.icon{padding:5px 7px;display:grid;place-items:center}
 .btn.icon svg{width:14px;height:14px}
 
-/* ============================================================
-   预览模块
-   ============================================================ */
+/* ================= 预览 ================= */
 .module-preview{min-height:160px;display:flex;flex-direction:column;flex:0 0 auto;transition:height .18s ease-out}
 .module-preview .module-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px}
 .preview-stage{
@@ -200,18 +171,12 @@ html[data-layout="two"] .module-preview .preview-stage{padding:8px}
 html[data-layout="three"] .module-preview .hint-text,
 html[data-layout="two"] .module-preview .hint-text{display:none}
 .preview-placeholder{display:none;flex:0 0 auto}
-body.preview-float .module-preview{
-  position:fixed;top:var(--topbar-h);z-index:45;margin:0;border-radius:var(--radius);
-  box-shadow:0 16px 38px rgba(16,24,40,.22), 0 4px 10px rgba(16,24,40,.10);
-}
+body.preview-float .module-preview{position:fixed;top:var(--topbar-h);z-index:45;margin:0;border-radius:var(--radius);box-shadow:0 16px 38px rgba(16,24,40,.22), 0 4px 10px rgba(16,24,40,.10)}
 body.preview-float .preview-placeholder{display:block;height:var(--preview-placeholder-h, 220px)}
 
-/* ============================================================
-   动态标签组容器
-   ============================================================ */
+/* ================= 动态标签组 ================= */
 .tab-groups{display:flex;flex-direction:column;gap:var(--tab-group-gap);transition:height .15s ease-out}
 .tab-group{display:flex;flex-direction:column;min-width:0}
-
 .tab-group .tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 2px;position:relative;z-index:1}
 .tab-group .tab{
   border:1px solid var(--border);border-bottom:none;
@@ -222,14 +187,8 @@ body.preview-float .preview-placeholder{display:block;height:var(--preview-place
   display:inline-flex;align-items:center;gap:5px;
 }
 .tab-group .tab:hover{color:var(--text);background:var(--panel-2)}
-.tab-group .tab.active{
-  background:var(--accent-soft);color:var(--accent);
-  border-color:var(--border);
-}
-.tab-group .tab-body{
-  background:var(--accent-soft);border:1px solid var(--border);
-  border-radius:0 9px 9px 9px;padding:9px 11px;min-height:40px;
-}
+.tab-group .tab.active{background:var(--accent-soft);color:var(--accent);border-color:var(--border)}
+.tab-group .tab-body{background:var(--accent-soft);border:1px solid var(--border);border-radius:0 9px 9px 9px;padding:9px 11px;min-height:40px}
 .tab-group .pane{display:none}
 .tab-group .pane.active{display:block;animation:fade .18s ease}
 @keyframes fade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
@@ -239,9 +198,7 @@ body.preview-float .preview-placeholder{display:block;height:var(--preview-place
 .badge-ok{font-size:9px;color:#fff;background:var(--ok);width:13px;height:13px;border-radius:50%;display:grid;place-items:center;line-height:1;visibility:hidden}
 .tab.enabled .badge-ok{visibility:visible}
 
-/* ============================================================
-   参数行
-   ============================================================ */
+/* ================= 参数行 ================= */
 .param{display:flex;align-items:center;gap:8px;padding:5px 0;min-width:0}
 .param>.pname{flex:0 0 72px;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .param>.pctrl{flex:1;display:flex;align-items:center;gap:6px;min-width:0}
@@ -272,19 +229,16 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .rst{flex:0 0 22px;width:22px;height:22px;border-radius:7px;padding:0;border:1px solid transparent;background:transparent;color:var(--muted);font-size:13px;line-height:1;cursor:pointer;transition:.15s;display:grid;place-items:center}
 .rst:hover{color:var(--accent);background:var(--field);border-color:var(--border)}
 
-/* 选择控件 */
 .sel,.mini-input{background:var(--field);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:4px 7px;font-size:11px;font-weight:600;cursor:pointer;transition:.15s;min-width:0}
 .sel:focus,.mini-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
 .mini-select{background:var(--field);border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:3px 5px;font-size:10.5px;cursor:pointer;max-width:92px}
 .mini-select:focus{outline:none;border-color:var(--accent)}
 .mini-check{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
 .mini-check input{accent-color:var(--accent);width:13px;height:13px;cursor:pointer}
-
 .check-row{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text);padding:5px 0;cursor:pointer;user-select:none}
 .check-row input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex:none}
 .check-row .hint{font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap}
 
-/* pill / chip */
 .pill-row{display:flex;gap:4px;flex-wrap:wrap}
 .pill{width:25px;height:25px;border-radius:7px;padding:0;border:1px solid var(--border);background:var(--field);color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:.15s;display:grid;place-items:center}
 .pill:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
@@ -295,14 +249,12 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .chip.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;box-shadow:0 4px 10px color-mix(in srgb,var(--accent) 30%,transparent)}
 .divider{height:1px;background:var(--border);margin:10px 0}
 
-/* 预设 */
 .preset-tools{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
 .preset-grid{display:flex;flex-wrap:wrap;gap:8px}
 .preset-item{width:46px;height:46px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--border);background:var(--field);cursor:pointer;position:relative;transition:transform .14s,box-shadow .14s,border-color .14s}
 .preset-item:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--accent)}
 .preset-item canvas{width:100%;height:100%;display:block}
 
-/* 历史 */
 .history-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
 .history-item{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:9px;border:1px solid var(--border);background:var(--field);cursor:pointer;transition:.15s}
 .history-item:hover{border-color:var(--accent);background:var(--accent-soft)}
@@ -312,13 +264,11 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .history-item:hover .hdel{opacity:1}
 .history-item .hdel:hover{color:var(--err)}
 
-/* 下载 */
 .format-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .fmt{border:1px solid var(--border);background:var(--field);color:var(--muted);border-radius:9px;padding:9px 3px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;letter-spacing:.3px}
 .fmt:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 14px color-mix(in srgb,var(--accent) 18%,transparent)}
 .filename{margin-top:10px;font-size:10px;color:var(--muted);background:var(--field);border:1px dashed var(--border);border-radius:8px;padding:6px 9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* 内容竖向标签 */
 .vtab-group{display:flex;align-items:stretch;gap:0;min-width:0}
 .vtab-list{flex:0 0 auto;width:min(46%,200px);min-width:120px;display:flex;flex-direction:column;max-height:400px;overflow-y:auto;overflow-x:hidden;padding-top:1px}
 .vtab{display:flex;align-items:center;gap:5px;padding:4px 7px 4px 5px;cursor:pointer;border:1px solid var(--border);border-right:0;border-radius:10px 0 0 10px;background:var(--panel-2);color:var(--muted);margin-bottom:-1px;position:relative;transition:background .18s,color .18s,border-color .18s,box-shadow .18s}
@@ -344,7 +294,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .fa-cell{aspect-ratio:1;border-radius:8px;border:1px solid var(--border);background:var(--panel);display:grid;place-items:center;font-size:14px;cursor:pointer;transition:.14s;color:var(--text)}
 .fa-cell:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);transform:translateY(-1px)}
 
-/* 颜色建议 */
 .suggest-legend{display:flex;gap:12px;font-size:10px;color:var(--muted);margin:8px 0 4px}
 .suggest-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .sw{width:22px;height:22px;border-radius:7px;cursor:pointer;border:1px solid var(--border-strong);transition:.15s}
@@ -354,7 +303,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .sw-pair .sw{border:0;border-radius:5px;width:18px;height:18px}
 .sw-pair .sw:hover{transform:none}
 
-/* 填充色块 */
 .fill-group{display:flex;gap:9px;align-items:flex-start}
 .fill-list{display:flex;flex-direction:column;gap:6px;flex:none}
 .fill-swatch{width:32px;height:32px;border-radius:9px;border:1px solid var(--border-strong);cursor:pointer;position:relative;overflow:hidden;padding:0;flex:none;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);transition:.15s}
@@ -362,36 +310,18 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .fill-swatch.active{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
 .fill-body{flex:1;min-width:0;background:var(--accent-soft);border:1px solid var(--border);border-radius:10px;padding:9px 10px}
 
-/* Toast / Modal */
 .footer{display:none}
-.toast{
-  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
-  background:var(--text);color:var(--panel);padding:8px 18px;border-radius:99px;
-  font-size:12px;font-weight:600;opacity:0;transition:.25s;z-index:200;
-  pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25);
-}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--panel);padding:8px 18px;border-radius:99px;font-size:12px;font-weight:600;opacity:0;transition:.25s;z-index:200;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 .modal{position:fixed;inset:0;background:rgba(8,10,18,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;place-items:center;z-index:100}
 .modal.open{display:grid;animation:fade .18s ease}
 .modal-box{background:var(--panel);border-radius:14px;padding:12px;box-shadow:0 24px 60px rgba(0,0,0,.45);max-width:92vw;max-height:92vh;display:flex;flex-direction:column}
 .modal-head{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;font-size:12.5px;font-weight:700}
-.modal-body{
-  flex:1;min-height:0;overflow:auto;
-  background-color:var(--checker-a);
-  background-image:
-    linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),
-    linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),
-    linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),
-    linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);
-  background-size:18px 18px;
-  background-position:0 0,0 9px,9px -9px,-9px 0;
-  border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;place-items:center;
-}
+.modal-body{flex:1;min-height:0;overflow:auto;background-color:var(--checker-a);background-image:linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;place-items:center}
 .modal-body:active{cursor:grabbing}
 .modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
 
-/* 小屏 */
 @media (max-width:520px){
   .format-grid{grid-template-columns:repeat(3,1fr)}
   .linkage-btn span.lbl{display:none}
@@ -406,7 +336,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 </head>
 <body>
 
-<!-- ================= 顶部工具栏 ================= -->
 <header class="topbar">
   <div class="brand">
     <div class="logo">K</div>
@@ -417,20 +346,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
   <div class="topbar-actions">
     <div class="segmented icon-only">
-      <button title="撤销 Ctrl+Z" id="undoBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-4"/>
-        </svg>
-      </button>
-      <button title="重做 Ctrl+Y" id="redoBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h4"/>
-        </svg>
-      </button>
+      <button title="撤销 Ctrl+Z" id="undoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-4"/></svg></button>
+      <button title="重做 Ctrl+Y" id="redoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h4"/></svg></button>
     </div>
-    <button class="linkage-btn partial" id="linkageBtn">
-      <span class="dot"></span><span class="lbl">参数联动：部分</span>
-    </button>
+    <button class="linkage-btn partial" id="linkageBtn"><span class="dot"></span><span class="lbl">参数联动：部分</span></button>
     <div class="segmented" id="themeSwitch">
       <button data-theme="light" class="active">明亮</button>
       <button data-theme="retro">复古</button>
@@ -439,16 +358,14 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
   </div>
 </header>
 
-<!-- 两栏合并标签栏 -->
 <div class="merge-tabs" id="mergeTabs">
   <button class="merge-tab active" data-tab="mid">内容参数</button>
   <button class="merge-tab" data-tab="right">背景参数</button>
 </div>
 
-<!-- ================= 主布局 ================= -->
 <main class="layout" data-mode="three">
 
-  <!-- 左栏 -->
+  <!-- ============ 左栏 ============ -->
   <section class="col col-left">
     <section class="module module-preview">
       <div class="module-head">
@@ -461,9 +378,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
           <option value="thirds">均分井字</option>
         </select>
         <button class="btn icon" id="enlargeBtn" title="放大预览">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
-          </svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
         </button>
       </div>
       <div class="module-body">
@@ -471,22 +386,9 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
           <div class="preview-canvas-wrap" id="canvasWrap">
             <canvas id="iconCanvas" width="256" height="256"></canvas>
             <svg class="guides-layer" id="guidesLayer" viewBox="0 0 100 100" preserveAspectRatio="none" data-mode="none">
-              <g class="g-guide g-cross">
-                <line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/>
-                <line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/>
-              </g>
-              <g class="g-guide g-star">
-                <line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/>
-                <line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/>
-                <line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>
-                <line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/>
-              </g>
-              <g class="g-guide g-thirds">
-                <line x1="33.3" y1="0" x2="33.3" y2="100" vector-effect="non-scaling-stroke"/>
-                <line x1="66.7" y1="0" x2="66.7" y2="100" vector-effect="non-scaling-stroke"/>
-                <line x1="0" y1="33.3" x2="100" y2="33.3" vector-effect="non-scaling-stroke"/>
-                <line x1="0" y1="66.7" x2="100" y2="66.7" vector-effect="non-scaling-stroke"/>
-              </g>
+              <g class="g-guide g-cross"><line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/><line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/></g>
+              <g class="g-guide g-star"><line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/><line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/><line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g>
+              <g class="g-guide g-thirds"><line x1="33.3" y1="0" x2="33.3" y2="100" vector-effect="non-scaling-stroke"/><line x1="66.7" y1="0" x2="66.7" y2="100" vector-effect="non-scaling-stroke"/><line x1="0" y1="33.3" x2="100" y2="33.3" vector-effect="non-scaling-stroke"/><line x1="0" y1="66.7" x2="100" y2="66.7" vector-effect="non-scaling-stroke"/></g>
             </svg>
             <div class="safe-box" id="safeBox"></div>
           </div>
@@ -510,7 +412,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     </section>
   </section>
 
-  <!-- 中栏 -->
+  <!-- ============ 中栏 ============ -->
   <section class="col col-mid">
     <section class="module">
       <div class="module-head"><span class="mh-title">多行设置</span></div>
@@ -564,7 +466,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     </section>
   </section>
 
-  <!-- 右栏 -->
+  <!-- ============ 右栏 ============ -->
   <section class="col col-right">
     <section class="module" id="moduleShape">
       <div class="module-head"><span class="mh-title">形状与外框</span></div>
@@ -837,11 +739,8 @@ function updatePreviewHeightSingle(preview){
 
   const available = colH - otherH - 20;
   let maxH;
-  if (available >= 320){
-    maxH = Math.min(available, colH * 0.55);
-  } else {
-    maxH = colH / 3;
-  }
+  if (available >= 320) maxH = Math.min(available, colH * 0.55);
+  else maxH = colH / 3;
   maxH = Math.max(150, Math.min(maxH, colH * 0.7));
   preview.style.height = Math.round(maxH) + 'px';
 
@@ -851,66 +750,57 @@ function updatePreviewHeightSingle(preview){
 }
 
 /* ============================================================
-   标签组动态展开算法
-   ============================================================ */
+   标签组动态展开算法（连续切分版本）
+   ------------------------------------------------------------
+   标签组总是以"连续切分"方式拆分：每个切分点要么切、要么不切。
+   n 个标签有 n-1 个间隔，共 2^(n-1) 种方案。
 
-/**
- * 计算标签分组方案
- * @param {number[]} heights 每个标签独立时的展示高度
- * @param {number} extraSpace 可用额外空间
- * @param {number} groupGap 组间间隙
- * @returns {number[][]} 分组方案，如 [[0], [1,2]]
- */
+   方案总高 = Σ(组内标签的最大高度) + (组数 - 1) * groupGap
+
+   打分：
+     1. 段数多的优先（同时展示更多标签组）
+     2. 段数相同时，总高更大的优先（更充分利用空间）
+     3. 再相同，切分位置更靠后的优先（mask 数值大）
+   ============================================================ */
 function computeTabLayout(heights, extraSpace, groupGap = 8){
   const n = heights.length;
-  if (n <= 1) return [Array.from({length: n}, (_, i) => i)];
+  if (n <= 1) return [Array.from({ length: n }, (_, i) => i)];
 
   const maxH = Math.max(...heights);
   const totalAvail = maxH + Math.max(0, extraSpace);
+  const totalMasks = 1 << (n - 1);
 
   let best = null;
-  for (let mask = 0; mask < (1 << n); mask++){
-    const ind = [];
-    const merged = [];
-    for (let i = 0; i < n; i++){
-      if (mask & (1 << i)) ind.push(i);
-      else merged.push(i);
+  for (let mask = 0; mask < totalMasks; mask++){
+    const groups = [];
+    let cur = [0];
+    for (let i = 0; i < n - 1; i++){
+      if (mask & (1 << i)){
+        groups.push(cur);
+        cur = [i + 1];
+      } else {
+        cur.push(i + 1);
+      }
     }
+    groups.push(cur);
+
     let total = 0;
-    if (ind.length > 0){
-      total += ind.reduce((s, i) => s + heights[i], 0);
-      if (merged.length > 0) total += (ind.length - 1) * groupGap + groupGap;
-      else total += (ind.length - 1) * groupGap;
-    }
-    if (merged.length > 0){
-      total += Math.max(...merged.map(i => heights[i]));
-    }
+    groups.forEach(g => { total += Math.max(...g.map(i => heights[i])); });
+    total += (groups.length - 1) * groupGap;
+
     if (total > totalAvail) continue;
 
-    const score = {
-      indCount: ind.length,
-      indSum: ind.reduce((s, i) => s + heights[i], 0),
-      mask
-    };
+    const candidate = { segCount: groups.length, total, mask, groups };
     if (!best
-      || score.indCount > best.indCount
-      || (score.indCount === best.indCount && score.indSum > best.indSum)){
-      best = score;
+      || candidate.segCount > best.segCount
+      || (candidate.segCount === best.segCount && candidate.total > best.total)
+      || (candidate.segCount === best.segCount && candidate.total === best.total && candidate.mask > best.mask)){
+      best = candidate;
     }
   }
 
-  if (!best) return [Array.from({length: n}, (_, i) => i)];
-
-  const ind = [];
-  const merged = [];
-  for (let i = 0; i < n; i++){
-    if (best.mask & (1 << i)) ind.push(i);
-    else merged.push(i);
-  }
-  const groups = ind.map(i => [i]);
-  if (merged.length > 0) groups.push(merged);
-  groups.sort((a, b) => a[0] - b[0]);
-  return groups;
+  if (!best) return [Array.from({ length: n }, (_, i) => i)];
+  return best.groups;
 }
 
 /* 用隐藏探针测量每个标签独立时的高度 */
@@ -921,7 +811,10 @@ function measureTabHeights(tabs, width){
   document.body.appendChild(probe);
 
   const heights = tabs.map(t => {
-    probe.innerHTML = `<div class="tab-group"><div class="tabs"><button class="tab active">${escapeHtml(t.label)}</button></div><div class="tab-body"><div class="pane active">${t.contentHTML}</div></div></div>`;
+    probe.innerHTML = `<div class="tab-group">
+      <div class="tabs"><button class="tab active">${escapeHtml(t.label)}</button></div>
+      <div class="tab-body"><div class="pane active">${t.contentHTML}</div></div>
+    </div>`;
     const el = probe.firstElementChild;
     return el.offsetHeight;
   });
@@ -931,7 +824,7 @@ function measureTabHeights(tabs, width){
 }
 
 /* ============================================================
-   模块 tab 数据
+   模块 tab 数据定义
    ============================================================ */
 const MODULE_TABS = {
   preset: [
@@ -956,7 +849,6 @@ const MODULE_TABS = {
   ]
 };
 
-/* 每个模块的激活标签 */
 const activeTabByModule = { preset: 'preset', style: 'size', shape: 'shape', fill: 'layout' };
 
 /* ============================================================
@@ -979,9 +871,10 @@ function collectTabModuleInfo(moduleId){
   const width = container.getBoundingClientRect().width || 280;
   const heights = measureTabHeights(tabs, width);
   const maxH = Math.max(...heights);
+
   const moduleEl = container.closest('.module');
 
-  /* 临时把容器设为 maxH 高，然后测量非 tab 部分高度 */
+  /* 临时把容器设为 maxH 高，用于测量 module 的非 tab 部分高度 */
   const savedHeight = container.style.height;
   const savedMinH = container.style.minHeight;
   container.style.height = maxH + 'px';
@@ -993,9 +886,7 @@ function collectTabModuleInfo(moduleId){
   container.style.minHeight = savedMinH;
   void container.offsetHeight;
 
-  return {
-    moduleId, container, moduleEl, tabs, heights, maxH, nonTabH
-  };
+  return { moduleId, container, moduleEl, tabs, heights, maxH, nonTabH };
 }
 
 /* ============================================================
@@ -1019,7 +910,7 @@ function relayoutColumn(col){
   const cs = getComputedStyle(col);
   const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 14;
 
-  /* 收集本栏内含 tab-groups 的模块 */
+  /* 收集本栏内含 tab-groups 的模块信息 */
   const infos = [];
   col.querySelectorAll('.module').forEach(m => {
     const tg = m.querySelector('.tab-groups');
@@ -1041,7 +932,7 @@ function relayoutColumn(col){
     }
   });
 
-  /* 计算基线高度：所有 tab 模块都不展开时的总高度 */
+  /* 计算基线高度（所有 tab 模块都不展开） */
   let baseH = 0;
   infos.forEach(i => { baseH += i.nonTabH + i.maxH; });
 
@@ -1050,7 +941,7 @@ function relayoutColumn(col){
   const usedH = otherH + baseH + totalGaps;
   let remain = Math.max(0, colH - usedH);
 
-  /* 按顺序给每个模块分配额外空间 */
+  /* 按顺序分配额外空间给每个模块 */
   infos.forEach(info => {
     const groups = computeTabLayout(info.heights, remain);
     info.groups = groups;
@@ -1094,7 +985,7 @@ function relayoutAllModules(){
 }
 
 /* ============================================================
-   渲染一个模块的标签组（使用给定的分组方案）
+   渲染一个模块的标签组
    ============================================================ */
 function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
   const activeId = activeTabByModule[moduleId] || tabs[0].id;
@@ -1124,7 +1015,7 @@ function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
     </div>`;
   }).join('');
 
-  /* 标签点击 */
+  /* 标签点击切换 */
   container.querySelectorAll('.tab-group').forEach(groupEl => {
     groupEl.querySelectorAll('.tab').forEach(tabEl => {
       tabEl.addEventListener('click', () => {
@@ -1139,7 +1030,7 @@ function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
   /* 重新绑定 pane 内交互 */
   bindPaneInteractions(moduleId, container);
 
-  /* 如果是 preset 模块，重新渲染预设/历史内容 */
+  /* preset 模块需要重渲染预设/历史/下载内部 */
   if (moduleId === 'preset'){
     renderPresets();
     renderHistory();
@@ -1225,11 +1116,11 @@ function bindPaneInteractions(moduleId, container){
   const sh = container.querySelector('#shadowEnable');
   if (sh) sh.addEventListener('change', () => renderStyle());
 
-  /* 边框、形状阴影启用 → 标签绿勾 */
+  /* 边框、形状阴影启用 */
   const be = container.querySelector('#borderEnable');
-  if (be) be.addEventListener('change', () => renderModuleStyle('shape'));
+  if (be) be.addEventListener('change', () => rerenderModule('shape'));
   const fs = container.querySelector('#fshadowEnable');
-  if (fs) fs.addEventListener('change', () => renderModuleStyle('shape'));
+  if (fs) fs.addEventListener('change', () => rerenderModule('shape'));
 
   /* 颜色模式切换 */
   const seg = container.querySelector('#colorModeSeg');
@@ -1243,7 +1134,7 @@ function bindPaneInteractions(moduleId, container){
     });
   }
 
-  /* 边界形状切换 → 更新边界参数 */
+  /* 边界形状切换 */
   const edgeRow = container.querySelector('#edgeShapeRow');
   if (edgeRow){
     edgeRow.querySelectorAll('.chip').forEach(chip => {
@@ -1281,14 +1172,13 @@ function bindPaneInteractions(moduleId, container){
   });
 }
 
-/* 便捷：重新渲染某个模块的标签组 */
-function renderModuleStyle(moduleId){
+/* 重新渲染某个模块（不重新计算所有栏） */
+function rerenderModule(moduleId){
   const container = document.querySelector(`.tab-groups[data-module="${moduleId}"]`);
   if (!container) return;
   const info = collectTabModuleInfo(moduleId);
   if (!info) return;
-  const extra = 0;
-  const groups = computeTabLayout(info.heights, extra);
+  const groups = info.groups || computeTabLayout(info.heights, 0);
   renderTabGroupsFromGroups(moduleId, container, info.tabs, groups);
   requestAnimationFrame(refreshLayout);
 }
@@ -1365,12 +1255,12 @@ function getDownloadPaneHTML(){
 
 function paneSize(){
   return `
-    ${paramRow('大小', 100, 1, 300, '%', {chain: true})}
-    ${paramRow('角度', 0, 0, 360, '°', {chain: true})}
-    ${paramRow('水平拉伸', 100, 1, 300, '%', {chain: true})}
-    ${paramRow('垂直拉伸', 100, 1, 300, '%', {chain: true})}
-    ${paramRow('横向偏移', 0, -100, 100, '%', {chain: true})}
-    ${paramRow('纵向偏移', 0, -100, 100, '%', {chain: true})}
+    ${paramRow('大小', 100, 1, 300, '%', { chain: true })}
+    ${paramRow('角度', 0, 0, 360, '°', { chain: true })}
+    ${paramRow('水平拉伸', 100, 1, 300, '%', { chain: true })}
+    ${paramRow('垂直拉伸', 100, 1, 300, '%', { chain: true })}
+    ${paramRow('横向偏移', 0, -100, 100, '%', { chain: true })}
+    ${paramRow('纵向偏移', 0, -100, 100, '%', { chain: true })}
     <div class="param" style="padding-top:8px">
       <label class="check-row" style="padding:0">
         <input type="checkbox" checked> 显示超出形状范围的内容
@@ -1439,17 +1329,17 @@ function paneShadow(){
         <button class="chain" title="参数联动">${CHAIN_SVG}</button>
       </div>
     </div>
-    ${paramRow('大小', 12, 0, 100, '', {chain: true})}
-    ${paramRow('模糊', 10, 0, 100, '', {chain: true})}
-    ${paramRow('X 偏移', 0, -100, 100, '', {chain: true})}
-    ${paramRow('Y 偏移', 4, -100, 100, '', {chain: true})}`;
+    ${paramRow('大小', 12, 0, 100, '', { chain: true })}
+    ${paramRow('模糊', 10, 0, 100, '', { chain: true })}
+    ${paramRow('X 偏移', 0, -100, 100, '', { chain: true })}
+    ${paramRow('Y 偏移', 4, -100, 100, '', { chain: true })}`;
 }
 
 function shapePaneHTML(){
   return `
-    ${inlineChips('基础', ['无', '圆形', '圆角方形'], 2, {group: 'shape'})}
-    ${inlineChips('边形', ['3', '4', '5', '6', '7', '8'], -1, {group: 'shape'})}
-    ${inlineChips('角星', ['3', '4', '5', '6', '7', '8'], -1, {group: 'shape'})}
+    ${inlineChips('基础', ['无', '圆形', '圆角方形'], 2, { group: 'shape' })}
+    ${inlineChips('边形', ['3', '4', '5', '6', '7', '8'], -1, { group: 'shape' })}
+    ${inlineChips('角星', ['3', '4', '5', '6', '7', '8'], -1, { group: 'shape' })}
     <div class="divider"></div>
     ${paramRow('尺寸', 100, 1, 200, '%')}
     ${paramRow('拉伸', 100, 1, 200, '%')}
@@ -1554,7 +1444,7 @@ function fillAdvicePaneHTML(){
 /* ============================================================
    通用参数行构造
    ============================================================ */
-function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
+function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}){
   const step = opts.step ?? 1;
   const showChain = opts.chain === true;
   const showReset = opts.reset === true;
@@ -1571,7 +1461,7 @@ function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}) {
   </div>`;
 }
 
-function inlineChips(name, chips, activeIdx = 0, opts = {}) {
+function inlineChips(name, chips, activeIdx = 0, opts = {}){
   const groupAttr = opts.group ? `data-group="${opts.group}"` : '';
   return `<div class="param inline-chips" ${groupAttr}>
     <span class="pname">${name}</span>
@@ -1582,8 +1472,7 @@ function inlineChips(name, chips, activeIdx = 0, opts = {}) {
   </div>`;
 }
 
-/* 兼容旧调用 */
-function stackedChips(name, chips, activeIdx = 0) {
+function stackedChips(name, chips, activeIdx = 0){
   return inlineChips(name, chips, activeIdx);
 }
 
@@ -1941,7 +1830,7 @@ function renderContentBody(){
     });
   }
 
-  /* 绑定 pane 内滑块 */
+  /* 滑块绑定 */
   body.querySelectorAll('input[type=range]').forEach(r => {
     const row = r.closest('.param');
     const min = +r.min || 0;
@@ -2151,7 +2040,6 @@ function renderFillBody2(){
 
   body.innerHTML = content;
 
-  /* 绑定滑块 */
   body.querySelectorAll('input[type=range]').forEach(r => {
     const row = r.closest('.param');
     const min = +r.min || 0;
@@ -2279,7 +2167,6 @@ function bindDownloadPaneInteractions(){
   const dl = document.querySelector('[data-pane="download"]');
   if (!dl) return;
 
-  /* 尺寸联动 */
   const sp = dl.querySelector('#sizePreset');
   const si = dl.querySelector('#sizeInput');
   if (sp) sp.addEventListener('change', e => {
@@ -2305,7 +2192,6 @@ function bindDownloadPaneInteractions(){
     });
   }
 
-  /* 格式按钮 */
   dl.querySelectorAll('.fmt').forEach(b => b.addEventListener('click', () => {
     const fmt = b.dataset.fmt.toUpperCase();
     toast(`正在导出 ${fmt} …（演示）`);
@@ -2347,7 +2233,7 @@ function updateFileName(){
 }
 
 /* ============================================================
-   预设按钮行为
+   预设按钮行为（事件委托）
    ============================================================ */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
@@ -2450,7 +2336,6 @@ $('#enlargeBtn').addEventListener('click', () => {
   requestAnimationFrame(refreshLayout);
 });
 
-/* 辅助线、安全边距 */
 $('#guideSelect').addEventListener('change', () => {
   const mode = $('#guideSelect').value;
   const layer = $('#guidesLayer');
@@ -2490,14 +2375,7 @@ function renderStyle(){
   if (sub) sub.textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]} · “${rowLabel(r)}”`;
   const cn = $('#contentNote');
   if (cn) cn.textContent = `行 ${activeRow + 1} · ${MODE_LABEL[r.mode]}`;
-
-  const container = document.querySelector('.tab-groups[data-module="style"]');
-  if (!container) return;
-  const info = collectTabModuleInfo('style');
-  if (!info) return;
-  const groups = computeTabLayout(info.heights, 0);
-  renderTabGroupsFromGroups('style', container, info.tabs, groups);
-  requestAnimationFrame(refreshLayout);
+  rerenderModule('style');
 }
 
 /* ============================================================
@@ -2531,7 +2409,6 @@ $('#styleReset').addEventListener('click', () => {
   toast('已重置当前行样式');
 });
 
-/* 填充数量 → 色块数量 */
 $('#fillCount').addEventListener('click', e => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -2562,7 +2439,6 @@ function refreshLayout(){
    初始化
    ============================================================ */
 function init(){
-  /* 静态部分初始化 */
   renderRowCount();
   renderLayoutChips();
   renderContentTabs();
@@ -2579,12 +2455,8 @@ function init(){
   $('#safeBox').classList.add('show');
   $('#safeBox').style.inset = (iconSize * 0.1) + 'px';
 
-  /* 首次刷新 */
-  requestAnimationFrame(() => {
-    refreshLayout();
-  });
+  requestAnimationFrame(() => { refreshLayout(); });
 
-  /* 视口变化 */
   let resizeRAF = null;
   window.addEventListener('resize', () => {
     if (resizeRAF) cancelAnimationFrame(resizeRAF);
@@ -2597,7 +2469,6 @@ function init(){
     document.fonts.ready.then(refreshLayout);
   }
 
-  /* ResizeObserver */
   if (window.ResizeObserver){
     let roRAF = null;
     const ro = new ResizeObserver(() => {
@@ -2616,7 +2487,6 @@ function init(){
     });
   }
 
-  /* 栏内滚动时同步 fixed 预览位置 */
   document.querySelectorAll('.col, .layout').forEach(el => {
     el.addEventListener('scroll', () => {
       if (document.body.classList.contains('preview-float')){
@@ -2625,7 +2495,6 @@ function init(){
     }, { passive: true });
   });
 
-  /* 快捷键 */
   document.addEventListener('keydown', e => {
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea') return;
