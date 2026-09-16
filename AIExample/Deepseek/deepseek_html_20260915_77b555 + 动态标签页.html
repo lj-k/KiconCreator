@@ -13,6 +13,7 @@
   --topbar-h: 54px;
   --merge-tabs-h: 44px;
   --tab-group-gap: 8px;
+  --preset-cap: 320px; /* 预设/历史标签的最大高度，由 JS 动态设为与下载标签相同 */
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 html[data-theme="light"]{
@@ -249,13 +250,29 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .chip.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;box-shadow:0 4px 10px color-mix(in srgb,var(--accent) 30%,transparent)}
 .divider{height:1px;background:var(--border);margin:10px 0}
 
+/* ================= 预设：高度上限与内部滚动 ================= */
 .preset-tools{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-.preset-grid{display:flex;flex-wrap:wrap;gap:8px}
+.preset-grid{
+  display:flex;flex-wrap:wrap;gap:8px;
+  /* 最大高度 = 下载标签高度 - 标签栏和 pane padding 占用，由 JS 通过 --preset-cap 设置 */
+  max-height: calc(var(--preset-cap, 320px) - 60px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+}
 .preset-item{width:46px;height:46px;border-radius:10px;overflow:hidden;flex:none;border:1px solid var(--border);background:var(--field);cursor:pointer;position:relative;transition:transform .14s,box-shadow .14s,border-color .14s}
 .preset-item:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--accent)}
 .preset-item canvas{width:100%;height:100%;display:block}
 
-.history-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
+/* ================= 历史：高度上限与内部滚动 ================= */
+.history-list{
+  display:flex;flex-direction:column;gap:6px;
+  /* 与预设一致，最大高度由 --preset-cap 控制 */
+  max-height: calc(var(--preset-cap, 320px) - 60px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+}
 .history-item{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:9px;border:1px solid var(--border);background:var(--field);cursor:pointer;transition:.15s}
 .history-item:hover{border-color:var(--accent);background:var(--accent-soft)}
 .history-item canvas{width:26px;height:26px;border-radius:6px;flex:none}
@@ -365,7 +382,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 
 <main class="layout" data-mode="three">
 
-  <!-- ============ 左栏 ============ -->
   <section class="col col-left">
     <section class="module module-preview">
       <div class="module-head">
@@ -412,7 +428,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     </section>
   </section>
 
-  <!-- ============ 中栏 ============ -->
   <section class="col col-mid">
     <section class="module">
       <div class="module-head"><span class="mh-title">多行设置</span></div>
@@ -466,7 +481,6 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
     </section>
   </section>
 
-  <!-- ============ 右栏 ============ -->
   <section class="col col-right">
     <section class="module" id="moduleShape">
       <div class="module-head"><span class="mh-title">形状与外框</span></div>
@@ -750,17 +764,7 @@ function updatePreviewHeightSingle(preview){
 }
 
 /* ============================================================
-   标签组动态展开算法（连续切分版本）
-   ------------------------------------------------------------
-   标签组总是以"连续切分"方式拆分：每个切分点要么切、要么不切。
-   n 个标签有 n-1 个间隔，共 2^(n-1) 种方案。
-
-   方案总高 = Σ(组内标签的最大高度) + (组数 - 1) * groupGap
-
-   打分：
-     1. 段数多的优先（同时展示更多标签组）
-     2. 段数相同时，总高更大的优先（更充分利用空间）
-     3. 再相同，切分位置更靠后的优先（mask 数值大）
+   标签组动态展开算法（连续切分）
    ============================================================ */
 function computeTabLayout(heights, extraSpace, groupGap = 8){
   const n = heights.length;
@@ -803,11 +807,13 @@ function computeTabLayout(heights, extraSpace, groupGap = 8){
   return best.groups;
 }
 
-/* 用隐藏探针测量每个标签独立时的高度 */
+/* 用隐藏探针测量每个标签独立时的高度
+   —— 探针内重置 --preset-cap 为极大值，避免测量结果受预设/历史滚动限制影响 */
 function measureTabHeights(tabs, width){
   const w = Math.max(160, Math.round(width) || 280);
   const probe = document.createElement('div');
   probe.style.cssText = `position:absolute;left:-9999px;top:0;width:${w}px;visibility:hidden;pointer-events:none`;
+  probe.style.setProperty('--preset-cap', '99999px');
   document.body.appendChild(probe);
 
   const heights = tabs.map(t => {
@@ -853,6 +859,7 @@ const activeTabByModule = { preset: 'preset', style: 'size', shape: 'shape', fil
 
 /* ============================================================
    收集模块 tab 信息
+   —— 对 preset 模块做特殊处理：以"下载"标签的高度为上限
    ============================================================ */
 function collectTabModuleInfo(moduleId){
   const container = document.querySelector(`.tab-groups[data-module="${moduleId}"]`);
@@ -869,12 +876,30 @@ function collectTabModuleInfo(moduleId){
   }));
 
   const width = container.getBoundingClientRect().width || 280;
-  const heights = measureTabHeights(tabs, width);
-  const maxH = Math.max(...heights);
+  const naturalHeights = measureTabHeights(tabs, width);
 
+  let heights = naturalHeights;
+
+  /* preset 模块：把"预设"、"历史"的最大高度设为"下载"高度 */
+  if (moduleId === 'preset'){
+    const di = tabs.findIndex(t => t.id === 'download');
+    if (di >= 0){
+      const capH = naturalHeights[di];
+      document.documentElement.style.setProperty('--preset-cap', capH + 'px');
+      heights = naturalHeights.map((h, i) => {
+        const id = tabs[i].id;
+        if (id === 'preset' || id === 'history'){
+          return Math.min(h, capH);
+        }
+        return h;
+      });
+    }
+  }
+
+  const maxH = Math.max(...heights);
   const moduleEl = container.closest('.module');
 
-  /* 临时把容器设为 maxH 高，用于测量 module 的非 tab 部分高度 */
+  /* 临时把容器设为 maxH 高，测 module 的非 tab 部分高度 */
   const savedHeight = container.style.height;
   const savedMinH = container.style.minHeight;
   container.style.height = maxH + 'px';
@@ -910,7 +935,6 @@ function relayoutColumn(col){
   const cs = getComputedStyle(col);
   const gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 14;
 
-  /* 收集本栏内含 tab-groups 的模块信息 */
   const infos = [];
   col.querySelectorAll('.module').forEach(m => {
     const tg = m.querySelector('.tab-groups');
@@ -921,7 +945,6 @@ function relayoutColumn(col){
   });
   if (infos.length === 0) return;
 
-  /* 计算本栏内其他模块（非 tab 模块）的总高度 */
   const tabModuleEls = infos.map(i => i.moduleEl);
   let otherH = 0;
   let otherCount = 0;
@@ -932,7 +955,6 @@ function relayoutColumn(col){
     }
   });
 
-  /* 计算基线高度（所有 tab 模块都不展开） */
   let baseH = 0;
   infos.forEach(i => { baseH += i.nonTabH + i.maxH; });
 
@@ -941,12 +963,10 @@ function relayoutColumn(col){
   const usedH = otherH + baseH + totalGaps;
   let remain = Math.max(0, colH - usedH);
 
-  /* 按顺序分配额外空间给每个模块 */
   infos.forEach(info => {
     const groups = computeTabLayout(info.heights, remain);
     info.groups = groups;
 
-    /* 计算本模块实际占用的高度 */
     let usedTabH = 0;
     groups.forEach(g => {
       if (g.length === 1) usedTabH += info.heights[g[0]];
@@ -959,7 +979,6 @@ function relayoutColumn(col){
     remain = Math.max(0, remain - actualExtra);
   });
 
-  /* 渲染 */
   infos.forEach(info => {
     renderTabGroupsFromGroups(info.moduleId, info.container, info.tabs, info.groups);
   });
@@ -1015,7 +1034,6 @@ function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
     </div>`;
   }).join('');
 
-  /* 标签点击切换 */
   container.querySelectorAll('.tab-group').forEach(groupEl => {
     groupEl.querySelectorAll('.tab').forEach(tabEl => {
       tabEl.addEventListener('click', () => {
@@ -1027,10 +1045,8 @@ function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
     });
   });
 
-  /* 重新绑定 pane 内交互 */
   bindPaneInteractions(moduleId, container);
 
-  /* preset 模块需要重渲染预设/历史/下载内部 */
   if (moduleId === 'preset'){
     renderPresets();
     renderHistory();
@@ -1042,7 +1058,6 @@ function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
    pane 内交互绑定
    ============================================================ */
 function bindPaneInteractions(moduleId, container){
-  /* 滑块 */
   container.querySelectorAll('input[type=range]').forEach(r => {
     const row = r.closest('.param');
     const min = +r.min || 0;
@@ -1088,7 +1103,6 @@ function bindPaneInteractions(moduleId, container){
     });
   });
 
-  /* chip 单选 */
   container.querySelectorAll('.chip-row').forEach(row => {
     if (row.closest('[data-group="shape"]')) return;
     if (row.closest('#edgeShapeRow')) return;
@@ -1099,12 +1113,10 @@ function bindPaneInteractions(moduleId, container){
     });
   });
 
-  /* 联动链条 */
   container.querySelectorAll('.chain').forEach(ch => {
     ch.addEventListener('click', () => ch.classList.toggle('on'));
   });
 
-  /* 颜色建议 */
   container.querySelectorAll('.sw[data-c]').forEach(sw => {
     sw.addEventListener('click', () => toast('已应用建议颜色 ' + sw.dataset.c));
   });
@@ -1112,17 +1124,14 @@ function bindPaneInteractions(moduleId, container){
     pair.addEventListener('click', () => toast(`已应用渐变：${pair.dataset.c1} → ${pair.dataset.c2}`));
   });
 
-  /* 阴影启用 → 标签绿勾 */
   const sh = container.querySelector('#shadowEnable');
   if (sh) sh.addEventListener('change', () => renderStyle());
 
-  /* 边框、形状阴影启用 */
   const be = container.querySelector('#borderEnable');
   if (be) be.addEventListener('change', () => rerenderModule('shape'));
   const fs = container.querySelector('#fshadowEnable');
   if (fs) fs.addEventListener('change', () => rerenderModule('shape'));
 
-  /* 颜色模式切换 */
   const seg = container.querySelector('#colorModeSeg');
   if (seg){
     seg.addEventListener('click', e => {
@@ -1134,7 +1143,6 @@ function bindPaneInteractions(moduleId, container){
     });
   }
 
-  /* 边界形状切换 */
   const edgeRow = container.querySelector('#edgeShapeRow');
   if (edgeRow){
     edgeRow.querySelectorAll('.chip').forEach(chip => {
@@ -1150,7 +1158,6 @@ function bindPaneInteractions(moduleId, container){
     });
   }
 
-  /* 形状 chip 互斥 */
   container.querySelectorAll('[data-group="shape"] .chip').forEach(chip => {
     chip.addEventListener('click', () => {
       container.querySelectorAll('[data-group="shape"] .chip').forEach(c => c.classList.remove('active'));
@@ -1159,7 +1166,6 @@ function bindPaneInteractions(moduleId, container){
     });
   });
 
-  /* 填满按钮 */
   const fb = container.querySelector('#fillShapeBtn');
   if (fb) fb.addEventListener('click', () => {
     const sizeRow = container.querySelector('[data-name="尺寸"]');
@@ -1172,7 +1178,6 @@ function bindPaneInteractions(moduleId, container){
   });
 }
 
-/* 重新渲染某个模块（不重新计算所有栏） */
 function rerenderModule(moduleId){
   const container = document.querySelector(`.tab-groups[data-module="${moduleId}"]`);
   if (!container) return;
@@ -1830,7 +1835,6 @@ function renderContentBody(){
     });
   }
 
-  /* 滑块绑定 */
   body.querySelectorAll('input[type=range]').forEach(r => {
     const row = r.closest('.param');
     const min = +r.min || 0;
@@ -2233,7 +2237,7 @@ function updateFileName(){
 }
 
 /* ============================================================
-   预设按钮行为（事件委托）
+   预设按钮行为
    ============================================================ */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
