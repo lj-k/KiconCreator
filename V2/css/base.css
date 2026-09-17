@@ -1,0 +1,20 @@
+/* ============================================================
+   KiconCreator V2 · base.css
+   职责：设计令牌（CSS 变量）、三套主题色板、全局 reset、滚动条
+   版本：V0.01
+   说明：新增主题时追加一段 html[data-theme="xxx"] 覆盖变量即可，
+        组件代码一律通过 var(--xxx) 取色，禁止硬编码色值。
+   ============================================================ */
+:root{--radius:12px;--radius-sm:9px;--shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 22px rgba(16,24,40,.06);--shadow-lg:0 12px 34px rgba(16,24,40,.12);--topbar-h:54px;--merge-tabs-h:44px;--tab-group-gap:8px;--preset-cap:320px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+html[data-theme="light"]{--bg:#eef1f7;--panel:#ffffff;--panel-2:#f8fafd;--field:#f4f6fb;--border:#e3e8f1;--border-strong:#d3dae7;--text:#1d2333;--muted:#7c8698;--accent:#4d6ef5;--accent-2:#7c5cff;--accent-soft:#eef2ff;--tab-inactive:#f4f6fb;--ok:#2fbf71;--warn:#e0603a;--err:#f04a4a;--checker-a:#fff;--checker-b:#e8ecf3}
+html[data-theme="retro"]{--bg:#eadfc2;--panel:#fdf7e6;--panel-2:#f9f1da;--field:#f3e7c9;--border:#dcc99b;--border-strong:#c9b183;--text:#4a3a1c;--muted:#8d7a52;--accent:#c07a1d;--accent-2:#a1601a;--accent-soft:#f6e6c1;--tab-inactive:#f3e7c9;--ok:#3f8f4f;--warn:#b3491f;--err:#c04a2a;--checker-a:#fdf7e6;--checker-b:#e6d8b4}
+html[data-theme="dark"]{--bg:#0e1015;--panel:#171a22;--panel-2:#1c1f29;--field:#1f2330;--border:#2a2f3c;--border-strong:#3a4152;--text:#e7eaf3;--muted:#8b93a7;--accent:#6c8cff;--accent-2:#9b7cff;--accent-soft:#1e2438;--tab-inactive:#1f2330;--ok:#3ddc84;--warn:#ff7a59;--err:#ff5f5f;--checker-a:#20242e;--checker-b:#171a22}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;overflow:hidden}
+body{display:grid;grid-template-rows:auto minmax(0,1fr);height:100vh;font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;background-image:radial-gradient(900px 380px at 12% -6%, color-mix(in srgb,var(--accent) 9%, transparent), transparent 70%),radial-gradient(760px 340px at 92% 4%, color-mix(in srgb,var(--accent-2) 8%, transparent), transparent 70%);background-attachment:fixed;transition:background .25s,color .25s}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+button{font-family:inherit}
+input,select{font-family:inherit}
+.hidden{display:none !important}
