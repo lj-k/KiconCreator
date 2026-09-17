@@ -2,8 +2,8 @@
    KiconCreator V2 · components.css
    职责：可复用控件与面板内部组件 —— 按钮/标签组(tab-group)/参数行/
         芯片/胶囊/预设网格/历史列表/内容纵向标签(vtab)/内部填充/TOAST/模态
-   版本：V0.01
-   说明：pane 内的 HTML 由 js/panes.js、js/tabs.js 动态生成，
+   版本：V0.02（V2.06：FA 选图树面板、图标字形、页脚版权行）
+   说明：pane 内的 HTML 由 js/panes.js、js/fa.js、js/tabs.js 动态生成，
         修改选择器类名时必须同步对应 JS 模板字符串。
    ============================================================ */
 .btn{border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;line-height:1.2}
@@ -110,9 +110,18 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .cp-thumb{width:88px;height:88px;border-radius:10px;border:1px dashed var(--border-strong);background:var(--panel);display:grid;place-items:center;color:var(--muted);font-size:10px;text-align:center;line-height:1.5}
 .fa-search{width:100%;height:26px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:11px;padding:0 9px;margin-bottom:8px}
 .fa-search:focus{outline:none;border-color:var(--accent)}
-.fa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:5px;max-height:140px;overflow-y:auto}
+/* FA6 分类下拉 + 统一候选图标框（需求 2.7 / V2.07 布局） */
+.fa-cat-select{width:100%;height:26px;margin-bottom:8px;font-size:11px}
+.fa-grid-box{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:6px;max-height:220px;overflow-y:auto;overflow-x:hidden}
+.fa-glyph{font-family:"Font Awesome 6 Free";font-weight:900;font-size:14px;line-height:1}
+.fa-glyph.brands{font-family:"Font Awesome 6 Brands";font-weight:400}
+.fa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:5px}
 .fa-cell{aspect-ratio:1;border-radius:8px;border:1px solid var(--border);background:var(--panel);display:grid;place-items:center;font-size:14px;cursor:pointer;transition:.14s;color:var(--text)}
 .fa-cell:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);transform:translateY(-1px)}
+.fa-cell.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.fa-copyright{margin-top:8px;font-size:10px;color:var(--warn);line-height:1.5}
+/* 页面底部 FA6 版权行（需求 2.7） */
+.page-foot{padding:5px 18px;text-align:center;font-size:10px;color:var(--muted);border-top:1px solid var(--border);background:color-mix(in srgb,var(--panel) 70%,transparent);user-select:none}
 .suggest-legend{display:flex;gap:12px;font-size:10px;color:var(--muted);margin:8px 0 4px}
 .suggest-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .sw{width:22px;height:22px;border-radius:7px;cursor:pointer;border:1px solid var(--border-strong);transition:.15s}

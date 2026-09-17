@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.02**（对应项目代码版本 **V2.05**）
+> **文档版本：V0.04**（对应项目代码版本 **V2.07**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -23,26 +23,29 @@ V2/
 │   ├── base.css            # 设计令牌（CSS 变量）、三套主题色板、全局 reset
 │   ├── layout.css          # 顶栏、三栏栅格（three/two/one）、合并标签、模块外壳、预览骨架
 │   └── components.css      # 可复用控件：按钮/tab/参数行/芯片/预设网格/vtab/填充/TOAST/模态
-├── js/                     # 19 个模块，加载顺序 = 依赖顺序（详见第 3 节）
+├── data/
+│   └── fa-icons.js         # FA6 全量免费图标数据集（本地打包，1895 个：FA_ICONS + FA_GROUPS，生成勿手改）
+├── js/                     # 20 个模块，加载顺序 = 依赖顺序（详见第 3 节）
 │   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 字体表 + 行工厂 makeRow
-│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link、currentLayout/layerOrder）
+│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link/faName、currentLayout/layerOrder）
 │   ├── utils.js            # ③ $/$$/escapeHtml/roundRect/toast/flashInvalid/CHAIN_SVG
 │   ├── layout.js           # ④ 响应式布局引擎 + tab 动态展开算法 + refreshLayout 统一刷新
 │   ├── builders.js         # ⑤ paramRow/selectRow/checkRow/colorRow 模板 + 颜色建议 HSL 公式引擎
-│   ├── panes.js            # ⑥ 各模块 pane 的 HTML 生成器（样式 pane 从激活行状态生成）
-│   ├── tabs.js             # ⑦ 模块 tab 框架：MODULE_TABS 定义、测量、分组、渲染
-│   ├── interactions.js     # ⑧ bindPaneInteractions：滑块/下拉/布尔/颜色/建议/芯片统一绑定 + Web 字体按需加载
-│   ├── linkage.js          # ⑨ 逐行参数联动：applyLinkedParam/toggleRowLink/联动按钮三态
-│   ├── history.js          # ⑩ commitHistory/undo/redo + 状态化 snapshotState/restoreState
-│   ├── exports.js          # ⑪ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 下载 pane 绑定
-│   ├── presets.js          # ⑫ 预设增删改/导入导出 + 预设/历史列表渲染 + data-act 委托
-│   ├── canvas.js           # ⑬ 渲染引擎：layoutCells 排版几何 + drawRow 文本渲染 + drawIcon
-│   ├── content.js          # ⑭ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
-│   ├── fills.js            # ⑮ 内部填充渲染（UI，背景暂缓）
-│   ├── theme.js            # ⑯ 主题切换 + 两栏合并标签切换（顶层绑定）
-│   ├── topbar.js           # ⑰ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
-│   ├── preview.js          # ⑱ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
-│   └── main.js             # ⑲ init() 入口（必须最后加载）
+│   ├── fa.js               # ⑥ FA6 选图面板（搜索/分类下拉/统一候选框）+ FA 字体装载（数据在 data/）
+│   ├── panes.js            # ⑦ 各模块 pane 的 HTML 生成器（样式 pane 从激活行状态生成）
+│   ├── tabs.js             # ⑧ 模块 tab 框架：MODULE_TABS 定义、测量、分组、渲染
+│   ├── interactions.js     # ⑨ bindPaneInteractions：滑块/下拉/布尔/颜色/建议/芯片统一绑定 + Web 字体按需加载
+│   ├── linkage.js          # ⑩ 逐行参数联动：applyLinkedParam/toggleRowLink/联动按钮三态
+│   ├── history.js          # ⑪ commitHistory/undo/redo + 状态化 snapshotState/restoreState
+│   ├── exports.js          # ⑫ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 下载 pane 绑定
+│   ├── presets.js          # ⑬ 预设增删改/导入导出 + 预设/历史列表渲染 + data-act 委托
+│   ├── canvas.js           # ⑭ 渲染引擎：layoutCells 排版几何 + drawRow 文本/FA 渲染 + drawIcon
+│   ├── content.js          # ⑮ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
+│   ├── fills.js            # ⑯ 内部填充渲染（UI，背景暂缓）
+│   ├── theme.js            # ⑰ 主题切换 + 两栏合并标签切换（顶层绑定）
+│   ├── topbar.js           # ⑱ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
+│   ├── preview.js          # ⑲ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
+│   └── main.js             # ⑳ init() 入口（必须最后加载）
 ├── ARCHITECTURE.md         # 本文档
 └── Changelog.md            # 变更记录
 ```
@@ -52,11 +55,11 @@ V2/
 `index.html` 底部按固定顺序引用全部 JS。**顺序即依赖，禁止调整**：
 
 ```
-schema ─► state ─► utils ─► layout ─► builders ─► panes ─► tabs ─► interactions ─► linkage
-                                                                                  │
-   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄─────┘
+schema ─► state ─► utils ─► layout ─► builders ─► fa ─► panes ─► tabs ─► interactions ─► linkage
+                                                                                        │
+   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄────────────┘
                                           （history/exports/presets 位于 linkage↔canvas 之间，
-                                            完整顺序以 index.html 底部注释 1~19 为准）
+                                            完整顺序以 index.html 底部注释 1~20 为准）
 ```
 
 加载顺序的设计依据（为什么必须如此）：
@@ -134,7 +137,17 @@ row.params / currentLayout / layerOrder 更新
 
 - builders.js `computeAdvice(base)`：HSL 公式实时计算 互补(+180°)/类似(±30°)/柔和(降饱和提亮度)/明亮(提饱和)，每组 2 个候选。
 - 点击 swatch 写回 `color.c1`（渐变模式为 c1→c2 渐变对）。
-- **说明**：需求为"根据背景色"计算；背景模块暂缓，当前以文本当前色为基色，函数签名已保留 base 参数，背景落地后传背景色即可。
+- **说明**：需求为"根据背景色"计算；背景模块暂缓，当前以文本当前色为基色生成调和色，函数签名已保留 base 参数，背景落地后传背景色即可。
+
+### 4.5b FA 图标模式（需求 2.7，V2.06 引入 / V2.07 全量化）
+
+- **数据集**（`data/fa-icons.js`，独立数据目录）：`FA_ICONS`（1895 个 FA6 免费图标：码点/字族 solid|regular|brands/搜索关键词）+ `FA_GROUPS`（两级分类树：6 大类 → 68 官方类别 + 品牌与未分类）。由官方 metadata（icons.json + categories.yml）脚本生成，**勿手工编辑条目**；更新全量数据时重新生成并保持两个常量名不变。
+- **面板布局**（fa.js `mountFaPanel`，自上而下）：搜索框 → 树状分类下拉菜单（`optgroup` 大类 → 官方子类选项，"全部图标"置顶）→ 统一候选图标显示框（单一带边框网格，内部滚动）。搜索（名称/别名/关键词子串匹配）优先于分类过滤。
+- **性能**：候选框只在 搜索词/分类 变化时重建；选中图标仅切换高亮类名，不整体重建（"全部图标"1895 格下点击仍流畅）。
+- **渲染**（canvas.js `drawRowContent`）：FA 行按 `faName` 查 `FA_INDEX` 取字族 —— solid → `"Font Awesome 6 Free"`（900），brands → `"Font Awesome 6 Brands"`（400）；忽略斜体；尺寸/颜色/阴影/排版变换与文本模式一致（需求 3.5 对 FA 同样适用）。
+- **字体装载**：`ensureFaFonts()` 在 init 后异步调用（需求 2.7"主界面加载后异步加载"），FA 面板打开时也会触发；加载失败 toast 提示并回退占位符。index.html 引入 cdnjs 的 FA6 `all.min.css`。
+- **FA代号**：`faName` 进入快照/恢复（history.js）、标签标题（content.js `rowLabel`）、导出文件名（exports.js `buildFileName`，需求 2.35）。
+- **版权**：面板内警示行 + 页面最底部 `.page-foot` 一行简短版权（需求 2.7）。
 
 ### 4.6 模块 tab 动态展开（tabs.js + layout.js）
 
@@ -194,20 +207,20 @@ row.params / currentLayout / layerOrder 更新
 - [ ] 修改过状态字段：JSON 导出（下载 pane → JSON）内容包含新字段
 - [ ] 窗口缩放：three→two→one 切换、合并标签、预览浮动均正常
 
-## 6. 特别说明（V2.05 文本模式渲染）
+## 6. 特别说明（V2.07 FA 全量图标库）
 
-- 本版本（V2.05）按任务要求实现**文本模式**的渲染与参数调节（需求 1.2/1.3/2.6/3.3~3.8/四.2/四.3）；**图片模式、FontAwesome 图标库、背景形状/填充渲染暂缓**——相关 UI 保留原样，画布上图片行渲染灰色占位框、背景恒为白底（勾选透明时透明）。
-- 注意，为保证"预览即导出"（需求 1.8），辅助线与安全边距**不画入画布**，由 index.html 中的 SVG 覆盖层与 `#safeBox` 承担；因此导出前无需再切换辅助线状态。
-- 颜色建议的需求口径是"根据背景色"计算；背景模块暂缓期间以文本当前色（color.c1）为基色生成调和色，`computeAdvice(base)` 已预留基色入参，背景模块落地后传入背景色即可，UI 与回写逻辑无需改动。
-- 文本渐变为内容局部坐标自上而下的线性渐变（c1→c2）；"水平/垂直拉伸不改变渐变效果"当前仅对水平拉伸严格成立（垂直拉伸会使渐变随之拉伸）。如需完全解耦，需引入离屏两遍渲染，已在 Changelog 中登记为已知限制。
-- 环形向心按需求 2.6"圆环直径等于画布宽度"设计：环心为画布中心、字符沿环均布且字形顶部指向圆心；为避免字符被画布裁切，实际环半径取 `S×0.36`、字号按环周长自适应。
-- `style.clip`（显示超出形状范围的内容）为形状模块预留参数：形状暂缓期间无论取值如何均以画布边界为裁切面（画布天然裁切），参数值正常存储并参与快照/联动。
-- 阴影换算公式在 schema.js 统一定义（`shadowBlurPx`/`shadowOffsetPx`），UI 范围 0~100 与像素的换算以该处为准；"大小"参数体现为阴影扩散感（并入模糊计算）。
-- 历史版本说明：V2.04 完成了单文件 index.html 的模块化拆分（css/ 3 个文件 + js/ 模块化），当时的逐行比对与冒烟测试记录见 Changelog.md 对应条目。
+- 本版本（V2.07）完成三件事：① FA 图标库由精选集（194 个）补全为**官方全量免费集（1895 个）**；② 图标数据独立到 `V2/data/fa-icons.js`；③ FA 面板重构为"搜索框 → 分类下拉菜单 → 统一候选图标框"，修复了原手风琴分类列表的显示问题（▶ 符号在部分字体下渲染为方框）。
+- 注意，分类树改为下拉 `optgroup` 两级结构（6 大类 → 68 官方类别）后，原 `.fa-tree/.fa-cat*` 样式已废弃删除；若发现页面出现无样式方框，请确认使用的是新版 fa.js 与 components.css。
+- 数据集由脚本从 Font-Awesome 6.x 官方 metadata 生成（icons.json + categories.yml），关键词条采用"label + 别名 + ligatures + 官方搜索词 + 精选中文词"合并去重；搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
+- 数据文件头标注了生成方式与基准版本；FA6 官方新增图标后，重新执行生成流程替换该文件即可，fa.js 交互逻辑无需改动。
+- "数据全部本地打包"指图标**元数据**本地打包；图标**字体文件**沿用在线加载策略（cdnjs FA6 `all.min.css`），离线时自动回退占位符并 toast 提示，不阻塞主界面。
+- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略（字族/字重由图标定义决定）。图片模式与背景形状/填充渲染仍暂缓。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.04 | 2026-09-17 | 文件结构增加 data/、4.5b 改写为全量数据集与新面板布局、特别说明改写 | V2.07 |
+| V0.03 | 2026-09-17 | 新增 4.5b FA 图标模式说明、模块表/加载顺序更新至 20 文件、特别说明改写 | V2.06 |
 | V0.02 | 2026-09-17 | 新增第 4 节参数体系与渲染管线、联动逐行化说明、编辑指引更新、特别说明改写 | V2.05 |
 | V0.01 | 2026-09-17 | 首次创建：随 V2.04 模块化拆分一起发布 | V2.04 |

@@ -4,7 +4,7 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.02（V2.05：快照改为状态驱动，不再从 DOM 采集参数）
+   版本：V0.03（V2.06：快照携带 faName；版本字段 2.06）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,10 +30,10 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.05',
+    version: '2.06',
     rowCount,
     activeRow,
-    rows: rows.map(r => ({ mode: r.mode, text: r.text, params: { ...r.params }, link: { ...r.link } })),
+    rows: rows.map(r => ({ mode: r.mode, text: r.text, faName: r.faName || null, params: { ...r.params }, link: { ...r.link } })),
     currentLayout,
     layerOrder,
     fills: fillModes.map((m, i) => ({ mode: m, color: FILL_COLORS[i]?.bg || '' })),
@@ -52,7 +52,7 @@ function restoreState(snap){
   if (!snap) return;
   HistoryStack.isRestoring = true;
   try {
-    if (snap.rows) rows = snap.rows.map(r => ({ mode: r.mode, text: r.text, params: { ...r.params }, link: { ...r.link } }));
+    if (snap.rows) rows = snap.rows.map(r => ({ mode: r.mode, text: r.text, faName: r.faName || null, params: { ...r.params }, link: { ...r.link } }));
     if (snap.rowCount !== undefined) rowCount = snap.rowCount;
     if (snap.activeRow !== undefined) activeRow = Math.min(snap.activeRow, rowCount - 1);
     if (snap.currentLayout !== undefined) currentLayout = snap.currentLayout;

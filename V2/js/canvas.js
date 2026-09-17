@@ -6,8 +6,8 @@
        单色/渐变填充、阴影、大小/角度/拉伸/偏移变换
      - drawIcon()：背景（白底或透明，需求 1.8）→ 按层次顺序逐行绘制
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.02（V2.05：占位渲染替换为真实文本渲染引擎）
-   暂缓（按任务要求）：图片模式（灰色占位）、FA 图标库、背景形状/填充渲染。
+   版本：V0.03（V2.06：FA 模式按图标字族渲染 solid=900/brands=400）
+   暂缓（按任务要求）：图片模式（灰色占位）、背景形状/填充渲染。
    说明：辅助线/安全边距由 index.html 的 SVG 覆盖层与 #safeBox 承担，
         不画进画布，因此天然不导出（需求 2.34/1.7）。
    ============================================================ */
@@ -113,8 +113,15 @@ function rowFontPx(text, layout, cell, p, S){
 function drawRowContent(r, p, layout, cell, S){
   const text = r.mode === 'fa' ? (r.text || '★') : (r.text || '');
   if (!text) return;
-  const weight = WEIGHT_MAP[p['font.weight']] || 400;
-  const italic = p['font.italic'] ? 'italic ' : '';
+  /* FA 模式：按图标字族取字体（solid=900 / brands=400），忽略斜体（需求 2.7） */
+  const faDef = r.mode === 'fa' && r.faName ? FA_INDEX[r.faName] : null;
+  const weight = faDef
+    ? (faDef.f === 'brands' ? 400 : 900)
+    : (WEIGHT_MAP[p['font.weight']] || 400);
+  const italic = faDef ? '' : (p['font.italic'] ? 'italic ' : '');
+  const family = faDef
+    ? (faDef.f === 'brands' ? '"Font Awesome 6 Brands"' : '"Font Awesome 6 Free"')
+    : rowFontFamily(p);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -123,7 +130,7 @@ function drawRowContent(r, p, layout, cell, S){
     // 字符沿圆环向心排列（字符顶部朝向圆心），环径≈画布宽
     const ringR = S * 0.36;
     const px = rowFontPx(text, layout, null, p, S);
-    ctx.font = `${italic}${weight} ${px}px ${rowFontFamily(p)}`;
+    ctx.font = `${italic}${weight} ${px}px ${family}`;
     const chars = Array.from(text);
     chars.forEach((ch, i) => {
       const deg = -90 + i * 360 / chars.length;
@@ -140,13 +147,13 @@ function drawRowContent(r, p, layout, cell, S){
   }
 
   const px = rowFontPx(text, layout, cell, p, S);
-  ctx.font = `${italic}${weight} ${px}px ${rowFontFamily(p)}`;
+  ctx.font = `${italic}${weight} ${px}px ${family}`;
   // 横排：文本超宽时按比例收缩字号适配单元格
   if (layout !== '纵排'){
     const w = ctx.measureText(text).width;
     const maxW = cell.w * S * 0.98;
     if (w > maxW && w > 0){
-      ctx.font = `${italic}${weight} ${px * maxW / w}px ${rowFontFamily(p)}`;
+      ctx.font = `${italic}${weight} ${px * maxW / w}px ${family}`;
     }
   }
 

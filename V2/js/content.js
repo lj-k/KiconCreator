@@ -1,20 +1,20 @@
 /* ============================================================
    KiconCreator V2 · js/content.js
    职责：内容行（多行设置 + 内容模块）渲染与绑定。
-     - MODE_LABEL / rowLabel：模式标签与行摘要
+     - MODE_LABEL / rowLabel：模式标签与行摘要（FA 显示 FA代号）
      - renderRowCount：行数胶囊（行数切换重置排版模式并重绘）
      - LAYOUTS / renderLayoutChips：排版模式芯片（需求 1.2），点击写状态重绘
      - renderLayerChips：多行排列层次（需求 1.3）
      - renderContentTabs / updateActiveTab：内容纵向标签
      - renderContentBody：文本模式面板（字体/粗细/斜体/排版/字号，
-       全部 data-pkey 绑定行状态）；图片/FA 面板为占位（暂缓）
-   版本：V0.02（V2.05：排版/层次状态化，文本参数接入渲染）
+       全部 data-pkey 绑定行状态）；FA 面板由 js/fa.js 挂载；图片占位
+   版本：V0.03（V2.06：FA 树状选图面板接入，标签标题显示 FA代号）
    ============================================================ */
 
 function rowLabel(r){
   if (r.mode === 'text') return r.text || '空';
   if (r.mode === 'image') return '图片.png';
-  return 'fa-star';
+  return r.faName || ('fa-' + (r.text ? r.text.codePointAt(0).toString(16) : 'icon'));
 }
 
 function renderRowCount(){
@@ -169,28 +169,9 @@ function renderContentBody(){
   } else if (r.mode === 'image'){
     body.innerHTML = `<div class="cp-label">第 ${idx} 行 · 图片模式（暂缓）</div><div class="cp-actions"><button class="btn sm">打开图片</button><button class="btn ghost sm">剪裁</button></div><div class="cp-thumb">图片预览<br>（剪裁后）</div><div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">动图仅取首帧；大于 1MB 的图片可能造成卡顿。</div>`;
   } else {
-    const icons = ['★', '♥', '⚡', '☀', '☁', '✦', '✿', '◆', '▲', '●', '☂', '♫', '✔', '✈', '☕', '♠', '♦', '♣', '⚙', '✎', '⌘', '☘', '☯', '⚑'];
-    body.innerHTML = `
-      <div class="cp-label">第 ${idx} 行 · FontAwesome 6（图标库暂缓，暂以字符渲染）</div>
-      <div class="param tight"><span class="pname">分类</span><div class="pctrl"><select class="sel" style="flex:1"><option value="all">全部图标</option><optgroup label="表情与人物"><option>笑脸</option><option>手势</option><option>人物</option></optgroup><optgroup label="动物与自然"><option>动物</option><option>植物</option><option>天气</option></optgroup><optgroup label="科技与通讯"><option>设备</option><option>网络</option><option>通信</option></optgroup><optgroup label="符号与图形"><option>箭头</option><option>符号</option><option>图形</option></optgroup><optgroup label="其他"><option>品牌</option><option>文件</option><option>音乐</option></optgroup></select></div></div>
-      <input class="fa-search" placeholder="搜索图标 / 别名 / 关键词…">
-      <div class="fa-grid">${icons.map(i => `<div class="fa-cell">${i}</div>`).join('')}</div>
-      <div style="margin-top:8px;font-size:10px;color:var(--warn);line-height:1.5">FA6 免费版仅部分图标可用于商用。</div>`;
-    const search = body.querySelector('.fa-search');
-    const grid = body.querySelector('.fa-grid');
-    search.addEventListener('input', () => {
-      const q = search.value.trim().toLowerCase();
-      Array.from(grid.children).forEach(c => { c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none'; });
-    });
-    grid.addEventListener('click', e => {
-      const cell = e.target.closest('.fa-cell');
-      if (!cell) return;
-      rows[activeRow].text = cell.textContent;
-      renderContentTabs();
-      drawIcon();
-      toast('已选中图标：' + cell.textContent);
-      commitHistory();
-    });
+    // FA 模式：树状分类面板（数据/绑定在 js/fa.js，需求 2.7）
+    body.innerHTML = '';
+    mountFaPanel(body, activeRow);
   }
   bindPaneInteractions('content', body, activeRow);
 }

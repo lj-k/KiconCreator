@@ -6,7 +6,7 @@
      - 内置示例预设
      - resize/orientationchange/字体就绪/ResizeObserver/滚动联动
      - Ctrl+Z / Ctrl+Y 全局快捷键
-   版本：V0.02（V2.05：层次芯片渲染、字体就绪重绘）
+   版本：V0.03（V2.06：FA 字体异步装载）
    约束：本文件必须最后加载。
    ============================================================ */
 function init(){
@@ -86,7 +86,9 @@ function init(){
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); }
   });
 
-  setTimeout(() => toast('欢迎使用 KiconCreator V2.05'), 400);
+  setTimeout(() => toast('欢迎使用 KiconCreator V2.06'), 400);
+  // FA6 字体与图标库在主界面加载后异步装载（需求 2.7）
+  setTimeout(ensureFaFonts, 0);
 }
 
 init();

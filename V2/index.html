@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KiconCreator · 图标王制作器 </title>
-<version>V2.05</version>
+<version>V2.07</version>
 <changelog>
+  - 2.07 FA图标库补全为官方全量免费集（1895 个，V2/data/fa-icons.js 独立数据文件）；面板重构为 搜索框→分类下拉菜单（optgroups 树）→统一候选图标框，修复分类列表显示问题
+  - 2.06 FA模式落地：本地图标数据集（分类树/搜索别名关键词/选中写回）、FA6字体按需加载、画布按字族渲染、FA代号进文件名；页脚FA6 版权提示
   - 2.05 文本模式渲染引擎与参数调节落地：参数注册表（schema.js）、排版布局引擎、字体/颜色/阴影/尺寸变换真实渲染、逐行参数联动、颜色建议公式化；图片/FA/背景暂缓（详见 ARCHITECTURE.md）
   - 2.04 按模块拆分为 css/（3 个文件）与 js/（18 个模块），便于 AI Agent 增量编辑；逻辑零改动，详见 ARCHITECTURE.md
   - 2.03 基于deepseek网页对话继续开发
@@ -14,6 +16,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Montserrat:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;600;700;900&family=Noto+Serif+SC:wght@400;700&family=Roboto:wght@300;400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap">
+<!-- FontAwesome 6 webfont（图标字形；离线时回退占位符并提示） -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <!-- 样式：加载顺序即层叠优先级，勿调整 -->
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/layout.css">
@@ -25,7 +29,7 @@
   <div class="brand">
     <div class="logo">K</div>
     <div class="brand-text">
-      <h1>KiconCreator <span class="ver">V2.05</span></h1>
+      <h1>KiconCreator <span class="ver">V2.07</span></h1>
       <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
     </div>
   </div>
@@ -194,6 +198,9 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- FA6 版权提示（需求 2.7：页面最底部一行简短版权） -->
+<footer class="page-foot">Icon 字体：Font Awesome Free 6 · 图标 CC BY 4.0 / 字体 SIL OFL 1.1 · fontawesome.com</footer>
+
 <div class="modal" id="viewerModal">
   <div class="modal-box">
     <div class="modal-head">
@@ -217,20 +224,22 @@
 <script src="js/utils.js"></script>        <!-- 3. 工具函数 -->
 <script src="js/layout.js"></script>       <!-- 4. 响应式布局引擎 + 统一刷新 -->
 <script src="js/builders.js"></script>     <!-- 5. 参数行模板 + 颜色建议引擎 -->
-<script src="js/panes.js"></script>        <!-- 6. 各 pane HTML 生成器 -->
-<script src="js/tabs.js"></script>         <!-- 7. 模块 tab 框架（动态展开） -->
-<script src="js/interactions.js"></script> <!-- 8. pane 内交互绑定 -->
-<script src="js/linkage.js"></script>      <!-- 9. 参数联动核心 -->
-<script src="js/history.js"></script>      <!-- 10. 撤销/重做 + 快照/恢复 -->
-<script src="js/exports.js"></script>      <!-- 11. 真实导出 + 下载 pane -->
-<script src="js/presets.js"></script>      <!-- 12. 预设 + 历史/预设列表渲染 -->
-<script src="js/canvas.js"></script>       <!-- 13. 画布渲染引擎 -->
-<script src="js/content.js"></script>      <!-- 14. 内容行渲染 -->
-<script src="js/fills.js"></script>        <!-- 15. 内部填充渲染（UI，背景暂缓） -->
-<script src="js/theme.js"></script>        <!-- 16. 主题/合并标签绑定 -->
-<script src="js/topbar.js"></script>       <!-- 17. 顶栏按钮绑定 -->
-<script src="js/preview.js"></script>      <!-- 18. 预览交互绑定 -->
-<script src="js/main.js"></script>         <!-- 19. 入口 init()（必须最后） -->
+<script src="data/fa-icons.js"></script>   <!-- 6. FA6 全量图标数据集（数据文件，独立目录） -->
+<script src="js/fa.js"></script>           <!-- 7. FA6 选图面板（搜索/分类下拉/候选框） -->
+<script src="js/panes.js"></script>        <!-- 8. 各 pane HTML 生成器 -->
+<script src="js/tabs.js"></script>         <!-- 9. 模块 tab 框架（动态展开） -->
+<script src="js/interactions.js"></script> <!-- 10. pane 内交互绑定 -->
+<script src="js/linkage.js"></script>      <!-- 11. 参数联动核心 -->
+<script src="js/history.js"></script>      <!-- 12. 撤销/重做 + 快照/恢复 -->
+<script src="js/exports.js"></script>      <!-- 13. 真实导出 + 下载 pane -->
+<script src="js/presets.js"></script>      <!-- 14. 预设 + 历史/预设列表渲染 -->
+<script src="js/canvas.js"></script>       <!-- 15. 画布渲染引擎 -->
+<script src="js/content.js"></script>      <!-- 16. 内容行渲染 -->
+<script src="js/fills.js"></script>        <!-- 17. 内部填充渲染（UI，背景暂缓） -->
+<script src="js/theme.js"></script>        <!-- 18. 主题/合并标签绑定 -->
+<script src="js/topbar.js"></script>       <!-- 19. 顶栏按钮绑定 -->
+<script src="js/preview.js"></script>      <!-- 20. 预览交互绑定 -->
+<script src="js/main.js"></script>         <!-- 21. 入口 init()（必须最后） -->
 
 </body>
 </html>

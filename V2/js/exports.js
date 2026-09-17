@@ -7,7 +7,7 @@
      - pushDownloadHistory：写入下载历史（含缩略图 + 全量快照，P0-5）
      - bindDownloadPaneInteractions：尺寸、透明色、格式按钮绑定
      - updateSize / updateFileName：导出尺寸联动
-   版本：V0.02（V2.05：移除 renderForExport；透明色选项实时作用于渲染）
+   版本：V0.03（V2.06：文件名 FA 行使用 FA代号）
    注意：exportCanvas 的模板字符串中包含内联 <script>，
         必须保持 <\/script> 转义写法，否则会截断宿主页面。
    ============================================================ */
@@ -20,7 +20,10 @@ function buildFileName(ext, withSize = true){
     + String(now.getHours()).padStart(2, '0')
     + String(now.getMinutes()).padStart(2, '0')
     + String(now.getSeconds()).padStart(2, '0');
-  const text = (rows[0].text || 'icon').replace(/[\\/:*?"<>|\s]/g, '').slice(0, 20) || 'icon';
+  // 文本内容：首行内容；FA 行使用 FA代号（需求 2.35）
+  const r0 = rows[0];
+  const raw = r0.mode === 'fa' ? (r0.faName || 'fa-icon') : (r0.text || 'icon');
+  const text = raw.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 20) || 'icon';
   return withSize ? `KIcon-${iconSize}-${text}-${stamp}.${ext}` : `KIcon-${text}-${stamp}.${ext}`;
 }
 
@@ -91,7 +94,7 @@ function exportHTML(){
   const html = `<link rel="icon" type="image/png" href="favicon.png" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#6c8cff">
-<!-- 由 KiconCreator V2.05 生成 · ${new Date().toISOString()} -->`;
+<!-- 由 KiconCreator V2.06 生成 · ${new Date().toISOString()} -->`;
   navigator.clipboard?.writeText(html)
     .then(() => toast('HTML link 标签已复制到剪贴板'))
     .catch(() => {

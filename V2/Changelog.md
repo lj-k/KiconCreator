@@ -1,7 +1,52 @@
 # KiconCreator V2 · Changelog
 
-> **文档版本：V0.02**（对应项目代码版本 **V2.05**）
+> **文档版本：V0.04**（对应项目代码版本 **V2.07**）
 > 记录范围：`V2/` 目录的代码与文档变更。
+
+---
+
+## [V2.07] - 2026-09-17
+
+### FA 图标库全量化 + 面板重构（用户三项要求）
+- **① 全量图标库**：FA 图标数据由精选集（194 个）补全为**官方全量免费集 1895 个**（solid/regular/brands 全覆盖），关键词条合并"label + 别名 + ligatures + 官方搜索词 + 精选中文词"；数据由 Font-Awesome 6.x 官方 metadata（icons.json + categories.yml）脚本生成。
+- **② 独立数据目录**：新增 `V2/data/fa-icons.js`（约 237 KB，`FA_ICONS` + `FA_GROUPS` 两个常量），index.html 在 js/fa.js 之前引入（第 6 位，脚本共 21 个）；fa.js 只保留交互逻辑（V0.02）。数据文件标注"脚本生成勿手改"。
+- **③ 面板重构**（修复分类列表显示问题）：
+  - 旧手风琴分类列表（▶ 符号在部分字体下渲染为方框）废弃，`.fa-tree/.fa-cat*` 样式删除（components.css V0.03）。
+  - FA 标签内自上而下改为：**搜索框 → 树状分类下拉菜单 → 统一候选图标显示框**（单一带边框网格 `.fa-grid-box`，内部滚动）。
+  - 下拉菜单用 `optgroup` 实现树状两级：全部图标（1895）+ 6 大类 → 68 官方类别（中文名 + 计数）+ 品牌与未分类。
+  - 性能：候选框仅在 搜索词/分类 变化时重建；选中图标只切换高亮类名不重建（实测全量 1895 格下切换分类 5ms、点击 7ms）。
+
+### 版本号同步更新
+- `index.html`：`<version>`、`.ver` 徽标 → V2.07；`<changelog>` 增加 2.07 条目；脚本清单更新至 21 个。
+- fa.js V0.02、components.css V0.03；ARCHITECTURE.md V0.04（文件结构增加 data/、4.5b 改写）。
+
+### 校验记录
+- 21 个 JS（含 data/fa-icons.js）全部通过 `node --check`；数据集完整性校验：1895 图标、7 大类、68 子类、全部子类图标均存在于 FA_ICONS、brands 452 个。
+- 浏览器功能验证：面板渲染（1895 格 unified 框）、分类下拉切换（网络 14 个，5ms）、点击写回（bluetooth/gear，高亮唯一）、中文搜索（"微信"→weixin）、画布 FA 字形渲染（colored 5438 px）、FA 字体加载成功；console 无本页报错。
+
+---
+
+## [V2.06] - 2026-09-17
+
+### FA（FontAwesome）模式落地（依据 doc/需求文档.md 2.2/2.3/2.7/3.4/3.5/2.35）
+- **本地图标数据集**（新增 `js/fa.js` V0.01）：`FA_ICONS`（194 个常用图标的码点/别名·关键词/字族）+ `FA_CATEGORIES`（5 大类 15 子类两级分类树，与需求 2.7 分类一致），全部本地打包，结构与 FA6 官方 metadata 对齐、可整体替换为全量。
+- **树状选图面板**（fa.js `mountFaPanel` + content.js FA 分支，V0.03）：
+  - 分类树：点击分类标题折叠/展开（首类默认展开），子类标签 + 图标网格；
+  - 搜索框：支持名称/别名/中文关键词，命中显示扁平结果（如搜"猫"→ cat）；
+  - 选中即写回：`rows[i].text = 码点字符`、`rows[i].faName = 图标名`，同步标签标题（显示 FA代号）、样式副标题、画布，并压栈快照；当前选中图标高亮。
+- **FA6 字体按需渲染**：
+  - index.html 引入 cdnjs FA6 `all.min.css`；`ensureFaFonts()` 在主界面加载后异步装载（需求 2.7），面板打开时亦触发；失败 toast 提示并回退占位符；
+  - canvas.js（V0.03）：FA 行按 `faName` 查字族渲染 —— solid → `"Font Awesome 6 Free"`（900）、brands → `"Font Awesome 6 Brands"`（400），忽略斜体；尺寸/颜色/阴影/排版变换与文本模式一致。
+- **FA代号贯通**：`faName` 进入快照/恢复（history.js V0.03，快照版本字段 → 2.06）、内容标签标题（content.js `rowLabel`）、导出文件名（exports.js V0.03 `buildFileName`，需求 2.35"FA使用FA代号"）。
+- **版权提示**（需求 2.7）：FA 面板内警示行 + 页面最底部新增 `.page-foot` 一行简短版权（Icon CC BY 4.0 / 字体 SIL OFL 1.1）；base.css V0.02 页面网格增加底部行，components.css V0.02 新增树面板/字形/页脚样式。
+
+### 版本号同步更新
+- `index.html`：`<version>`、`.ver` 徽标 → V2.06；`<changelog>` 增加 2.06 条目；新增 fa.js（第 6 位，共 20 个 JS）与 FA6 CDN link、页脚 footer。
+- `js/history.js` 快照 `version` → `'2.06'`；`js/exports.js` 导出注释 → `V2.06`；`js/main.js` 欢迎 toast → `V2.06`。
+
+### 校验记录
+- 20 个 JS 全部通过 `node --check`。
+- 浏览器功能验证：FA 面板渲染 194 图标/5 分类树/字形字体族正确；搜索"猫"命中 cat；点击写回（faName=cat、码点 f6be、标签标题 cat、文件名 KIcon-256-cat-*）；画布渲染 FA 字形（colored 5254 px）；撤销后回到文本模式且 faName 清空；页脚版权行显示。
 
 ---
 

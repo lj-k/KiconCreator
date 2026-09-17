@@ -108,13 +108,14 @@ function fontFamilyOf(name){
 
 /* ---------- 行工厂 ----------
    所有参数（不分模式）都写入行对象，保证 3.3
-   "切换模式保留数据、行增减不必重置"。link 为逐行联动标记（3.7） */
+   "切换模式保留数据、行增减不必重置"。link 为逐行联动标记（3.7）
+   faName：FA 模式选中的图标名（FA代号，用于标签/文件名/画布字族推断） */
 function makeRow(text, mode = 'text'){
   const params = {};
   Object.keys(PARAM_DEFS).forEach(k => { params[k] = PARAM_DEFS[k].def; });
   const link = {};
   Object.keys(PARAM_DEFS).forEach(k => { link[k] = false; });
-  return { mode, text: text || '', params, link };
+  return { mode, text: text || '', faName: null, params, link };
 }
 
 /* 阴影换算公式（schema 统一定义，渲染与文档共用）：
