@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.04**（对应项目代码版本 **V2.07**）
+> **文档版本：V0.05**（对应项目代码版本 **V2.08**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -24,7 +24,8 @@ V2/
 │   ├── layout.css          # 顶栏、三栏栅格（three/two/one）、合并标签、模块外壳、预览骨架
 │   └── components.css      # 可复用控件：按钮/tab/参数行/芯片/预设网格/vtab/填充/TOAST/模态
 ├── data/
-│   └── fa-icons.js         # FA6 全量免费图标数据集（本地打包，1895 个：FA_ICONS + FA_GROUPS，生成勿手改）
+│   ├── fa-icons.js         # FA6 全量免费图标数据集（本地打包，1895 个：FA_ICONS + FA_GROUPS，生成勿手改）
+│   └── fa-fonts.css        # FA6 字体本地化（solid-900/brands-400 woff2 以 base64 内嵌，离线/file:// 可用，生成勿手改）
 ├── js/                     # 20 个模块，加载顺序 = 依赖顺序（详见第 3 节）
 │   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 字体表 + 行工厂 makeRow
 │   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link/faName、currentLayout/layerOrder）
@@ -145,7 +146,7 @@ row.params / currentLayout / layerOrder 更新
 - **面板布局**（fa.js `mountFaPanel`，自上而下）：搜索框 → 树状分类下拉菜单（`optgroup` 大类 → 官方子类选项，"全部图标"置顶）→ 统一候选图标显示框（单一带边框网格，内部滚动）。搜索（名称/别名/关键词子串匹配）优先于分类过滤。
 - **性能**：候选框只在 搜索词/分类 变化时重建；选中图标仅切换高亮类名，不整体重建（"全部图标"1895 格下点击仍流畅）。
 - **渲染**（canvas.js `drawRowContent`）：FA 行按 `faName` 查 `FA_INDEX` 取字族 —— solid → `"Font Awesome 6 Free"`（900），brands → `"Font Awesome 6 Brands"`（400）；忽略斜体；尺寸/颜色/阴影/排版变换与文本模式一致（需求 3.5 对 FA 同样适用）。
-- **字体装载**：`ensureFaFonts()` 在 init 后异步调用（需求 2.7"主界面加载后异步加载"），FA 面板打开时也会触发；加载失败 toast 提示并回退占位符。index.html 引入 cdnjs 的 FA6 `all.min.css`。
+- **字体装载**（V2.08 起完全本地）：FA6 字体文件（fa-solid-900 / fa-brands-400 woff2）以 base64 内嵌于 `data/fa-fonts.css`（@font-face data: URL，不受 CORS 限制，file:// 与离线均可用），index.html 直接引用；`ensureFaFonts()` 仅负责触发加载与首绘刷新，并保留失败提示兜底。**不再使用 cdnjs 等 CDN 字体**。
 - **FA代号**：`faName` 进入快照/恢复（history.js）、标签标题（content.js `rowLabel`）、导出文件名（exports.js `buildFileName`，需求 2.35）。
 - **版权**：面板内警示行 + 页面最底部 `.page-foot` 一行简短版权（需求 2.7）。
 
@@ -197,7 +198,7 @@ row.params / currentLayout / layerOrder 更新
 3. **快照完整性**：见 4.2，新增状态必须同步 snapshot/restore。
 4. **`exportCanvas` 模板中的 `<\/script>` 转义不可去掉**。
 5. **pane 是"结构 + 行为"分离**：panes.js 只出 HTML 字符串；行为一律在 interactions.js（或局部渲染函数）里绑定。动态重建的局部 DOM（如 `#edgeParamsWrap`、`#fillBody2`）重建后必须重新调用 `bindPaneInteractions`。
-6. **版本号**：改动后同步更新 `index.html` 中 `<version>`、`.ver` 徽标、`snapshotState().version`、`exportHTML` 注释、`init()` 欢迎语，以及 `Changelog.md`；各模块文件头有自己的 V0.01 递增版本。
+6. **版本号**：改动后同步更新 `index.html` 顶栏 `.ver` 徽标、`snapshotState().version`、`exportHTML` 注释、`init()` 欢迎语，以及 `Changelog.md`（V2.08 起 head 中已无 `<version>`/`<changelog>` 标签，勿再添加）；各模块文件头有自己的版本号递增。
 
 ### 5.3 自检清单（提交前过一遍）
 
@@ -207,19 +208,20 @@ row.params / currentLayout / layerOrder 更新
 - [ ] 修改过状态字段：JSON 导出（下载 pane → JSON）内容包含新字段
 - [ ] 窗口缩放：three→two→one 切换、合并标签、预览浮动均正常
 
-## 6. 特别说明（V2.07 FA 全量图标库）
+## 6. 特别说明（V2.08 FA 字体本地化）
 
-- 本版本（V2.07）完成三件事：① FA 图标库由精选集（194 个）补全为**官方全量免费集（1895 个）**；② 图标数据独立到 `V2/data/fa-icons.js`；③ FA 面板重构为"搜索框 → 分类下拉菜单 → 统一候选图标框"，修复了原手风琴分类列表的显示问题（▶ 符号在部分字体下渲染为方框）。
-- 注意，分类树改为下拉 `optgroup` 两级结构（6 大类 → 68 官方类别）后，原 `.fa-tree/.fa-cat*` 样式已废弃删除；若发现页面出现无样式方框，请确认使用的是新版 fa.js 与 components.css。
-- 数据集由脚本从 Font-Awesome 6.x 官方 metadata 生成（icons.json + categories.yml），关键词条采用"label + 别名 + ligatures + 官方搜索词 + 精选中文词"合并去重；搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
-- 数据文件头标注了生成方式与基准版本；FA6 官方新增图标后，重新执行生成流程替换该文件即可，fa.js 交互逻辑无需改动。
-- "数据全部本地打包"指图标**元数据**本地打包；图标**字体文件**沿用在线加载策略（cdnjs FA6 `all.min.css`），离线时自动回退占位符并 toast 提示，不阻塞主界面。
-- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略（字族/字重由图标定义决定）。图片模式与背景形状/填充渲染仍暂缓。
+- 本版本（V2.08）解决"FA 图标显示为方框"：方框＝码点在字体中找不到字形。图标**元数据**（码点/分类/关键词）在 `data/fa-icons.js`，而**字形**存于 FA6 字体文件；此前字体经 cdnjs 在线加载，网络不可达时码点无字形可用。现字体已 base64 内嵌于 `data/fa-fonts.css`，随应用本地分发，file:// 与离线均可渲染。
+- 注意，head 中的 `<version>`/`<changelog>` 标签已按需求移除，且**不要再添加回去**；版本信息以顶栏 `.ver` 徽标与 `Changelog.md` 为准。
+- 数据文件（data/fa-icons.js、data/fa-fonts.css）均为脚本生成物，头注释含来源与基准版本；升级 FA6 版本时一并重新生成。
+- 搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
+- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略。图片模式与背景形状/填充渲染仍暂缓。
+- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构，各版本记录见 Changelog.md 对应条目。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.05 | 2026-09-17 | data/ 增加 fa-fonts.css、4.5b 字体装载改写、5.2 版本号约束更新、特别说明改写 | V2.08 |
 | V0.04 | 2026-09-17 | 文件结构增加 data/、4.5b 改写为全量数据集与新面板布局、特别说明改写 | V2.07 |
 | V0.03 | 2026-09-17 | 新增 4.5b FA 图标模式说明、模块表/加载顺序更新至 20 文件、特别说明改写 | V2.06 |
 | V0.02 | 2026-09-17 | 新增第 4 节参数体系与渲染管线、联动逐行化说明、编辑指引更新、特别说明改写 | V2.05 |

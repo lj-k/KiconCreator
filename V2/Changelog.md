@@ -1,7 +1,25 @@
 # KiconCreator V2 · Changelog
 
-> **文档版本：V0.04**（对应项目代码版本 **V2.07**）
+> **文档版本：V0.05**（对应项目代码版本 **V2.08**）
 > 记录范围：`V2/` 目录的代码与文档变更。
+
+---
+
+## [V2.08] - 2026-09-17
+
+### FA6 字体本地化（修复图标显示为方框）+ 移除 head 版本标签
+- **问题定位**：图标"全是方框"的根因是**字形数据不在数据文件里**——`data/fa-icons.js` 只含元数据（码点/分类/关键词），字形存于 FA6 字体文件；此前字体走 cdnjs 在线加载，网络不可达（国内网络访问 cdnjs 常失败）或经 file:// 打开受限时，码点无字形可渲染，即显示为方框。
+- **修复**：下载 cdnjs font-awesome 6.5.2 的 `fa-solid-900.woff2` 与 `fa-brands-400.woff2`，以 base64 内嵌生成 **`data/fa-fonts.css`**（约 358KB，@font-face data: URL）。data: URL 不受 CORS 限制，**file:// 双击打开与 http 离线均可渲染**，不再依赖任何 CDN。index.html 移除 cdnjs 引用、改引本地字体 CSS。
+- **移除 `<version>` / `<changelog>`**（用户要求）：head 中不再保留版本标签；版本信息仍可见于顶栏 `.ver` 徽标，变更记录集中于本文件。
+- **版本号同步**：`.ver` 徽标、`snapshotState().version`（'2.08'）、`exportHTML` 注释、欢迎 toast → V2.08；根导航页 index.html 卡片徽标同步 V2.08。
+
+### 版本号说明
+- ARCHITECTURE.md 第 5.2 节版本号约束已同步：不再包含 `<version>`/`<changelog>` 标签项。
+- 根目录 Changelog.md（V0.02）记录根导航页同步变更。
+
+### 校验记录
+- data/fa-fonts.css 生成自有效 WOFF2（solid 156KB / brands 118KB，file 命令校验格式），总 358KB。
+- 21 个 JS 语法检查通过；浏览器验证 FA 面板 DOM 字形与画布渲染均使用本地字体（见 V2.07 验证方法，本次复测 fonts.check 通过、canvas 有字形像素）。
 
 ---
 

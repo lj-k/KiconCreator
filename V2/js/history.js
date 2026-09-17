@@ -30,7 +30,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.06',
+    version: '2.08',
     rowCount,
     activeRow,
     rows: rows.map(r => ({ mode: r.mode, text: r.text, faName: r.faName || null, params: { ...r.params }, link: { ...r.link } })),

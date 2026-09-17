@@ -6,7 +6,7 @@
      - mountFaPanel(body, rowIdx)：FA 标签内从上到下依次为
        搜索框 → 树状分类下拉菜单（optgroup 两级）→ 统一候选图标显示框；
        搜索优先于分类过滤；选中图标写回行状态（text=码点字符、faName=名称）
-   版本：V0.02（V2.07：全量数据接入 data/ 目录，面板改为 下拉分类 + 统一候选框）
+   版本：V0.03（V2.08：FA 字体本地内嵌，交互不变）
    ============================================================ */
 
 /* name → 定义（含搜索用倒排索引） */
@@ -23,7 +23,8 @@ function faGlyph(name){
   return d ? String.fromCodePoint(parseInt(d.u, 16)) : '';
 }
 
-/* FA6 字体按需加载（需求 2.7：主界面加载后异步加载） */
+/* FA6 字体装载（V2.08 起字体 base64 内嵌于 data/fa-fonts.css，本地即时可用；
+   此调用仅触发加载与首绘刷新，并保留失败提示作为兜底） */
 const faFontTried = new Set();
 function ensureFaFonts(){
   if (!document.fonts) return;
