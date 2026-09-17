@@ -1,13 +1,11 @@
 /* ============================================================
    KiconCreator V2 · js/panes.js
-   职责：各模块 pane 的 HTML 内容生成器（纯模板，无副作用）。
-     - 预设/历史/下载 pane（getPresetPaneHTML / getHistoryPaneHTML / getDownloadPaneHTML）
-     - 样式 pane（尺寸 / 颜色 / 阴影）
-     - 形状 pane（形状 / 边框 / 形状阴影）
-     - 填充 pane（布局 / 填充边界 / 颜色建议）
-   版本：V0.01
-   约束：pane 的交互行为统一由 js/interactions.js 的
-        bindPaneInteractions() 绑定，本文件只产出结构。
+   职责：各模块 pane 的 HTML 内容生成器。
+     - 预设/历史/下载 pane（静态结构）
+     - 样式 pane：尺寸/颜色/阴影 —— 全部从激活行状态生成
+       （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
+   版本：V0.02（V2.05：状态驱动模板，颜色建议实时计算）
+   约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
 
 /* ---------- 预设 / 历史 / 下载 pane ---------- */
@@ -51,23 +49,26 @@ function getDownloadPaneHTML(){
     <div class="filename" id="fileName">KIcon-256-K-20260914153000.png</div>`;
 }
 
-/* ---------- 样式 pane ---------- */
+/* ---------- 样式 pane：尺寸（需求 3.5，值来自激活行状态） ---------- */
 function paneSize(){
+  const p = rows[activeRow].params;
   return `
-    ${paramRow('大小', 100, 1, 300, '%', { chain: true })}
-    ${paramRow('角度', 0, 0, 360, '°', { chain: true })}
-    ${paramRow('水平拉伸', 100, 1, 300, '%', { chain: true })}
-    ${paramRow('垂直拉伸', 100, 1, 300, '%', { chain: true })}
-    ${paramRow('横向偏移', 0, -100, 100, '%', { chain: true })}
-    ${paramRow('纵向偏移', 0, -100, 100, '%', { chain: true })}
-    <div class="param" style="padding-top:8px"><label class="check-row" style="padding:0"><input type="checkbox" checked> 显示超出形状范围的内容</label></div>`;
+    ${paramRow('大小', p['style.size'], 1, 300, '%', { key: 'style.size', chain: true })}
+    ${paramRow('角度', p['style.angle'], 0, 360, '°', { key: 'style.angle', chain: true })}
+    ${paramRow('水平拉伸', p['style.scaleX'], 1, 300, '%', { key: 'style.scaleX', chain: true })}
+    ${paramRow('垂直拉伸', p['style.scaleY'], 1, 300, '%', { key: 'style.scaleY', chain: true })}
+    ${paramRow('横向偏移', p['style.offsetX'], -100, 100, '%', { key: 'style.offsetX', chain: true })}
+    ${paramRow('纵向偏移', p['style.offsetY'], -100, 100, '%', { key: 'style.offsetY', chain: true })}
+    <div class="param" style="padding-top:8px">${checkRow('显示超出形状范围的内容', 'style.clip', p['style.clip'])}</div>`;
 }
 
+/* ---------- 样式 pane：颜色（需求 3.4） ---------- */
 function paneColor(r){
+  const p = r.params;
   if (r.mode === 'image'){
-    return `<div class="param tight"><span class="pname">颜色</span><div class="pctrl"><label class="check-row" style="padding:0"><input type="checkbox"> 设置图片中的白色为透明</label></div></div>`;
+    return `<div class="param tight"><span class="pname">颜色</span><div class="pctrl">${checkRow('设置图片中的白色为透明', '', false)}</div></div>`;
   }
-  const grad = currentColorMode === '渐变';
+  const grad = p['color.mode'] === '渐变';
   return `
     <div class="param tight">
       <span class="pname">颜色模式</span>
@@ -77,40 +78,26 @@ function paneColor(r){
           <button data-cmode="渐变" class="${grad ? 'active' : ''}">渐变</button>
         </div>
         <span style="flex:1"></span>
-        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
       </div>
     </div>
-    <div class="param tight">
-      <span class="pname">颜色 1</span>
-      <div class="pctrl">
-        <button class="fill-swatch" style="background:linear-gradient(135deg,#6c8cff,#9b5cff);width:24px;height:24px;border-radius:7px"></button>
-        <input class="mini-input" value="#6C8CFF" style="flex:1">
-        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
-      </div>
-    </div>
-    ${grad ? `
-    <div class="param tight">
-      <span class="pname">颜色 2</span>
-      <div class="pctrl">
-        <button class="fill-swatch" style="background:linear-gradient(135deg,#22d3ee,#a78bfa);width:24px;height:24px;border-radius:7px"></button>
-        <input class="mini-input" value="#22D3EE" style="flex:1">
-        <button class="chain" title="参数联动">${CHAIN_SVG}</button>
-      </div>
-    </div>` : ''}
-    <div class="param stacked" style="margin-top:6px"><span class="pname">颜色建议${grad ? '（渐变对）' : '（单色）'}</span><div id="colorAdviceWrap">${buildAdviceHTML(currentColorMode)}</div></div>`;
+    ${colorRow('颜色 1', 'color.c1', p['color.c1'])}
+    ${grad ? colorRow('颜色 2', 'color.c2', p['color.c2']) : ''}
+    <div class="param stacked" style="margin-top:6px"><span class="pname">颜色建议（随颜色实时计算）</span><div id="colorAdviceWrap">${buildAdviceHTML(p['color.mode'], p['color.c1'])}</div></div>`;
 }
 
+/* ---------- 样式 pane：阴影（需求 3.6，启用时标签绿勾由 enabled 驱动） ---------- */
 function paneShadow(){
+  const p = rows[activeRow].params;
   return `
-    <label class="check-row" style="padding-top:0"><input type="checkbox" checked id="shadowEnable"> 启用阴影</label>
-    <div class="param tight"><span class="pname">颜色</span><div class="pctrl"><button class="fill-swatch" style="background:#1d2333;width:24px;height:24px;border-radius:7px"></button><input class="mini-input" value="#1D2333" style="flex:1"><button class="chain" title="参数联动">${CHAIN_SVG}</button></div></div>
-    ${paramRow('大小', 12, 0, 100, '', { chain: true })}
-    ${paramRow('模糊', 10, 0, 100, '', { chain: true })}
-    ${paramRow('X 偏移', 0, -100, 100, '', { chain: true })}
-    ${paramRow('Y 偏移', 4, -100, 100, '', { chain: true })}`;
+    <div style="padding-top:2px">${checkRow('启用阴影', 'shadow.enabled', p['shadow.enabled'], { rerender: 'style' })}</div>
+    ${colorRow('颜色', 'shadow.color', p['shadow.color'])}
+    ${paramRow('大小', p['shadow.size'], 0, 100, '', { key: 'shadow.size', chain: true })}
+    ${paramRow('模糊', p['shadow.blur'], 0, 100, '', { key: 'shadow.blur', chain: true })}
+    ${paramRow('X 偏移', p['shadow.x'], -100, 100, '', { key: 'shadow.x', chain: true })}
+    ${paramRow('Y 偏移', p['shadow.y'], -100, 100, '', { key: 'shadow.y', chain: true })}`;
 }
 
-/* ---------- 形状 pane ---------- */
+/* ---------- 形状 pane（背景暂缓：保留 UI） ---------- */
 function shapePaneHTML(){
   return `
     ${inlineChips('基础', ['无', '圆形', '圆角方形'], 2, { group: 'shape' })}
@@ -140,7 +127,7 @@ function fshadowPaneHTML(){
     ${paramRow('Y 偏移', 8, -8, 8, '')}`;
 }
 
-/* ---------- 填充 pane ---------- */
+/* ---------- 填充 pane（背景暂缓：保留 UI） ---------- */
 function fillLayoutPaneHTML(){
   const single = fillCount === 1;
   if (single) return `<div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">单色填充无需设置布局与边界，直接到下方「内部填充」调整颜色即可。</div>`;

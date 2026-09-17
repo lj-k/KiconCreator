@@ -2,12 +2,13 @@
    KiconCreator V2 · js/state.js
    职责：全局唯一可变状态源。
      - HistoryStack：动作历史栈（P0-3，上限 20 条，FIFO 淘汰）
-     - linkFlags  ：参数联动标记（P0-1，key 为 data-name，如"大小"）
      - PRESETS / downloadHistory：预设数组与下载历史（P0-4/P0-5）
-     - rows 等业务状态：内容行、填充、颜色模式、画布尺寸
-   版本：V0.01
-   约束：本文件必须最先加载；任何模块读写状态请引用这里的变量，
-        不要在其它模块新建平行状态，避免快照/撤销遗漏字段。
+     - rows：9 行内容状态（makeRow 构造，含 params/link，见 schema.js）
+     - currentLayout / layerOrder：排版模式与多行排列层次（需求 1.2/1.3）
+     - fillCount 等填充状态：背景渲染暂缓，仅供 UI
+   版本：V0.02（V2.05：行参数状态化、逐行联动标记、移除全局 linkFlags）
+   约束：本文件必须最先加载（schema.js 之后）；任何模块读写状态请引用
+        这里的变量，不要新建平行状态，避免快照/撤销遗漏字段。
    ============================================================ */
 
 /* P0-3：动作历史（撤销栈） */
@@ -46,10 +47,6 @@ const HistoryStack = {
   }
 };
 
-/* P0-1：参数联动标记（按参数 key 全局共享）
-   —— key 使用 data-name 值（"大小"、"角度"、"水平拉伸"…） */
-const linkFlags = {}; // { '大小': true, '角度': false, ... }
-
 /* P0-4：预设数组 */
 const PRESETS = []; // 动态维护，内置几个示例在 init 时装入
 
@@ -57,22 +54,25 @@ const PRESETS = []; // 动态维护，内置几个示例在 init 时装入
 const downloadHistory = [];
 const HISTORY_MAX = 20;
 
-/* ---------- 内容行 / 填充 / 全局业务状态 ---------- */
+/* ---------- 内容行 / 全局业务状态 ----------
+   rows 固定 9 条（含隐藏行），rowCount 控制可见数，
+   隐藏行参数与联动保留（需求 3.3/3.7） */
 const MODE_LABEL = { text: '文本', image: '图片', fa: 'FontAwesome' };
 let rows = [
-  { mode: 'text', text: 'K' },{ mode: 'text', text: 'ICON' },{ mode: 'text', text: 'A' },
-  { mode: 'text', text: 'B' },{ mode: 'text', text: 'C' },{ mode: 'text', text: 'D' },
-  { mode: 'text', text: 'E' },{ mode: 'text', text: 'F' },{ mode: 'text', text: 'G' }
+  makeRow('K'), makeRow('ICON'), makeRow('A'),
+  makeRow('B'), makeRow('C'), makeRow('D'),
+  makeRow('E'), makeRow('F'), makeRow('G')
 ];
 let rowCount = 2;
 let activeRow = 0;
-let styleClipboard = null;
-let currentColorMode = '单色';
-let currentEdgeShape = '直线';
+let styleClipboard = null;       // 复制样式（仅 style./color./shadow. 参数）
+let currentLayout = '全在上（左右分）'; // 排版模式，rowCount 变化时重置为该行数第一项
+let layerOrder = '1to9';         // '1to9'：行1 最后绘制在最顶层；'9to1'：行9 顶层
+let currentEdgeShape = '直线';    // 填充边界 UI（背景暂缓）
 let fillCount = 2;
 let activeFill = 0;
 let fillModes = ['纯', '纯', '纯', '纯', '纯', '纯'];
 let stateReady = false; // 初始渲染完成后才允许 commitHistory
 
-/* 画布导出尺寸（与 canvas.js / exports.js 共享） */
+/* 画布导出尺寸（与 render/exports 共享） */
 let iconSize = 256;

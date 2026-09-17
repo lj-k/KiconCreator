@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.01**（对应项目代码版本 **V2.04**）
+> **文档版本：V0.02**（对应项目代码版本 **V2.05**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -23,25 +23,26 @@ V2/
 │   ├── base.css            # 设计令牌（CSS 变量）、三套主题色板、全局 reset
 │   ├── layout.css          # 顶栏、三栏栅格（three/two/one）、合并标签、模块外壳、预览骨架
 │   └── components.css      # 可复用控件：按钮/tab/参数行/芯片/预设网格/vtab/填充/TOAST/模态
-├── js/                     # 18 个模块，加载顺序 = 依赖顺序（详见第 3 节）
-│   ├── state.js            # ① 全局唯一可变状态源（含 HistoryStack/linkFlags/PRESETS）
-│   ├── utils.js            # ② $/$$/escapeHtml/roundRect/toast/flashInvalid/CHAIN_SVG
-│   ├── layout.js           # ③ 响应式布局引擎 + tab 动态展开算法 + refreshLayout 统一刷新
-│   ├── builders.js         # ④ paramRow/inlineChips 模板 + 颜色建议数据（ADVICE_*/FILL_ADVICE）
-│   ├── panes.js            # ⑤ 各模块 pane 的 HTML 生成器（纯模板，无副作用）
-│   ├── tabs.js             # ⑥ 模块 tab 框架：MODULE_TABS 定义、测量、分组、渲染
-│   ├── interactions.js     # ⑦ bindPaneInteractions：pane 内交互统一绑定入口
-│   ├── linkage.js          # ⑧ 参数联动核心（propagateLink/链条图标/联动按钮三态）
-│   ├── history.js          # ⑨ commitHistory/undo/redo + snapshotState/restoreState
-│   ├── exports.js          # ⑩ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 下载 pane 绑定
-│   ├── presets.js          # ⑪ 预设增删改/导入导出 + 预设/历史列表渲染 + data-act 委托
-│   ├── canvas.js           # ⑫ 画布 DOM 引用 + drawGuides/drawIcon 占位渲染
-│   ├── content.js          # ⑬ 内容行渲染（行数胶囊/排版芯片/纵向标签/三模式面板）
-│   ├── fills.js            # ⑭ 内部填充渲染（色块列表 + 纯/渐/图三模式面板）
-│   ├── theme.js            # ⑮ 主题切换 + 两栏合并标签切换（顶层绑定）
-│   ├── topbar.js           # ⑯ 顶栏按钮绑定 + renderStyle
-│   ├── preview.js          # ⑰ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
-│   └── main.js             # ⑱ init() 入口（必须最后加载）
+├── js/                     # 19 个模块，加载顺序 = 依赖顺序（详见第 3 节）
+│   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 字体表 + 行工厂 makeRow
+│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link、currentLayout/layerOrder）
+│   ├── utils.js            # ③ $/$$/escapeHtml/roundRect/toast/flashInvalid/CHAIN_SVG
+│   ├── layout.js           # ④ 响应式布局引擎 + tab 动态展开算法 + refreshLayout 统一刷新
+│   ├── builders.js         # ⑤ paramRow/selectRow/checkRow/colorRow 模板 + 颜色建议 HSL 公式引擎
+│   ├── panes.js            # ⑥ 各模块 pane 的 HTML 生成器（样式 pane 从激活行状态生成）
+│   ├── tabs.js             # ⑦ 模块 tab 框架：MODULE_TABS 定义、测量、分组、渲染
+│   ├── interactions.js     # ⑧ bindPaneInteractions：滑块/下拉/布尔/颜色/建议/芯片统一绑定 + Web 字体按需加载
+│   ├── linkage.js          # ⑨ 逐行参数联动：applyLinkedParam/toggleRowLink/联动按钮三态
+│   ├── history.js          # ⑩ commitHistory/undo/redo + 状态化 snapshotState/restoreState
+│   ├── exports.js          # ⑪ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 下载 pane 绑定
+│   ├── presets.js          # ⑫ 预设增删改/导入导出 + 预设/历史列表渲染 + data-act 委托
+│   ├── canvas.js           # ⑬ 渲染引擎：layoutCells 排版几何 + drawRow 文本渲染 + drawIcon
+│   ├── content.js          # ⑭ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
+│   ├── fills.js            # ⑮ 内部填充渲染（UI，背景暂缓）
+│   ├── theme.js            # ⑯ 主题切换 + 两栏合并标签切换（顶层绑定）
+│   ├── topbar.js           # ⑰ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
+│   ├── preview.js          # ⑱ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
+│   └── main.js             # ⑲ init() 入口（必须最后加载）
 ├── ARCHITECTURE.md         # 本文档
 └── Changelog.md            # 变更记录
 ```
@@ -51,16 +52,16 @@ V2/
 `index.html` 底部按固定顺序引用全部 JS。**顺序即依赖，禁止调整**：
 
 ```
-state ──► utils ──► layout ──► builders ──► panes ──► tabs ──► interactions ──► linkage
-                                                                              │
-   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄──┘
-                                          （presets/exports/history 位于 history↔canvas 之间，
-                                            完整顺序以 index.html 底部注释 1~18 为准）
+schema ─► state ─► utils ─► layout ─► builders ─► panes ─► tabs ─► interactions ─► linkage
+                                                                                  │
+   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄─────┘
+                                          （history/exports/presets 位于 linkage↔canvas 之间，
+                                            完整顺序以 index.html 底部注释 1~19 为准）
 ```
 
 加载顺序的设计依据（为什么必须如此）：
 
-1. **state.js 最先**：所有模块都可能读写全局状态；放在最前可避免 TDZ（暂时性死区）问题。
+1. **schema.js 最先、state.js 其次**：state.js 在顶层调用 schema.js 的 `makeRow()` 构造 9 行默认状态；所有模块都可能读写全局状态。
 2. **history.js 必须先于 topbar.js**：topbar.js 在**顶层**执行 `$('#undoBtn').addEventListener('click', undo)`，`undo` 标识符在该行执行时就必须已定义。
 3. **canvas.js 必须先于 preview.js**：preview.js 顶层引用 `viewerModal`/`modalBody` 等 canvas.js 中的常量。
 4. **main.js 最后**：`init()` 调用几乎所有模块的渲染函数。
@@ -68,55 +69,93 @@ state ──► utils ──► layout ──► builders ──► panes ──
 
 > **判断规则**：顶层立即执行的代码（绑定、DOM 查询、`init()`）所引用的外部标识符，必须来自**更早加载**的文件；仅在事件回调/闭包里引用的外部标识符，顺序无关。
 
-## 4. 核心数据流与关键机制
+## 4. 参数体系与渲染管线（V2.05 新增）
+
+### 4.0 参数键注册表（schema.js）
+
+所有可渲染参数在 `PARAM_DEFS` 注册，键为 `"域.参数"` 形式（避免同名互相污染，如 `style.size` 与 `shadow.size`）：
+
+| 域 | 键 | 范围/选项 | 默认 |
+|---|---|---|---|
+| style | size / angle / scaleX / scaleY | 1~300 / 0~360° / 1~300 / 1~300 | 100 / 0 / 100 / 100 |
+| style | offsetX / offsetY | -100~100% | 0 |
+| style | clip（bool） | — | true |
+| color | mode（select） | 单色 / 渐变 | 单色 |
+| color | c1 / c2（color） | #RRGGBB | #6C8CFF / #22D3EE |
+| shadow | enabled（bool） | — | false |
+| shadow | color / size / blur | #RRGGBB / 0~100 / 0~100 | #1D2333 / 12 / 10 |
+| shadow | x / y | -100~100 | 0 / 4 |
+| font | cn / en（select） | 见 FONT_*_OPTIONS | 系统默认 |
+| font | weight（select） | 细300/常规400/中粗600/粗700/特粗900 | 常规 |
+| font | italic（bool） | — | false |
+| font | layout（select） | 横排 / 纵排 / 环形向心 | 横排 |
+| font | size | 1~300% | 100 |
+
+**行对象结构**（`makeRow`）：`{ mode, text, params: {键: 值}, link: {键: bool} }`。9 行固定存在，`rowCount` 只控制可见性 —— 隐藏行的参数与联动标记保留（需求 3.3/3.7）。
+
+**硬规则**：DOM 参数行的 `data-name`（滑块）与 `data-pkey`（下拉/布尔/颜色）必须等于 PARAM_DEFS 的键；interactions.js 只对注册过的键写状态。新增参数四步：schema.js 注册 → panes.js/content.js 加 UI → canvas.js 渲染读取 → 快照自动覆盖（rows 深拷贝）。
 
 ### 4.1 状态与渲染（单向）
 
 ```
-state.js（唯一状态）
-   │  用户操作
+schema.js（参数定义）→ state.js（rows/currentLayout/layerOrder）
+   │  用户操作（interactions.js 统一入口）
    ▼
-interactions / topbar / content / fills / preview（修改状态）
-   │
-   ├─► content.js / fills.js：局部重渲染（renderContentTabs、renderFillBody2 …）
-   ├─► tabs.js：rerenderModule(moduleId)（style/shape/fill/preset 模块重渲染）
-   ├─► canvas.js：drawIcon()（画布重绘）
-   └─► history.js：commitHistory()（压栈快照，供撤销）
+row.params / currentLayout / layerOrder 更新
+   ├─► canvas.js：scheduleDrawIcon()（滑块拖动 rAF 节流）或 drawIcon()
+   │     drawIcon = 背景填充（白底/透明）→ layoutCells(currentLayout) → 按层次顺序 drawRow ×N
+   │     drawRow = 偏移→旋转(绕内容中心)→大小/拉伸变换 → 阴影 → 单色/渐变填充 → 横排/纵排/环形向心
+   ├─► tabs.js：rerenderModule('style')（pane 从状态重建，含 tab 徽标）
+   └─► history.js：commitHistory()（快照；滑块拖动中不入栈 —— 需求 四.2）
 ```
 
 ### 4.2 撤销/快照（P0-3）
 
-- `snapshotState()`（history.js）采集：全部 `.param[data-name]` 滑块值 + rows/fillCount/颜色模式/边界形状/iconSize/辅助线/安全边距/linkFlags。
-- **约束**：新增任何"需要被撤销"的状态时，必须**同时**扩展 `snapshotState` 与 `restoreState`，并在 state.js 中声明该状态，禁止散落在其它模块。
-- `stateReady`（state.js）：init 完成首轮渲染后才置 true；此前 `commitHistory()` 直接返回，防止把初始渲染记录为操作。
+- `snapshotState()`（history.js）**从状态采集**（不读 DOM）：rows 深拷贝（含 params/link）+ rowCount/activeRow/currentLayout/layerOrder/填充状态/iconSize/辅助线/安全边距/透明选项。
+- **约束**：新增顶层状态（rows 之外的）必须同时扩展 snapshotState 与 restoreState；行内新参数自动随 rows 覆盖。
+- `stateReady`：init 完成首轮渲染后才置 true，防止初始渲染入栈。
 - `HistoryStack.isRestoring`：恢复期间忽略 push，防止递归入栈。
 
-### 4.3 参数联动（P0-1）
+### 4.3 参数联动（P0-1 / 需求 3.7，逐行版）
 
-- 联动的 key 是参数行的 `data-name` 属性（由 builders.js 的 `paramRow` 生成，如 `"大小"`、`"角度"`）。
-- `linkFlags`（state.js）记录每个 key 的联动开关；链条按钮（`.chain`）切换它。
-- `propagateLink`（linkage.js）把变更值同步到文档中**所有同名参数行**（排除源行）。
-- 顶栏"参数联动"按钮是总开关，三态展示：无 / 部分（≤3 个 key）/ 全部（>3 个 key）。
+- 联动标记存于**每行**：`row.link[paramKey]`。
+- 链条开（`toggleRowLink` ON）→ **全部行**同键开启；关 → 仅该行关闭（需求 3.7 举例语义）。
+- `applyLinkedParam(key, value, srcRowIdx)`：源行始终更新 + 所有 `link[key]` 为 true 的行（含不可见行）同步 → `syncParamInputs` 刷新可见控件。
+- 顶栏联动按钮：点击批量改写所有行所有参数标记；三态显示（无/部分/全部，需求 四.3）。
+- 布尔参数同样支持联动（如 style.clip、shadow.enabled）。
 
-### 4.4 模块 tab 动态展开（tabs.js + layout.js）
+### 4.4 排版布局与层次（需求 1.2/1.3）
+
+- `LAYOUTS`（content.js）定义每种行数的选项标签；`layoutCells`（canvas.js）按**同名键**返回每行单元格（比例坐标）。
+- `currentLayout` 在行数切换时重置为该行数第一项。
+- `layerOrder`：'1to9'（行1最后绘制在最顶层，绘制序 9→1）/'9to1'。
+
+### 4.5 颜色建议（需求 3.4）
+
+- builders.js `computeAdvice(base)`：HSL 公式实时计算 互补(+180°)/类似(±30°)/柔和(降饱和提亮度)/明亮(提饱和)，每组 2 个候选。
+- 点击 swatch 写回 `color.c1`（渐变模式为 c1→c2 渐变对）。
+- **说明**：需求为"根据背景色"计算；背景模块暂缓，当前以文本当前色为基色，函数签名已保留 base 参数，背景落地后传背景色即可。
+
+### 4.6 模块 tab 动态展开（tabs.js + layout.js）
 
 - `MODULE_TABS` 定义 4 个模块（preset/style/shape/fill）各自的 tab 与 pane 生成器。
 - `measureTabHeights` 离屏测量每个 tab 自然高度 → `computeTabLayout`（连续切分算法）在剩余空间内决定哪些 tab 展开为"同组平铺"、哪些折叠为标签。
 - preset 模块的特殊规则：预设/历史 tab 的高度上限对齐下载 tab（`--preset-cap`）。
 - `activeTabByModule` 记住每个模块当前激活的 tab，重渲染后保持。
 
-### 4.5 响应式布局（layout.js + css/layout.css）
+### 4.7 响应式布局（layout.js + css/layout.css）
 
 - `<html data-layout="three|two|one">` 驱动 CSS 栅格切换；阈值：>800px 或手机横屏 → three；<400px 或手机竖屏 → one；其余 → two。
 - two 模式下中/右栏合并，由 `.merge-tabs` 浮动标签切换。
 - `preview-float`：栏内出现滚动时预览模块固定悬浮（`position:fixed`），占位元素撑开原位置。
 - `refreshLayout()` 是布局刷新的**唯一入口**：resize、主题切换、内容变化后都必须经它（或被 ResizeObserver 覆盖）。
 
-### 4.6 导出（P0-2，exports.js）
+### 4.8 导出（P0-2，exports.js）
 
-- `renderForExport()` 导出前临时关闭辅助线/安全边距并重绘，导出后恢复。
+- **预览即导出**：辅助线与安全边距由 SVG 覆盖层/`#safeBox` 承担，不画进画布，因此天然不导出（需求 2.34/1.7）。
+- 透明选项 `transparentChk` 实时作用于画布背景（勾选 → 画布透明，PNG 导出透明；JPG 导出前强制铺白底）。
 - `exportCanvas()` 生成的独立 HTML 内含 `<script>` 字符串，**必须保留 `<\/script>` 转义**，否则会截断宿主页面。
-- 每次导出都会 `pushDownloadHistory`（含 52×52 缩略图 + 快照，上限 20 条）。
+- 每次导出都会 `pushDownloadHistory`（含 52×52 缩略图 + 全量快照，上限 20 条）。
 
 ## 5. AI Agent 编辑指引
 
@@ -124,16 +163,19 @@ interactions / topbar / content / fills / preview（修改状态）
 
 | 需求 | 文件 | 说明 |
 |---|---|---|
-| 新增/修改某个参数行（滑块） | `js/panes.js`（模板）+ 必要时 `js/interactions.js`（特殊交互） | 联动与撤销自动生效（基于 data-name） |
+| 新增/修改可渲染参数 | `js/schema.js` 注册 → `js/panes.js` 或 `js/content.js` 加 UI → `js/canvas.js` 渲染读取 | data-name/data-pkey 必须等于参数键；联动与快照自动生效 |
 | 新增一个 pane/tab | `js/tabs.js` 的 `MODULE_TABS` + `js/panes.js` 加生成函数 | 需要建议色则同时改 `js/builders.js` |
-| 新增可撤销状态字段 | `js/state.js` 声明 → `js/history.js` 的 snapshot/restore 各加一行 | 三处缺一不可 |
-| 改画布内容绘制 | `js/canvas.js` 的 `drawIcon()` | 辅助线在 `drawGuides()` |
+| 新增可撤销的顶层状态 | `js/state.js` 声明 → `js/history.js` 的 snapshot/restore 各加一行 | 行内参数（rows.params）自动覆盖 |
+| 改文本渲染（字体/排版/阴影/渐变） | `js/canvas.js` 的 `drawRow/drawRowContent` | 布局几何在 `layoutCells` |
+| 新增排版布局选项 | `js/content.js` 的 `LAYOUTS` + `js/canvas.js` 的 `layoutCells` | 两处键名必须严格一致 |
+| 加新字体 | `js/schema.js` 的 FONT_*_OPTIONS + `index.html` 的 Google Fonts link | family=null 时回退系统字体 |
+| 改颜色建议公式 | `js/builders.js` 的 `computeAdvice` | |
 | 改布局断点/栅格 | `js/layout.js` 的 `updateLayoutMode()` + `css/layout.css` | |
 | 加新主题 | `css/base.css` 追加 `html[data-theme=…]` 变量段（theme.js 的按钮同步加） | |
 | 改导出格式/文件名 | `js/exports.js` | |
 | 改预设/历史行为 | `js/presets.js` | |
 | 改预览缩放/模态 | `js/preview.js` | |
-| 改控件外观 | `css/components.css` | 改类名须同步 panes.js/tabs.js 的模板 |
+| 改控件外观 | `css/components.css` | 改类名须同步 panes.js/tabs.js/content.js 的模板 |
 
 ### 5.2 硬性约束（违反会破坏运行）
 
@@ -152,14 +194,20 @@ interactions / topbar / content / fills / preview（修改状态）
 - [ ] 修改过状态字段：JSON 导出（下载 pane → JSON）内容包含新字段
 - [ ] 窗口缩放：three→two→one 切换、合并标签、预览浮动均正常
 
-## 6. 特别说明
+## 6. 特别说明（V2.05 文本模式渲染）
 
-- 本版本（V2.04）仅做**结构拆分重构**：原单文件 `index.html`（2386 行）中的内联 CSS/JS 按原有代码顺序、原封不动地迁移到 `css/`（3 个文件）与 `js/`（18 个文件），未修改任何运行逻辑。经逐行比对校验：CSS 207 行完全一致；JS 顶层声明 304 个一一对应；浏览器冒烟测试（渲染 + 主题/tab/填充数交互 + 撤销链路）通过。
-- 注意，与旧版单文件相比唯一的代码级差异是版本号字符串 `2.03 → 2.04`（快照 version 字段、导出注释、欢迎 toast 三处）以及 `stateReady` 声明行追加了一行注释。
-- 拆分前 `V2/index.html` 中存在的历史段落注释（如"工具函数""画布渲染"）已转化为各模块文件头的"职责"说明；若发现某文件头描述与代码行为不符，以代码为准，并请同步修正文档。
+- 本版本（V2.05）按任务要求实现**文本模式**的渲染与参数调节（需求 1.2/1.3/2.6/3.3~3.8/四.2/四.3）；**图片模式、FontAwesome 图标库、背景形状/填充渲染暂缓**——相关 UI 保留原样，画布上图片行渲染灰色占位框、背景恒为白底（勾选透明时透明）。
+- 注意，为保证"预览即导出"（需求 1.8），辅助线与安全边距**不画入画布**，由 index.html 中的 SVG 覆盖层与 `#safeBox` 承担；因此导出前无需再切换辅助线状态。
+- 颜色建议的需求口径是"根据背景色"计算；背景模块暂缓期间以文本当前色（color.c1）为基色生成调和色，`computeAdvice(base)` 已预留基色入参，背景模块落地后传入背景色即可，UI 与回写逻辑无需改动。
+- 文本渐变为内容局部坐标自上而下的线性渐变（c1→c2）；"水平/垂直拉伸不改变渐变效果"当前仅对水平拉伸严格成立（垂直拉伸会使渐变随之拉伸）。如需完全解耦，需引入离屏两遍渲染，已在 Changelog 中登记为已知限制。
+- 环形向心按需求 2.6"圆环直径等于画布宽度"设计：环心为画布中心、字符沿环均布且字形顶部指向圆心；为避免字符被画布裁切，实际环半径取 `S×0.36`、字号按环周长自适应。
+- `style.clip`（显示超出形状范围的内容）为形状模块预留参数：形状暂缓期间无论取值如何均以画布边界为裁切面（画布天然裁切），参数值正常存储并参与快照/联动。
+- 阴影换算公式在 schema.js 统一定义（`shadowBlurPx`/`shadowOffsetPx`），UI 范围 0~100 与像素的换算以该处为准；"大小"参数体现为阴影扩散感（并入模糊计算）。
+- 历史版本说明：V2.04 完成了单文件 index.html 的模块化拆分（css/ 3 个文件 + js/ 模块化），当时的逐行比对与冒烟测试记录见 Changelog.md 对应条目。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.02 | 2026-09-17 | 新增第 4 节参数体系与渲染管线、联动逐行化说明、编辑指引更新、特别说明改写 | V2.05 |
 | V0.01 | 2026-09-17 | 首次创建：随 V2.04 模块化拆分一起发布 | V2.04 |

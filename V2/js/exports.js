@@ -1,30 +1,16 @@
 /* ============================================================
    KiconCreator V2 · js/exports.js
-   职责：真实导出（P0-2）与下载 pane。
-     - renderForExport：导出前临时关闭辅助线/安全边距，导出后恢复
+   职责：真实导出（P0-2 / 需求 2.3）与下载 pane。
      - exportPNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG
-     - buildFileName / downloadBlob：文件名与下载工具
-     - pushDownloadHistory：写入下载历史（含缩略图，P0-5）
-     - bindDownloadPaneInteractions：下载 pane 的尺寸与格式按钮绑定
+       （预览即导出：画布内容即导出内容，辅助线在 SVG 覆盖层不入画布）
+     - buildFileName / downloadBlob：默认命名 KIcon-{尺寸}-{文本}-{时间}.扩展名
+     - pushDownloadHistory：写入下载历史（含缩略图 + 全量快照，P0-5）
+     - bindDownloadPaneInteractions：尺寸、透明色、格式按钮绑定
      - updateSize / updateFileName：导出尺寸联动
-   版本：V0.01
+   版本：V0.02（V2.05：移除 renderForExport；透明色选项实时作用于渲染）
    注意：exportCanvas 的模板字符串中包含内联 <script>，
         必须保持 <\/script> 转义写法，否则会截断宿主页面。
    ============================================================ */
-
-/* ---------- 导出前渲染切换 ---------- */
-function renderForExport(){
-  const savedGuide = $('#guideSelect').value;
-  const savedSafe = $('#safeChk').checked;
-  $('#guideSelect').value = 'none';
-  $('#safeChk').checked = false;
-  drawIcon();
-  return () => {
-    $('#guideSelect').value = savedGuide;
-    $('#safeChk').checked = savedSafe;
-    drawIcon();
-  };
-}
 
 function buildFileName(ext, withSize = true){
   const now = new Date();
@@ -49,16 +35,13 @@ function downloadBlob(blob, filename){
 
 /* ---------- 各格式导出 ---------- */
 function exportPNG(){
-  const restore = renderForExport();
   cvs.toBlob(blob => {
     if (blob) downloadBlob(blob, buildFileName('png'));
-    restore();
     pushDownloadHistory('png');
   }, 'image/png');
 }
 
 function exportJPG(){
-  const restore = renderForExport();
   // JPG 不支持透明：先填白底
   const tmp = document.createElement('canvas');
   tmp.width = cvs.width; tmp.height = cvs.height;
@@ -68,27 +51,19 @@ function exportJPG(){
   tctx.drawImage(cvs, 0, 0);
   tmp.toBlob(blob => {
     if (blob) downloadBlob(blob, buildFileName('jpg'));
-    restore();
     pushDownloadHistory('jpg');
   }, 'image/jpeg', 0.92);
 }
 
 function exportWebP(){
-  const restore = renderForExport();
   cvs.toBlob(blob => {
     if (blob) downloadBlob(blob, buildFileName('webp'));
-    restore();
     pushDownloadHistory('webp');
   }, 'image/webp', 0.92);
 }
 
 function exportCanvas(){
-  const dataURL = (() => {
-    const restore = renderForExport();
-    const url = cvs.toDataURL('image/png');
-    restore();
-    return url;
-  })();
+  const dataURL = cvs.toDataURL('image/png');
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>${escapeHtml(rows[0].text || 'icon')}</title></head>
 <body style="margin:0;background:#f0f2f7;display:grid;place-items:center;min-height:100vh">
@@ -116,7 +91,7 @@ function exportHTML(){
   const html = `<link rel="icon" type="image/png" href="favicon.png" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#6c8cff">
-<!-- 由 KiconCreator V2.04 生成 · ${new Date().toISOString()} -->`;
+<!-- 由 KiconCreator V2.05 生成 · ${new Date().toISOString()} -->`;
   navigator.clipboard?.writeText(html)
     .then(() => toast('HTML link 标签已复制到剪贴板'))
     .catch(() => {
@@ -127,10 +102,8 @@ function exportHTML(){
 
 function exportICO(){
   // 单尺寸 ICO 的简化实现：先输出 PNG 并提示
-  const restore = renderForExport();
   cvs.toBlob(blob => {
     if (blob) downloadBlob(blob, buildFileName('ico'));
-    restore();
     pushDownloadHistory('ico');
     toast('ICO 单尺寸已导出（多尺寸打包开发中）');
   }, 'image/png');
@@ -185,6 +158,12 @@ function bindDownloadPaneInteractions(){
       updateSize();
       commitHistory();
     });
+  }
+  /* 透明色选项：实时作用于画布背景（需求 1.8） */
+  const tc = dl.querySelector('#transparentChk');
+  if (tc && !tc.dataset.bound){
+    tc.dataset.bound = '1';
+    tc.addEventListener('change', () => { drawIcon(); commitHistory(); });
   }
   /* P0-2：格式按钮 → 真实导出 */
   dl.querySelectorAll('.fmt').forEach(b => b.addEventListener('click', () => {

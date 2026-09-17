@@ -6,7 +6,7 @@
      - 内置示例预设
      - resize/orientationchange/字体就绪/ResizeObserver/滚动联动
      - Ctrl+Z / Ctrl+Y 全局快捷键
-   版本：V0.01
+   版本：V0.02（V2.05：层次芯片渲染、字体就绪重绘）
    约束：本文件必须最后加载。
    ============================================================ */
 function init(){
@@ -20,6 +20,7 @@ function init(){
   // 简单装入：以当前 snapshot 作为模板
   renderRowCount();
   renderLayoutChips();
+  renderLayerChips();
   renderContentTabs();
   renderContentBody();
   renderFillList();
@@ -51,7 +52,7 @@ function init(){
   });
   window.addEventListener('orientationchange', () => setTimeout(refreshLayout, 150));
   if (document.fonts && document.fonts.ready){
-    document.fonts.ready.then(refreshLayout);
+    document.fonts.ready.then(() => { drawIcon(); refreshLayout(); }); // 字体加载完成后再渲染（需求 2.6）
   }
   if (window.ResizeObserver){
     let roRAF = null;
@@ -85,7 +86,7 @@ function init(){
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); }
   });
 
-  setTimeout(() => toast('欢迎使用 KiconCreator V2.04'), 400);
+  setTimeout(() => toast('欢迎使用 KiconCreator V2.05'), 400);
 }
 
 init();

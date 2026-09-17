@@ -7,7 +7,7 @@
      - relayoutColumn / relayoutAllModules：按列高分配 tab 展开分组
      - renderTabGroupsFromGroups：渲染分组后的 tab-group 并绑定切换
      - rerenderModule：单个模块重渲染入口
-   版本：V0.01
+   版本：V0.02（V2.05：style 模块绑定传入激活行索引）
    依赖：layout.js（computeTabLayout/measureTabHeights）、
         interactions.js（bindPaneInteractions）、presets.js（renderPresets/renderHistory）、
         exports.js（bindDownloadPaneInteractions）—— 均为运行时调用，加载顺序见 index.html。
@@ -166,7 +166,7 @@ function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
       });
     });
   });
-  bindPaneInteractions(moduleId, container);
+  bindPaneInteractions(moduleId, container, moduleId === 'style' ? activeRow : null);
   if (moduleId === 'preset'){
     renderPresets();
     renderHistory();

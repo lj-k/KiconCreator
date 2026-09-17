@@ -3,12 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KiconCreator · 图标王制作器 </title><title>KiconCreator · 图标王制作器 </title>
-
-<!-- ============================================================
-ch  - 2.04 按模块拆分为 css/（3 个文件）与 js/（18 个模块），便于 AI Agent 增量编辑；逻辑零改动，详见 ARCHITECTURE.md
+<title>KiconCreator · 图标王制作器 </title>
+<version>V2.05</version>
+<changelog>
+  - 2.05 文本模式渲染引擎与参数调节落地：参数注册表（schema.js）、排版布局引擎、字体/颜色/阴影/尺寸变换真实渲染、逐行参数联动、颜色建议公式化；图片/FA/背景暂缓（详见 ARCHITECTURE.md）
+  - 2.04 按模块拆分为 css/（3 个文件）与 js/（18 个模块），便于 AI Agent 增量编辑；逻辑零改动，详见 ARCHITECTURE.md
   - 2.03 基于deepseek网页对话继续开发
--->
+</changelog>
+<!-- Web 字体：思源黑体/宋体、站酷高端黑、Inter/Roboto/Montserrat（离线时自动回退系统字体） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Montserrat:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;600;700;900&family=Noto+Serif+SC:wght@400;700&family=Roboto:wght@300;400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap">
 <!-- 样式：加载顺序即层叠优先级，勿调整 -->
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/layout.css">
@@ -20,7 +25,7 @@ ch  - 2.04 按模块拆分为 css/（3 个文件）与 js/（18 个模块），�
   <div class="brand">
     <div class="logo">K</div>
     <div class="brand-text">
-      <h1>KiconCreator <span class="ver">V2.04</span></h1>
+      <h1>KiconCreator <span class="ver">V2.05</span></h1>
       <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
     </div>
   </div>
@@ -207,24 +212,25 @@ ch  - 2.04 按模块拆分为 css/（3 个文件）与 js/（18 个模块），�
      JS 模块：顺序即依赖顺序，禁止调整。
      详意见同目录 ARCHITECTURE.md 的「模块加载顺序与依赖」一节。
      ============================================================ -->
-<script src="js/state.js"></script>        <!-- 1. 全局状态（必须最先） -->
-<script src="js/utils.js"></script>        <!-- 2. 工具函数 -->
-<script src="js/layout.js"></script>       <!-- 3. 响应式布局引擎 + 统一刷新 -->
-<script src="js/builders.js"></script>     <!-- 4. 参数行模板 + 颜色建议数据 -->
-<script src="js/panes.js"></script>        <!-- 5. 各 pane HTML 生成器 -->
-<script src="js/tabs.js"></script>         <!-- 6. 模块 tab 框架（动态展开） -->
-<script src="js/interactions.js"></script> <!-- 7. pane 内交互绑定 -->
-<script src="js/linkage.js"></script>      <!-- 8. 参数联动核心 -->
-<script src="js/history.js"></script>      <!-- 9. 撤销/重做 + 快照/恢复 -->
-<script src="js/exports.js"></script>      <!-- 10. 真实导出 + 下载 pane -->
-<script src="js/presets.js"></script>      <!-- 11. 预设 + 历史/预设列表渲染 -->
-<script src="js/canvas.js"></script>       <!-- 12. 画布渲染 -->
-<script src="js/content.js"></script>      <!-- 13. 内容行渲染 -->
-<script src="js/fills.js"></script>        <!-- 14. 内部填充渲染 -->
-<script src="js/theme.js"></script>        <!-- 15. 主题/合并标签绑定 -->
-<script src="js/topbar.js"></script>       <!-- 16. 顶栏按钮绑定 -->
-<script src="js/preview.js"></script>      <!-- 17. 预览交互绑定 -->
-<script src="js/main.js"></script>         <!-- 18. 入口 init()（必须最后） -->
+<script src="js/schema.js"></script>       <!-- 1. 参数注册表与行工厂（必须最先） -->
+<script src="js/state.js"></script>        <!-- 2. 全局状态 -->
+<script src="js/utils.js"></script>        <!-- 3. 工具函数 -->
+<script src="js/layout.js"></script>       <!-- 4. 响应式布局引擎 + 统一刷新 -->
+<script src="js/builders.js"></script>     <!-- 5. 参数行模板 + 颜色建议引擎 -->
+<script src="js/panes.js"></script>        <!-- 6. 各 pane HTML 生成器 -->
+<script src="js/tabs.js"></script>         <!-- 7. 模块 tab 框架（动态展开） -->
+<script src="js/interactions.js"></script> <!-- 8. pane 内交互绑定 -->
+<script src="js/linkage.js"></script>      <!-- 9. 参数联动核心 -->
+<script src="js/history.js"></script>      <!-- 10. 撤销/重做 + 快照/恢复 -->
+<script src="js/exports.js"></script>      <!-- 11. 真实导出 + 下载 pane -->
+<script src="js/presets.js"></script>      <!-- 12. 预设 + 历史/预设列表渲染 -->
+<script src="js/canvas.js"></script>       <!-- 13. 画布渲染引擎 -->
+<script src="js/content.js"></script>      <!-- 14. 内容行渲染 -->
+<script src="js/fills.js"></script>        <!-- 15. 内部填充渲染（UI，背景暂缓） -->
+<script src="js/theme.js"></script>        <!-- 16. 主题/合并标签绑定 -->
+<script src="js/topbar.js"></script>       <!-- 17. 顶栏按钮绑定 -->
+<script src="js/preview.js"></script>      <!-- 18. 预览交互绑定 -->
+<script src="js/main.js"></script>         <!-- 19. 入口 init()（必须最后） -->
 
 </body>
 </html>
