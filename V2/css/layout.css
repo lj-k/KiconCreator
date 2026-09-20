@@ -2,7 +2,8 @@
    KiconCreator V2 · layout.css
    职责：顶栏、三栏栅格布局（three/two/one 三种模式）、合并标签、
         模块卡片外壳、预览模块与浮动预览的布局骨架
-   版本：V0.01
+   版本：V0.02（V2.10：预览模块头合并 尺寸/边距 控件并允许换行，
+        移除 preview-foot；模块高度因此降低）
    说明：布局模式由 <html data-layout="three|two|one"> 驱动，
         由 js/layout.js 的 updateLayoutMode() 动态切换。
    ============================================================ */
@@ -58,13 +59,9 @@ html[data-layout="two"] .merge-tabs{display:flex}
 .guides-layer line{stroke:color-mix(in srgb,var(--muted) 55%,transparent);stroke-width:1}
 .g-guide{display:none}
 .guides-layer[data-mode="cross"] .g-cross,.guides-layer[data-mode="star"] .g-star,.guides-layer[data-mode="thirds"] .g-thirds{display:block}
-.preview-foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10.5px;color:var(--muted);flex:0 0 auto}
-.preview-foot .k{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text);background:var(--field);border:1px solid var(--border);padding:2px 7px;border-radius:6px}
-.hint-text{margin-left:auto}
-html[data-layout="three"] .module-preview .module-head,html[data-layout="two"] .module-preview .module-head{padding:6px 10px;min-height:34px}
+html[data-layout="three"] .module-preview .module-head,html[data-layout="two"] .module-preview .module-head{padding:6px 10px;min-height:34px;flex-wrap:wrap;row-gap:4px}
 html[data-layout="three"] .module-preview .module-body,html[data-layout="two"] .module-preview .module-body{padding:8px 10px 10px;gap:5px}
 html[data-layout="three"] .module-preview .preview-stage,html[data-layout="two"] .module-preview .preview-stage{padding:8px}
-html[data-layout="three"] .module-preview .hint-text,html[data-layout="two"] .module-preview .hint-text{display:none}
 .preview-placeholder{display:none;flex:0 0 auto}
 body.preview-float .module-preview{position:fixed;top:var(--topbar-h);z-index:45;margin:0;border-radius:var(--radius);box-shadow:0 16px 38px rgba(16,24,40,.22),0 4px 10px rgba(16,24,40,.10)}
 body.preview-float .preview-placeholder{display:block;height:var(--preview-placeholder-h,220px)}

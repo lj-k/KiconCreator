@@ -7,7 +7,7 @@
      - pushDownloadHistory：写入下载历史（含缩略图 + 全量快照，P0-5）
      - bindDownloadPaneInteractions：尺寸、透明色、格式按钮绑定
      - updateSize / updateFileName：导出尺寸联动
-   版本：V0.03（V2.06：文件名 FA 行使用 FA代号）
+   版本：V0.04（V2.10：updateSize 统一同步预览/下载两处尺寸下拉；移除 sizeTag）
    注意：exportCanvas 的模板字符串中包含内联 <script>，
         必须保持 <\/script> 转义写法，否则会截断宿主页面。
    ============================================================ */
@@ -94,7 +94,7 @@ function exportHTML(){
   const html = `<link rel="icon" type="image/png" href="favicon.png" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#6c8cff">
-<!-- 由 KiconCreator V2.08 生成 · ${new Date().toISOString()} -->`;
+<!-- 由 KiconCreator V2.10 生成 · ${new Date().toISOString()} -->`;
   navigator.clipboard?.writeText(html)
     .then(() => toast('HTML link 标签已复制到剪贴板'))
     .catch(() => {
@@ -189,13 +189,20 @@ function bindDownloadPaneInteractions(){
   }));
 }
 
-/* ---------- 导出尺寸 ---------- */
+/* ---------- 导出尺寸 ----------
+   iconSize 是共享变量：预览模块的 #sizeSelect 与下载 pane 的
+   #sizePreset 是同一参数的两个下拉入口（需求 1.1），updateSize
+   统一同步两处下拉与 #sizeInput 后重绘。
+   注意：#sizeInput 由下载 pane 动态生成，尚未渲染时保留当前 iconSize
+   并照常重绘（不可提前 return，否则 restoreState 等调用方会漏掉重绘） */
 function updateSize(){
   const si = document.querySelector('#sizeInput');
-  if (!si) return;
-  iconSize = parseInt(si.value, 10) || 256;
-  const tag = $('#sizeTag');
-  if (tag) tag.textContent = `${iconSize} × ${iconSize}`;
+  if (si) iconSize = parseInt(si.value, 10) || 256;
+  ['#sizeSelect', '#sizePreset'].forEach(selId => {
+    const sel = document.querySelector(selId);
+    // 自定义尺寸无对应选项时保持原显示（真实值以 #sizeInput 为准）
+    if (sel && sel.querySelector('option[value="' + iconSize + '"]')) sel.value = String(iconSize);
+  });
   const S = iconSize;
   const pct = Math.min(50, Math.max(0, +$('#safePct').value || 10));
   const sb = $('#safeBox');

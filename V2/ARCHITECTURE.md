@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.05**（对应项目代码版本 **V2.08**）
+> **文档版本：V0.07**（对应项目代码版本 **V2.10**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -18,7 +18,7 @@ KiconCreator 是一个**零安装、纯浏览器运行**的图标制作器。单
 
 ```
 V2/
-├── index.html              # 唯一入口：页面骨架 + 按依赖顺序引用 3 个 CSS 与 18 个 JS
+├── index.html              # 唯一入口：页面骨架 + 内联启动屏（进度条）+ 引导器（按序动态加载 css/js）
 ├── css/
 │   ├── base.css            # 设计令牌（CSS 变量）、三套主题色板、全局 reset
 │   ├── layout.css          # 顶栏、三栏栅格（three/two/one）、合并标签、模块外壳、预览骨架
@@ -51,27 +51,29 @@ V2/
 └── Changelog.md            # 变更记录
 ```
 
-## 3. 模块加载顺序与依赖
+## 3. 模块加载顺序与依赖（V2.09 起由引导器动态加载）
 
-`index.html` 底部按固定顺序引用全部 JS。**顺序即依赖，禁止调整**：
+`index.html` 不再静态书写 `<link>`/`<script>` 标签，而是由页尾**引导器**（内联脚本）按 `steps` 数组顺序逐个动态加载 4 个 CSS 与 21 个 JS，并在启动屏上实时显示进度。**顺序即依赖，steps 数组禁止调整**：
 
 ```
-schema ─► state ─► utils ─► layout ─► builders ─► fa ─► panes ─► tabs ─► interactions ─► linkage
+base/layout/components.css + fa-fonts.css
+   └► schema ─► state ─► utils ─► layout ─► builders ─► fa-icons(data) ─► fa ─► panes ─► tabs ─► interactions ─► linkage
                                                                                         │
-   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄────────────┘
-                                          （history/exports/presets 位于 linkage↔canvas 之间，
-                                            完整顺序以 index.html 底部注释 1~20 为准）
+   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄── presets/exports/history
 ```
 
 加载顺序的设计依据（为什么必须如此）：
 
 1. **schema.js 最先、state.js 其次**：state.js 在顶层调用 schema.js 的 `makeRow()` 构造 9 行默认状态；所有模块都可能读写全局状态。
-2. **history.js 必须先于 topbar.js**：topbar.js 在**顶层**执行 `$('#undoBtn').addEventListener('click', undo)`，`undo` 标识符在该行执行时就必须已定义。
-3. **canvas.js 必须先于 preview.js**：preview.js 顶层引用 `viewerModal`/`modalBody` 等 canvas.js 中的常量。
-4. **main.js 最后**：`init()` 调用几乎所有模块的渲染函数。
-5. 其余跨模块引用（如 tabs.js 闭包里调用 presets.js 的 `renderPresets`）均为**运行时调用**，只要求加载完成，不要求先后。
+2. **fa-icons.js（data）必须先于 fa.js**：fa.js 顶层由 `FA_ICONS` 构建 `FA_INDEX`；引导器保证 data 文件在其前一位。
+3. **history.js 必须先于 topbar.js**：topbar.js 在**顶层**执行 `$('#undoBtn').addEventListener('click', undo)`，`undo` 标识符在该行执行时就必须已定义。
+4. **canvas.js 必须先于 preview.js**：preview.js 顶层引用 `viewerModal`/`modalBody` 等 canvas.js 中的常量。
+5. **main.js 最后**：其 `init()` 由引导器在全部步骤完成后调用（V2.09 起不再自执行）。
+6. 其余跨模块引用（如 tabs.js 闭包里调用 presets.js 的 `renderPresets`）均为**运行时调用**，只要求加载完成，不要求先后。
 
-> **判断规则**：顶层立即执行的代码（绑定、DOM 查询、`init()`）所引用的外部标识符，必须来自**更早加载**的文件；仅在事件回调/闭包里引用的外部标识符，顺序无关。
+> **判断规则**：顶层立即执行的代码（绑定、DOM 查询）所引用的外部标识符，必须来自 steps 数组中**更早**的文件；仅在事件回调/闭包里引用的外部标识符，顺序无关。
+>
+> **新增模块**：把文件加入 steps 数组的正确位置，并同步更新 ARCHITECTURE.md 的文件结构表。
 
 ## 4. 参数体系与渲染管线（V2.05 新增）
 
@@ -193,7 +195,7 @@ row.params / currentLayout / layerOrder 更新
 
 ### 5.2 硬性约束（违反会破坏运行）
 
-1. **不改 `index.html` 底部脚本顺序**；新增 JS 文件时按第 3 节规则插入正确位置并更新注释序号。
+1. **不改 `index.html` 引导器的 steps 数组顺序**；新增 JS 文件时按第 3 节规则插入正确位置。
 2. **全局作用域共享**：顶层 `const/let` 即全局词法绑定，跨文件可见；**禁止**在两个文件声明同名顶层标识符（静默覆盖或 SyntaxError）。
 3. **快照完整性**：见 4.2，新增状态必须同步 snapshot/restore。
 4. **`exportCanvas` 模板中的 `<\/script>` 转义不可去掉**。

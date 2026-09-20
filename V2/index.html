@@ -4,24 +4,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KiconCreator · 图标王制作器 </title>
-<!-- FA6 字体已本地内嵌（data/fa-fonts.css，base64 woff2），离线/file:// 均可渲染，不依赖 CDN -->
-<link rel="stylesheet" href="data/fa-fonts.css">
-<!-- Web 字体：思源黑体/宋体、站酷高端黑、Inter/Roboto/Montserrat（离线时自动回退系统字体） -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Montserrat:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;600;700;900&family=Noto+Serif+SC:wght@400;700&family=Roboto:wght@300;400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap">
-<!-- 样式：加载顺序即层叠优先级，勿调整 -->
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/layout.css">
-<link rel="stylesheet" href="css/components.css">
+<!-- ============================================================
+     启动屏样式内联置于最前：无任何阻塞型外部资源，
+     打开即刻显示进度条；全部 css/js 由页尾引导器按依赖顺序异步加载。
+     （V2.09：旧方案 head 中的 Google Fonts <link> 为渲染阻塞资源，
+     网络不可达时页面会卡到超时才首绘——现已改为应用就绪后异步注入）
+     ============================================================ -->
+<style>
+#bootScreen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#eef1f7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;transition:opacity .35s}
+#bootScreen.done{opacity:0;pointer-events:none}
+#bootScreen .b-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4d6ef5,#7c5cff);color:#fff;font-weight:800;font-size:24px;display:grid;place-items:center;box-shadow:0 6px 16px rgba(77,110,245,.42)}
+#bootScreen .b-title{font-size:15px;font-weight:700;color:#1d2333;letter-spacing:.2px}
+#bootScreen .b-sub{font-size:11px;color:#7c8698;margin-top:-10px}
+#bootScreen .b-track{width:min(340px,72vw);height:6px;border-radius:99px;background:#dfe5f0;overflow:hidden}
+#bootScreen .b-bar{width:0%;height:100%;border-radius:99px;background:linear-gradient(90deg,#4d6ef5,#7c5cff);transition:width .15s}
+#bootScreen .b-row{display:flex;gap:10px;align-items:baseline}
+#bootScreen .b-pct{font-size:11px;font-weight:800;color:#4d6ef5;font-variant-numeric:tabular-nums}
+#bootScreen .b-status{font-size:11px;color:#7c8698}
+#bootScreen.error .b-bar{background:#f04a4a}
+#bootScreen.error .b-status{color:#f04a4a}
+</style>
 </head>
 <body>
+
+<!-- 启动屏：引导器完成后移除 -->
+<div id="bootScreen">
+  <div class="b-logo">K</div>
+  <div class="b-title">KiconCreator · 图标王制作器</div>
+  <div class="b-sub">零安装 · 纯浏览器运行 · by Kong</div>
+  <div class="b-track"><div class="b-bar" id="bootBar"></div></div>
+  <div class="b-row"><span class="b-pct" id="bootPct">0%</span><span class="b-status" id="bootStatus">准备加载…</span></div>
+</div>
 
 <header class="topbar">
   <div class="brand">
     <div class="logo">K</div>
     <div class="brand-text">
-      <h1>KiconCreator <span class="ver">V2.08</span></h1>
+      <h1>KiconCreator <span class="ver">V2.10</span></h1>
       <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
     </div>
   </div>
@@ -50,18 +69,29 @@
       <div class="module-head">
         <span class="mh-title">预览</span>
         <span class="mh-spacer"></span>
-        <select class="mini-select" id="guideSelect">
-          <option value="none">无辅助线</option>
+        <select class="mini-select" id="sizeSelect" title="画布尺寸（与「下载」中的导出尺寸联动）">
+          <option value="16">16</option>
+          <option value="32">32</option>
+          <option value="64">64</option>
+          <option value="128">128</option>
+          <option value="256" selected>256</option>
+          <option value="512">512</option>
+          <option value="1024">1024</option>
+        </select>
+        <label class="mini-check" title="显示安全边距"><input type="checkbox" id="safeChk" checked> 边距</label>
+        <input class="num" id="safePct" value="10" style="width:30px;flex:0 0 30px;height:20px" title="安全边距百分比（%）">
+        <select class="mini-select" id="guideSelect" title="辅助线">
+          <option value="none">无</option>
           <option value="cross">十字</option>
           <option value="star">米字</option>
-          <option value="thirds">均分井字</option>
+          <option value="thirds">井字</option>
         </select>
         <button class="btn icon" id="enlargeBtn" title="放大预览">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
         </button>
       </div>
       <div class="module-body">
-        <div class="preview-stage" id="stage">
+        <div class="preview-stage" id="stage" title="滚轮缩放 · 左键拖动 · 双击复位 / 模态预览">
           <div class="preview-canvas-wrap" id="canvasWrap">
             <canvas id="iconCanvas" width="256" height="256"></canvas>
             <svg class="guides-layer" id="guidesLayer" viewBox="0 0 100 100" preserveAspectRatio="none" data-mode="none">
@@ -71,13 +101,6 @@
             </svg>
             <div class="safe-box" id="safeBox"></div>
           </div>
-        </div>
-        <div class="preview-foot">
-          <span class="k" id="sizeTag">256 × 256</span>
-          <label class="mini-check"><input type="checkbox" id="safeChk" checked> 安全边距</label>
-          <input class="num" id="safePct" value="10" style="width:36px;flex:0 0 36px;height:20px">
-          <span>%</span>
-          <span class="hint-text">滚轮缩放 · 双击复位 / 模态预览</span>
         </div>
       </div>
     </section>
@@ -208,30 +231,103 @@
 </div>
 
 <!-- ============================================================
-     JS 模块：顺序即依赖顺序，禁止调整。
+     引导器：按依赖顺序逐个加载 css/js（各模块单独加载），
+     进度条实时反馈；顺序即依赖，steps 数组禁止调整。
      详意见同目录 ARCHITECTURE.md 的「模块加载顺序与依赖」一节。
      ============================================================ -->
-<script src="js/schema.js"></script>       <!-- 1. 参数注册表与行工厂（必须最先） -->
-<script src="js/state.js"></script>        <!-- 2. 全局状态 -->
-<script src="js/utils.js"></script>        <!-- 3. 工具函数 -->
-<script src="js/layout.js"></script>       <!-- 4. 响应式布局引擎 + 统一刷新 -->
-<script src="js/builders.js"></script>     <!-- 5. 参数行模板 + 颜色建议引擎 -->
-<script src="data/fa-icons.js"></script>   <!-- 6. FA6 全量图标数据集（数据文件，独立目录） -->
-<script src="js/fa.js"></script>           <!-- 7. FA6 选图面板（搜索/分类下拉/候选框） -->
-<script src="js/panes.js"></script>        <!-- 8. 各 pane HTML 生成器 -->
-<script src="js/tabs.js"></script>         <!-- 9. 模块 tab 框架（动态展开） -->
-<script src="js/interactions.js"></script> <!-- 10. pane 内交互绑定 -->
-<script src="js/linkage.js"></script>      <!-- 11. 参数联动核心 -->
-<script src="js/history.js"></script>      <!-- 12. 撤销/重做 + 快照/恢复 -->
-<script src="js/exports.js"></script>      <!-- 13. 真实导出 + 下载 pane -->
-<script src="js/presets.js"></script>      <!-- 14. 预设 + 历史/预设列表渲染 -->
-<script src="js/canvas.js"></script>       <!-- 15. 画布渲染引擎 -->
-<script src="js/content.js"></script>      <!-- 16. 内容行渲染 -->
-<script src="js/fills.js"></script>        <!-- 17. 内部填充渲染（UI，背景暂缓） -->
-<script src="js/theme.js"></script>        <!-- 18. 主题/合并标签绑定 -->
-<script src="js/topbar.js"></script>       <!-- 19. 顶栏按钮绑定 -->
-<script src="js/preview.js"></script>      <!-- 20. 预览交互绑定 -->
-<script src="js/main.js"></script>         <!-- 21. 入口 init()（必须最后） -->
+<script>
+(function(){
+  var boot = document.getElementById('bootScreen');
+  var bar = document.getElementById('bootBar');
+  var pct = document.getElementById('bootPct');
+  var status = document.getElementById('bootStatus');
+
+  var steps = [
+    ['css/base.css',            '基础样式'],
+    ['css/layout.css',          '布局样式'],
+    ['css/components.css',      '组件样式'],
+    ['data/fa-fonts.css',       'FA6 字体'],
+    ['js/schema.js',            '参数注册表'],
+    ['js/state.js',             '全局状态'],
+    ['js/utils.js',             '工具函数'],
+    ['js/layout.js',            '布局引擎'],
+    ['js/builders.js',          '模板构造器'],
+    ['data/fa-icons.js',        'FA6 图标数据（1895 个）'],
+    ['js/fa.js',                'FA6 面板'],
+    ['js/panes.js',             '面板模板'],
+    ['js/tabs.js',              '标签框架'],
+    ['js/interactions.js',      '交互绑定'],
+    ['js/linkage.js',           '参数联动'],
+    ['js/history.js',           '撤销/快照'],
+    ['js/exports.js',           '导出模块'],
+    ['js/presets.js',           '预设模块'],
+    ['js/canvas.js',            '渲染引擎'],
+    ['js/content.js',           '内容模块'],
+    ['js/fills.js',             '填充模块'],
+    ['js/theme.js',             '主题模块'],
+    ['js/topbar.js',            '顶栏模块'],
+    ['js/preview.js',           '预览模块'],
+    ['js/main.js',              '应用入口']
+  ];
+
+  function setProgress(done){
+    var p = Math.round(done / steps.length * 100);
+    bar.style.width = p + '%';
+    pct.textContent = p + '%';
+  }
+
+  function fail(src, err){
+    boot.classList.add('error');
+    status.textContent = '加载失败：' + src + '（请检查文件完整性后刷新重试）';
+    if (err) console.error(err);
+  }
+
+  function loadNext(idx){
+    if (idx >= steps.length){ start(); return; }
+    var src = steps[idx][0], label = steps[idx][1];
+    status.textContent = '正在加载 ' + label + ' …';
+    var el;
+    if (/\.css$/.test(src)){
+      el = document.createElement('link');
+      el.rel = 'stylesheet';
+      el.href = src;
+    } else {
+      el = document.createElement('script');
+      el.src = src;
+    }
+    el.onload = function(){ setProgress(idx + 1); loadNext(idx + 1); };
+    el.onerror = function(){ fail(src); };
+    document.head.appendChild(el);
+  }
+
+  function start(){
+    status.textContent = '启动应用…';
+    bar.style.width = '100%';
+    pct.textContent = '100%';
+    try {
+      init(); // 由 js/main.js 提供（引导器负责调用）
+    } catch (err) {
+      fail('应用初始化', err);
+      return;
+    }
+    // 首帧布局完成后再撤下启动屏
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        boot.classList.add('done');
+        setTimeout(function(){ boot.remove(); }, 400);
+      }, 120);
+    });
+    // 界面美化字体（思源黑体/Inter 等）：应用就绪后异步注入，不阻塞、离线自动回退
+    var gf = document.createElement('link');
+    gf.rel = 'stylesheet';
+    gf.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=Montserrat:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;600;700;900&family=Noto+Serif+SC:wght@400;700&family=Roboto:wght@300;400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap';
+    document.head.appendChild(gf);
+  }
+
+  setProgress(0);
+  loadNext(0);
+})();
+</script>
 
 </body>
 </html>

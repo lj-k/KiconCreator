@@ -1,13 +1,13 @@
 /* ============================================================
    KiconCreator V2 · js/main.js
-   职责：应用入口 —— init() 与全局监听注册，加载完成后立即执行。
+   职责：应用入口 —— init() 与全局监听注册。
      - 首轮渲染全部模块
      - 初始布局刷新后开启 stateReady（此后操作才进入撤销栈）
      - 内置示例预设
      - resize/orientationchange/字体就绪/ResizeObserver/滚动联动
      - Ctrl+Z / Ctrl+Y 全局快捷键
-   版本：V0.03（V2.06：FA 字体异步装载）
-   约束：本文件必须最后加载。
+   版本：V0.05（V2.10：欢迎语版本同步）
+   约束：本文件必须最后加载（引导器 steps 数组末位）。
    ============================================================ */
 function init(){
   // 装载内置示例预设
@@ -86,9 +86,8 @@ function init(){
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); }
   });
 
-  setTimeout(() => toast('欢迎使用 KiconCreator V2.08'), 400);
+  setTimeout(() => toast('欢迎使用 KiconCreator V2.10'), 400);
   // FA6 字体与图标库在主界面加载后异步装载（需求 2.7）
   setTimeout(ensureFaFonts, 0);
 }
-
-init();
+/* V2.09：init 不再自执行——由 index.html 的引导器在全部模块加载完成后调用 */

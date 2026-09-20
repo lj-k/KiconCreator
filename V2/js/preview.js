@@ -5,7 +5,7 @@
      - 双击画布：复位 + 打开 1:1 模态预览（ESC/点击遮罩/按钮关闭）
      - 放大预览按钮（左栏加宽）
      - 辅助线选择、安全边距开关与百分比输入
-   版本：V0.01
+   版本：V0.02（V2.10：新增画布尺寸下拉绑定，与导出尺寸共享变量）
    依赖：canvas.js（cvs/viewerModal 等 DOM 引用与 drawIcon，必须先加载）、
         history.js（commitHistory）、utils.js（flashInvalid）、layout.js（refreshLayout）。
    ============================================================ */
@@ -98,5 +98,17 @@ $('#safePct').addEventListener('change', () => {
   const S = iconSize;
   $('#safeBox').style.inset = (S * v / 100) + 'px';
   drawIcon();
+  commitHistory();
+});
+
+/* ---------- 画布尺寸下拉（V2.10） ----------
+   与「下载」pane 的 #sizePreset 共享 iconSize 变量：
+   任一入口变更 → 写回 #sizeInput（唯一数据源）→ updateSize() 统一同步并重绘；
+   下载 pane 尚未渲染时无 #sizeInput，直接写 iconSize 兜底 */
+$('#sizeSelect').addEventListener('change', () => {
+  const v = parseInt($('#sizeSelect').value, 10) || 256;
+  const si = document.querySelector('#sizeInput');
+  if (si) si.value = v; else iconSize = v;
+  updateSize();
   commitHistory();
 });
