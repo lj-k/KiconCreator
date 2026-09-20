@@ -5,8 +5,8 @@
      - ensureFaFonts()：FA6 webfont 按需加载（失败提示并回退占位符）
      - mountFaPanel(body, rowIdx)：FA 标签内从上到下依次为
        搜索框 → 树状分类下拉菜单（optgroup 两级）→ 统一候选图标显示框；
-       搜索优先于分类过滤；选中图标写回行状态（text=码点字符、faName=名称）
-   版本：V0.03（V2.08：FA 字体本地内嵌，交互不变）
+       搜索优先于分类过滤；选中图标仅写回 faName（不触碰文本模式的 text）
+   版本：V0.04（V2.12：选中图标只写 faName，不再覆盖文本模式的 text）
    ============================================================ */
 
 /* name → 定义（含搜索用倒排索引） */
@@ -111,7 +111,7 @@ function mountFaPanel(body, rowIdx){
     const cell = e.target.closest('.fa-cell');
     if (!cell) return;
     const name = cell.dataset.fa;
-    rows[rowIdx].text = faGlyph(name);
+    // 只写 faName，不触碰 text —— 文本模式的文本必须原样保留（需求 四.1 例2）
     rows[rowIdx].faName = name;
     grid.querySelectorAll('.fa-cell.on').forEach(c => c.classList.remove('on'));
     cell.classList.add('on');

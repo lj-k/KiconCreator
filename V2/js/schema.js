@@ -7,7 +7,7 @@
      - 字体注册表 FONT_DEFS：web 字体优先、系统字体回退，
        web:false 或 unavailable 的字体在下拉框标注（未下载）
      - makeRow(text)：构造带完整参数与联动标记的行对象
-   版本：V0.01（需求文档 · 四/技术开发流程：JSON schema 定义、参数校验范围）
+   版本：V0.02（V2.12：新增 image.whiteTransparent；新增 normalizeRow 系列补齐缺失键）
    约束：本文件必须先于 state.js 加载（state.js 在顶层调用 makeRow）。
         新增可渲染参数：在 PARAM_DEFS 注册 → panes.js 加 UI →
         canvas.js 渲染读取 → history.js 快照自动覆盖（rows 深拷贝）。
@@ -116,13 +116,43 @@ function fontFamilyOf(name){
 /* ---------- 行工厂 ----------
    所有参数（不分模式）都写入行对象，保证 3.3
    "切换模式保留数据、行增减不必重置"。link 为逐行联动标记（3.7）
-   faName：FA 模式选中的图标名（FA代号，用于标签/文件名/画布字族推断） */
+   faName：FA 模式选中的图标名（与文本模式的 text 相互独立，切换模式互不覆盖）
+   数据保留（需求 四.1）：每行的 文本 / FA图标 / 各模式参数 / 联动标记 全部
+   常驻行对象；行数变化只影响可见行数量，不触碰任何行数据。 */
 function makeRow(text, mode = 'text'){
   const params = {};
   Object.keys(PARAM_DEFS).forEach(k => { params[k] = PARAM_DEFS[k].def; });
   const link = {};
   Object.keys(PARAM_DEFS).forEach(k => { link[k] = false; });
   return { mode, text: text || '', faName: null, params, link };
+}
+
+/* 补齐缺失参数键（旧版本快照 / 外部导入的预设）：
+   只补默认值，绝不覆盖已有值——保证"保留优先"（需求 四.1） */
+function normalizeRowParams(params){
+  const out = (params && typeof params === 'object') ? params : {};
+  Object.keys(PARAM_DEFS).forEach(k => { if (out[k] === undefined) out[k] = PARAM_DEFS[k].def; });
+  return out;
+}
+
+/* 补齐缺失的联动标记键（缺键按"未联动"处理） */
+function normalizeRowLink(link){
+  const out = (link && typeof link === 'object') ? link : {};
+  Object.keys(PARAM_DEFS).forEach(k => { if (out[k] === undefined) out[k] = false; });
+  return out;
+}
+
+/* 行对象规范化：深拷贝 + 补齐键。快照、恢复、预设导入共用同一入口，
+   保证任何来源的行数据都不缺键，也不丢失任何已存数据（需求 四.1） */
+function normalizeRow(r){
+  r = r || {};
+  return {
+    mode: r.mode || 'text',
+    text: r.text || '',
+    faName: r.faName || null,
+    params: normalizeRowParams(r.params),
+    link: normalizeRowLink(r.link)
+  };
 }
 
 /* 阴影换算公式（schema 统一定义，渲染与文档共用）：

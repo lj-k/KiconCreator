@@ -8,13 +8,14 @@
      - renderContentTabs / updateActiveTab：内容纵向标签
      - renderContentBody：文本模式面板（字体/粗细/斜体/排版/字号，
        全部 data-pkey 绑定行状态）；FA 面板由 js/fa.js 挂载；图片占位
-   版本：V0.04（V2.11：行数切换改用内容级刷新，标签组结构不变）
+   版本：V0.05（V2.12：排版模式按行数记忆；FA 标签标题只认 faName）
    ============================================================ */
 
 function rowLabel(r){
   if (r.mode === 'text') return r.text || '空';
   if (r.mode === 'image') return '图片.png';
-  return r.faName || ('fa-' + (r.text ? r.text.codePointAt(0).toString(16) : 'icon'));
+  // FA 行只认 faName（text 属文本模式，不可借用做回退，需求 四.1 例2）
+  return r.faName || '未选择图标';
 }
 
 function renderRowCount(){
@@ -27,7 +28,9 @@ function renderRowCount(){
     b.onclick = () => {
       rowCount = i;
       if (activeRow >= rowCount) activeRow = rowCount - 1;
-      currentLayout = LAYOUTS[rowCount][0]; // 行数切换后排版模式重置（需求 1.2）
+      // 数据保留（需求 四.1 例3）：切回某行数时恢复该行数下上次选择的排版模式，
+      // 仅在从未选过时用默认（首项）；行数据本身始终保留在 rows[] 中
+      currentLayout = layoutByCount[rowCount] || LAYOUTS[rowCount][0];
       renderRowCount();
       renderLayoutChips();
       renderContentTabs();
@@ -63,6 +66,7 @@ function renderLayoutChips(){
     b.textContent = name;
     b.onclick = () => {
       currentLayout = name;
+      layoutByCount[rowCount] = name; // 记住该行数下的选择（需求 四.1 例3）
       $$('.chip', box).forEach(c => c.classList.toggle('active', c === b));
       drawIcon();
       commitHistory();

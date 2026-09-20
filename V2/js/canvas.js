@@ -6,7 +6,7 @@
        单色/渐变填充、阴影、大小/角度/拉伸/偏移变换
      - drawIcon()：背景（白底或透明，需求 1.8）→ 按层次顺序逐行绘制
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.03（V2.06：FA 模式按图标字族渲染 solid=900/brands=400）
+   版本：V0.04（V2.12：FA 字形改由 faName 取用，与文本模式 text 相互独立）
    暂缓（按任务要求）：图片模式（灰色占位）、背景形状/填充渲染。
    说明：辅助线/安全边距由 index.html 的 SVG 覆盖层与 #safeBox 承担，
         不画进画布，因此天然不导出（需求 2.34/1.7）。
@@ -111,7 +111,11 @@ function rowFontPx(text, layout, cell, p, S){
 
 /* 计算一行内容的绘制指令（在已变换的局部坐标系中，原点=内容中心） */
 function drawRowContent(r, p, layout, cell, S){
-  const text = r.mode === 'fa' ? (r.text || '★') : (r.text || '');
+  /* 取字形：FA 模式优先用 faName（与文本模式 text 相互独立，切换模式互不覆盖，需求 四.1 例2）；
+     faName 为空时回退 text（兼容早期版本把字形写入 text 的数据） */
+  const text = r.mode === 'fa'
+    ? (r.faName ? faGlyph(r.faName) : (r.text || '★'))
+    : (r.text || '');
   if (!text) return;
   /* FA 模式：按图标字族取字体（solid=900 / brands=400），忽略斜体（需求 2.7） */
   const faDef = r.mode === 'fa' && r.faName ? FA_INDEX[r.faName] : null;

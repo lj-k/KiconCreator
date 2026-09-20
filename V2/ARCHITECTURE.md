@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.08**（对应项目代码版本 **V2.11**）
+> **文档版本：V0.09**（对应项目代码版本 **V2.12**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -97,9 +97,29 @@ base/layout/components.css + fa-fonts.css
 | font | layout（select） | 横排 / 纵排 / 环形向心 | 横排 |
 | font | size | 1~300% | 100 |
 
-**行对象结构**（`makeRow`）：`{ mode, text, params: {键: 值}, link: {键: bool} }`。9 行固定存在，`rowCount` 只控制可见性 —— 隐藏行的参数与联动标记保留（需求 3.3/3.7）。
+**行对象结构**（`makeRow`）：`{ mode, text, faName, params: {键: 值}, link: {键: bool} }`。9 行固定存在，`rowCount` 只控制可见性 —— 隐藏行的参数与联动标记保留（需求 3.3/3.7）；`text`/`faName` 分属文本与 FA 模式，互不覆盖（需求 四.1）。
 
 **硬规则**：DOM 参数行的 `data-name`（滑块）与 `data-pkey`（下拉/布尔/颜色）必须等于 PARAM_DEFS 的键；interactions.js 只对注册过的键写状态。新增参数四步：schema.js 注册 → panes.js/content.js 加 UI → canvas.js 渲染读取 → 快照自动覆盖（rows 深拷贝）。
+
+### 4.0b 数据保留（需求 四.1 / L259-262，V2.12 落实）
+
+> 原文要求：**切换模式、内容数量、填充数量不影响参数数据的保留**；能独立保留的参数尽量独立，共用的参数才一起调整。
+
+**存储模型**：`rows` 恒为 9 条（`rowCount` 只控制可见性），每行的
+`{ mode, text, faName, params{23 键}, link{23 键} }` 全部常驻内存、随快照深拷贝。
+
+| 用例 | 机制 | 约束 |
+|---|---|---|
+| 例1 行数变化 | 9 条行对象不随 `rowCount` 增减；隐藏行不渲染但其 文本/参数/联动标记 原样保留 | 禁止在任何地方按 `rowCount` 截断 `rows` |
+| 例2 模式切换 | **各模式的数据字段相互独立**：`text` 属文本模式、`faName` 属 FA 模式、`image.*` 属图片模式；`params` 为全模式共享（尺寸/颜色/阴影按需求 3.5 本就同批共用） | **禁止**用某模式的字段承接另一模式的内容（如 FA 选图不得写 `text`） |
+| 例3 其它切换 | 填充数量：`fillModes` 6 项常驻，切换数量不重置；行数：`layoutByCount` 记忆每个行数下已选的排版模式 | 新增"随选项数量变化"的参数，都要有独立的记忆位 |
+
+**落点清单**（改这些地方时要一并考虑保留语义）：
+- `schema.js`：`normalizeRowParams / normalizeRowLink / normalizeRow` —— 快照、恢复、外部预设导入的统一入口，**只补缺失键、绝不覆盖已有值**；
+- `history.js`：`snapshotState / restoreState` 必须用 `normalizeRow` 处理行数组；新增顶层状态（如 `layoutByCount`）两处同步；
+- `content.js`：行数切换用 `layoutByCount[rowCount] || LAYOUTS[rowCount][0]`；模式切换按钮只改 `mode`；
+- `fa.js`：选中图标只写 `faName`；`canvas.js` FA 分支 `faGlyph(r.faName)`（空时回退 `text` 兼容旧数据）；
+- `topbar.js`：复制样式/按标签重置的取值范围包含 `style./color./shadow./image.`。
 
 ### 4.1 状态与渲染（单向）
 
@@ -188,6 +208,7 @@ row.params / currentLayout / layerOrder 更新
 | 需求 | 文件 | 说明 |
 |---|---|---|
 | 新增/修改可渲染参数 | `js/schema.js` 注册 → `js/panes.js` 或 `js/content.js` 加 UI → `js/canvas.js` 渲染读取 | data-name/data-pkey 必须等于参数键；联动与快照自动生效 |
+| 新增模式专属数据（如 FA 图标名、图片引用） | 行对象添加独立字段（`makeRow`）+ `normalizeRow` 兜底 + 对应模式渲染/UI 读写 | **禁止**借用其它模式的字段承接（需求 四.1 例2） |
 | 新增一个 pane/tab | `js/tabs.js` 的 `MODULE_TABS` + `js/panes.js` 加生成函数 | 需要建议色则同时改 `js/builders.js` |
 | 新增可撤销的顶层状态 | `js/state.js` 声明 → `js/history.js` 的 snapshot/restore 各加一行 | 行内参数（rows.params）自动覆盖 |
 | 改文本渲染（字体/排版/阴影/渐变） | `js/canvas.js` 的 `drawRow/drawRowContent` | 布局几何在 `layoutCells` |
@@ -211,6 +232,7 @@ row.params / currentLayout / layerOrder 更新
 6. **版本号**：改动后同步更新 `index.html` 顶栏 `.ver` 徽标、`snapshotState().version`、`exportHTML` 注释、`init()` 欢迎语，以及 `Changelog.md`（V2.08 起 head 中已无 `<version>`/`<changelog>` 标签，勿再添加）；各模块文件头有自己的版本号递增。
 7. **刷新入口不可混用**（V2.11）：内容变化只能调用 `refreshLayoutKeepGroups()`；只有视口/布局变化才可调用 `refreshLayout()`。**禁止**在内容变化路径上调用 `relayoutAllModules()` 重算分组，否则标签会在标签组之间跳位。
 8. **pane 重建的副作用**：轻量刷新不再顺带重建其它模块 DOM。若某模块的 pane 内容依赖被修改的状态（如 `fill` 依赖 `fillCount`），必须在该状态的修改处**显式** `rerenderModule('模块名')`，不可依赖旧版"列全量重建"的副作用。
+9. **数据保留**（V2.12，需求 四.1）：任何"切换/增减选项"的操作都不得清空参数。切换类操作只改可见性与当前选择；行数据一律常驻 `rows[9]`；跨模式字段相互独立；快照/恢复/导入必须经 `normalizeRow`（只补缺失键，不覆盖已有值）。
 
 ### 5.3 自检清单（提交前过一遍）
 
@@ -220,6 +242,7 @@ row.params / currentLayout / layerOrder 更新
 - [ ] 修改过状态字段：JSON 导出（下载 pane → JSON）内容包含新字段
 - [ ] 窗口缩放：three→two→one 切换、合并标签、预览浮动均正常
 - [ ] **标签稳定性**：切换内容行、单色⇄渐变、启用阴影等操作后，样式/形状/填充模块的标签停留在原位，无关模块不闪烁；缩放窗口时标签组才允许重新拆分
+- [ ] **数据保留**：行 2 输入文本+改参数 → 行数切到 1 → 切回 2，内容与参数原样；文本模式输入 → 切 FA 选图标 → 切回文本，文本仍在；切换填充数量/行数后各选项的既有参数不丢
 
 ## 6. 特别说明（当前设计约束与历史注意）
 
@@ -230,12 +253,14 @@ row.params / currentLayout / layerOrder 更新
 - FA 搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
 - FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略。图片模式与背景形状/填充渲染仍暂缓。
 - 预览模块的 画布尺寸 下拉与下载 pane 的 导出尺寸 下拉共享 `iconSize`，同步点唯一收敛在 `updateSize()`；新增尺寸入口时必须接入该函数，不要各自维护变量。
-- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复，各版本记录见 Changelog.md 对应条目。
+- **数据保留（V2.12 起）**：切换模式/行数/填充数量都不得丢数据。跨模式数据必须各用独立字段（`text` 文本 / `faName` FA / `image.*` 图片）；快照、恢复、外部预设导入统一经 `normalizeRow` 规范化（只补缺失键，不覆盖已有值）。
+- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复、V2.12 数据保留，各版本记录见 Changelog.md 对应条目。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.09 | 2026-09-20 | 新增 4.0b 数据保留专节（三用例 + 落点清单）、5.1/5.2/5.3 增补、版本表补 V0.06/V0.07 | V2.12 |
 | V0.08 | 2026-09-20 | 4.6 增补"两级刷新入口"与结构签名机制、5.2 新增两条硬约束、5.3 增自检项、特别说明改写 | V2.11 |
 | V0.07 | 2026-09-17 | 模块表更新（19 文件）、特别说明改为"预览模块瘦身与尺寸双入口" | V2.10 |
 | V0.06 | 2026-09-17 | 第 3 节改写为"引导器动态加载"、模块表更新（21 条目） | V2.09 |

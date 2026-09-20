@@ -4,7 +4,7 @@
      - 预设/历史/下载 pane（静态结构）
      - 样式 pane：尺寸/颜色/阴影 —— 全部从激活行状态生成
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
-   版本：V0.02（V2.05：状态驱动模板，颜色建议实时计算）
+   版本：V0.03（V2.12：图片模式"白色作为透明色"接入行状态，独立保留）
    约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
 
@@ -66,7 +66,8 @@ function paneSize(){
 function paneColor(r){
   const p = r.params;
   if (r.mode === 'image'){
-    return `<div class="param tight"><span class="pname">颜色</span><div class="pctrl">${checkRow('设置图片中的白色为透明', '', false)}</div></div>`;
+    // 图片模式的颜色项为该行独立开关（需求 3.4 / 四.1：与文本、FA 模式参数相互独立）
+    return `<div class="param tight"><span class="pname">颜色</span><div class="pctrl">${checkRow('设置图片中的白色为透明', 'image.whiteTransparent', p['image.whiteTransparent'])}</div></div>`;
   }
   const grad = p['color.mode'] === '渐变';
   return `

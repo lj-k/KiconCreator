@@ -6,7 +6,7 @@
      - 样式重置：按当前激活标签重置对应参数组（需求 3.3）
      - 填充数量芯片（背景暂缓，仅 UI + 触发 fill 模块重渲染）
      - renderStyle：样式/内容模块头副标题同步 + style 模块重渲染
-   版本：V0.03（V2.11：填充数量切换显式 rerenderModule('fill')，不再依赖列全量重建）
+   版本：V0.04（V2.12：复制样式/重置纳入 image. 参数）
    依赖：history.js（undo/redo/commitHistory，必须先于本文件加载）、
         linkage.js、schema.js、state.js、fills.js（运行时）。
    ============================================================ */
@@ -38,7 +38,7 @@ lb.addEventListener('click', () => {
 });
 
 /* ---------- 快速复制/粘贴样式（需求 2.9：尺寸+颜色+阴影，不含内容参数） ---------- */
-const STYLE_COPY_PREFIX = ['style.', 'color.', 'shadow.'];
+const STYLE_COPY_PREFIX = ['style.', 'color.', 'shadow.', 'image.'];
 function pickStyleParams(params){
   const out = {};
   Object.keys(params).forEach(k => {
@@ -63,7 +63,7 @@ $('#pasteStyleBtn').addEventListener('click', () => {
 /* ---------- 样式重置：按当前激活标签重置（需求 3.3） ---------- */
 $('#styleReset').addEventListener('click', () => {
   const tab = activeTabByModule.style;
-  const groups = { size: STYLE_KEYS, color: COLOR_KEYS, shadow: SHADOW_KEYS };
+  const groups = { size: STYLE_KEYS, color: COLOR_KEYS.concat(IMAGE_KEYS), shadow: SHADOW_KEYS };
   (groups[tab] || STYLE_KEYS).forEach(k => { rows[activeRow].params[k] = PARAM_DEFS[k].def; });
   renderStyle();
   drawIcon();
