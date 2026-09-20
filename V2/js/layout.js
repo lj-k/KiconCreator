@@ -5,8 +5,8 @@
      - 视口宽度 → 布局模式（three/two/one）
      - 两栏合并标签定位、预览浮动（preview-float）定位与高度
      - 标签组动态展开算法（computeTabLayout 连续切分 + measureTabHeights 测量）
-     - refreshLayout：统一刷新入口（resize/主题切换/结构变化后调用）
-   版本：V0.01
+     - refreshLayout（视口级：重算标签组）/ refreshLayoutKeepGroups（内容级：保持标签原位）
+   版本：V0.03（V2.11：拆分两级刷新入口，标签组拆分合并仅由视口变化触发）
    ============================================================ */
 
 /* ---------- 顶栏高度测量 ---------- */
@@ -171,12 +171,24 @@ function measureTabHeights(tabs, width){
   return heights;
 }
 
-/* ---------- 统一刷新 ---------- */
+/* ---------- 刷新入口（V2.11：按触发源分为两级） ----------
+   refreshLayout            视口级：重算标签组拆分/合并（resize、方向切换、
+                            布局模式切换、字体就绪、合并标签切换、放大预览、初始化）
+   refreshLayoutKeepGroups  内容级：不改动标签组结构（标签保持原位），仅更新
+                            顶栏高度、合并标签定位、预览高度与浮动状态
+                           （切换行、改参数、撤销、行数/填充数量变化） */
 function refreshLayout(){
   updateTopbarHeight();
   updateLayoutMode();
   syncMergeTabs();
   relayoutAllModules();
+  updatePreviewHeight();
+  checkPreviewFloat();
+}
+
+function refreshLayoutKeepGroups(){
+  updateTopbarHeight();
+  syncMergeTabs();
   updatePreviewHeight();
   checkPreviewFloat();
 }

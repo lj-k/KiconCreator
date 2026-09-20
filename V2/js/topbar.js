@@ -4,9 +4,9 @@
      - undo/redo 按钮、参数联动总开关（全部行 × 全部参数，需求 四.3）
      - 复制/粘贴样式（需求 2.9：仅 style./color./shadow. 参数，跨模式取交集）
      - 样式重置：按当前激活标签重置对应参数组（需求 3.3）
-     - 填充数量芯片（背景暂缓，仅 UI）
+     - 填充数量芯片（背景暂缓，仅 UI + 触发 fill 模块重渲染）
      - renderStyle：样式/内容模块头副标题同步 + style 模块重渲染
-   版本：V0.02（V2.05：逐行联动、真实复制粘贴与重置）
+   版本：V0.03（V2.11：填充数量切换显式 rerenderModule('fill')，不再依赖列全量重建）
    依赖：history.js（undo/redo/commitHistory，必须先于本文件加载）、
         linkage.js、schema.js、state.js、fills.js（运行时）。
    ============================================================ */
@@ -82,7 +82,8 @@ $('#fillCount').addEventListener('click', e => {
   $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
   renderFillList();
   renderFillBody2();
-  requestAnimationFrame(refreshLayout);
+  // 布局/填充边界 pane 的内容随单色⇄多色切换（不能只靠列刷新，须显式重渲染该模块）
+  rerenderModule('fill');
   toast(`填充数量：${fillCount === 1 ? '单色' : fillCount + '色'}`);
   commitHistory();
 });

@@ -1,7 +1,39 @@
 # KiconCreator V2 · Changelog
 
-> **文档版本：V0.07**（对应项目代码版本 **V2.10**）
+> **文档版本：V0.08**（对应项目代码版本 **V2.11**）
 > 记录范围：`V2/` 目录的代码与文档变更。
+
+---
+
+## [V2.11] - 2026-09-20
+
+### 修复：切换标签导致无关模块闪烁 + 标签组重算导致标签跳位（用户反馈）
+
+**问题原因（两条同源）**：任何内容变化都会触发"全量重建"。
+1. `rerenderModule()` 先用 `computeTabLayout(heights, 0)`（可用空间按 0 计）算出**塌缩分组**渲染一次，随后 `refreshLayout()` 再按真实空间展开一次 → 被改模块"先塌后展"地跳一下。
+2. `refreshLayout()` → `relayoutAllModules()` 对**每一列的所有 tab 模块**执行 `container.innerHTML = …` 整体重建；预设模块还会连带 `renderPresets()`/`renderHistory()` 重画缩略图 → **无关模块全部闪一下**。
+3. 同一函数按 pane 自然高度重算分组：样式模块「单色 → 渐变」使颜色 pane 变高 → 高度数组变化 → 分组结果变化 → 颜色标签可能被划到另一个标签组（从上方跑到下方），用户找不到原标签。
+
+**修复**：
+- **两级刷新入口**（layout.js V0.03）：
+  - `refreshLayout()`（**视口级**）— 重算标签组拆分/合并。仅在 resize、orientationchange、布局模式切换、字体就绪、合并标签切换、放大预览、初始化、ResizeObserver 时调用；
+  - `refreshLayoutKeepGroups()`（**内容级**）— 不改动标签组结构（标签保持原位），仅更新顶栏高度、合并标签定位、预览高度与浮动状态。用于切换行、改参数、撤销、行数/填充数量变化。
+- **结构签名跳过无谓重建**（tabs.js V0.03）：`groupsSignature()` 生成"分组划分 + 标签启用态"签名（**故意不含激活态**——激活由点击直接切类名，不构成结构变化）；`renderTabGroupsFromGroups(…, forceRebuild)` 在结构未变且非强制时直接返回，**完全不触碰 DOM**。视口变化但分组结果不变时也不再重建（resize 也不再闪）。
+- **保持标签原位**（tabs.js `readCurrentGroups()`）：`rerenderModule()` 改为沿用当前 DOM 中的分组（`data-group` 解析为索引数组），不再用 `computeTabLayout(heights, 0)` 塌缩；DOM 标签集合与预期不符（如新增/删除标签）时才回退重算。← 对应"标签组内标签尺寸改变应保持标签原位"的要求。
+- **顺带修正**：填充数量切换与撤销恢复原先依赖"列全量重建"的副作用来刷新「布局/填充边界」pane（单色 ⇄ 多色文案与参数不同）；改为显式 `rerenderModule('fill')`（topbar.js / history.js V0.05），否则轻量刷新下该 pane 会显示过期内容。
+
+### 版本号同步
+- `index.html` `.ver`、`snapshotState().version`（'2.11'）、`exportHTML` 注释、欢迎 toast → V2.11；根导航页卡片徽标同步（根 Changelog V0.05）。
+
+### 校验记录
+- 21 个 JS 全部通过 `node --check`。
+- **逻辑单测**（`/tmp/test_tabs_v211.js`：从 tabs.js 提取真实函数源码 + 最小 DOM 桩，12/12 通过）：
+  - `readCurrentGroups`：正确解析 `[[1],[0,2]]`；DOM 含未知标签 → `null`；DOM 未覆盖全部标签 → `null`；
+  - 签名：同结构签名稳定且与激活态无关（`color|size+shadow`）；
+  - 跳过重建：已有同签名 + 非强制 → `renders=0` 且 `innerHTML` 未被改写；无旧签名 → 正常渲染；
+  - 结构变化（启用徽标 `enabled`）→ 重新渲染并同步徽标；强制重建（内容变化）→ 即使结构相同也渲染；
+  - 分组保持：`rerenderModule` 路径沿用现有分组而非塌缩分组。
+- 调用点审计：全项目剩余 `refreshLayout()`（视口级）7 处，均为 初始化/resize/方向/字体就绪/ResizeObserver/放大预览/合并标签；内容级路径已全部改用 `refreshLayoutKeepGroups()`。
 
 ---
 

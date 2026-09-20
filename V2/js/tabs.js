@@ -7,8 +7,9 @@
      - relayoutColumn / relayoutAllModules：按列高分配 tab 展开分组
      - renderTabGroupsFromGroups：渲染分组后的 tab-group 并绑定切换
      - rerenderModule：单个模块重渲染入口
-   版本：V0.02（V2.05：style 模块绑定传入激活行索引）
-   依赖：layout.js（computeTabLayout/measureTabHeights）、
+   版本：V0.03（V2.11：新增结构签名跳过无谓重建、readCurrentGroups 保持标签原位；
+        rerenderModule 改为内容级刷新）
+   依赖：layout.js（computeTabLayout/measureTabHeights/refreshLayoutKeepGroups）、
         interactions.js（bindPaneInteractions）、presets.js（renderPresets/renderHistory）、
         exports.js（bindDownloadPaneInteractions）—— 均为运行时调用，加载顺序见 index.html。
    ============================================================ */
@@ -138,7 +139,44 @@ function relayoutAllModules(){
   cols.forEach(col => { if (col) relayoutColumn(col); });
 }
 
-function renderTabGroupsFromGroups(moduleId, container, tabs, groups){
+/* ---------- 分组读取与结构签名（V2.11） ----------
+   目的：内容变化时保持标签原位、不重建无关模块 DOM（消除闪烁）。
+   分组只在视口变化时由 computeTabLayout 重算，其余情况沿用当前 DOM 划分。 */
+
+/* 读取容器当前已渲染的分组（data-group → 索引数组）。
+   tab 集合与预期不一致（如新增/删除标签）时返回 null，交由重算处理 */
+function readCurrentGroups(container, tabs){
+  const groupEls = Array.from(container.querySelectorAll('.tab-group'));
+  if (!groupEls.length) return null;
+  const idxOf = {};
+  tabs.forEach((t, i) => { idxOf[t.id] = i; });
+  const groups = [];
+  for (let k = 0; k < groupEls.length; k++){
+    const ids = (groupEls[k].dataset.group || '').split(',').filter(Boolean);
+    const g = [];
+    for (let j = 0; j < ids.length; j++){
+      if (idxOf[ids[j]] === undefined) return null; // 标签集合已变化
+      g.push(idxOf[ids[j]]);
+    }
+    if (!g.length) return null;
+    groups.push(g);
+  }
+  const flat = groups.reduce((a, g) => a.concat(g), []);
+  if (flat.length !== tabs.length || new Set(flat).size !== tabs.length) return null;
+  return groups;
+}
+
+/* 结构签名：仅含分组划分与标签启用态。故意不含激活态——
+   激活由点击直接切换类名，不构成"结构变化"，不应触发重建 */
+function groupsSignature(tabs, groups){
+  return groups.map(g => g.map(i => tabs[i].id + (tabs[i].enabled ? '*' : '')).join('+')).join('|');
+}
+
+function renderTabGroupsFromGroups(moduleId, container, tabs, groups, forceRebuild){
+  const sig = groupsSignature(tabs, groups);
+  // 结构未变且非强制重建 → 直接返回，不触碰 DOM（避免无关模块闪烁、标签跑位）
+  if (!forceRebuild && container.dataset.renderSig === sig) return;
+  container.dataset.renderSig = sig;
   const activeId = activeTabByModule[moduleId] || tabs[0].id;
   container.innerHTML = groups.map(group => {
     const groupTabIds = group.map(i => tabs[i].id);
@@ -179,7 +217,10 @@ function rerenderModule(moduleId){
   if (!container) return;
   const info = collectTabModuleInfo(moduleId);
   if (!info) return;
-  const groups = info.groups || computeTabLayout(info.heights, 0);
-  renderTabGroupsFromGroups(moduleId, container, info.tabs, groups);
-  requestAnimationFrame(refreshLayout);
+  // 保持既有分组：标签尺寸变化（如单色→渐变）不得触发重新拆分，
+  // 否则标签会在标签组之间跳位，用户找不到原标签（仅视口变化才重算，见 refreshLayout）
+  const groups = readCurrentGroups(container, info.tabs) || info.groups || computeTabLayout(info.heights, 0);
+  renderTabGroupsFromGroups(moduleId, container, info.tabs, groups, true);
+  // 内容级刷新：不重算分组、不重建其它模块，仅更新预览高度与浮动状态
+  requestAnimationFrame(refreshLayoutKeepGroups);
 }

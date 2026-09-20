@@ -4,7 +4,7 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.04（V2.10：恢复时经 updateSize 同步两处尺寸下拉，移除 sizeTag）
+   版本：V0.05（V2.11：恢复改为内容级刷新；补 rerenderModule('fill')）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,7 +30,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.10',
+    version: '2.11',
     rowCount,
     activeRow,
     rows: rows.map(r => ({ mode: r.mode, text: r.text, faName: r.faName || null, params: { ...r.params }, link: { ...r.link } })),
@@ -93,13 +93,14 @@ function restoreState(snap){
     renderFillList();
     renderFillBody2();
     rerenderModule('style');
+    rerenderModule('fill'); // 布局/边界 pane 随 fillCount 快照恢复
     renderPresets();
     renderHistory();
     ensureWebFont(rows[activeRow].params);
     updateSize(); // 重绘并同步预览/下载两处尺寸下拉
     syncAllChainIcons();
     updateLinkageBtnState();
-    requestAnimationFrame(refreshLayout);
+    requestAnimationFrame(refreshLayoutKeepGroups); // 内容级刷新：标签组结构不变
   } finally {
     HistoryStack.isRestoring = false;
   }

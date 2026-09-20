@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.07**（对应项目代码版本 **V2.10**）
+> **文档版本：V0.08**（对应项目代码版本 **V2.11**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -152,12 +152,20 @@ row.params / currentLayout / layerOrder 更新
 - **FA代号**：`faName` 进入快照/恢复（history.js）、标签标题（content.js `rowLabel`）、导出文件名（exports.js `buildFileName`，需求 2.35）。
 - **版权**：面板内警示行 + 页面最底部 `.page-foot` 一行简短版权（需求 2.7）。
 
-### 4.6 模块 tab 动态展开（tabs.js + layout.js）
+### 4.6 模块 tab 动态展开（tabs.js + layout.js，V2.11 起受"仅视口重算"约束）
 
 - `MODULE_TABS` 定义 4 个模块（preset/style/shape/fill）各自的 tab 与 pane 生成器。
 - `measureTabHeights` 离屏测量每个 tab 自然高度 → `computeTabLayout`（连续切分算法）在剩余空间内决定哪些 tab 展开为"同组平铺"、哪些折叠为标签。
 - preset 模块的特殊规则：预设/历史 tab 的高度上限对齐下载 tab（`--preset-cap`）。
-- `activeTabByModule` 记住每个模块当前激活的 tab，重渲染后保持。
+- `activeTabByModule` 记住每个模块当前激活的 tab，重渲染后保持（激活切换只改类名，不触发重建）。
+- **两级刷新入口（硬规则）**：
+  | 入口 | 行为 | 允许的调用时机 |
+  |---|---|---|
+  | `refreshLayout()` | 重算标签组拆分/合并 | **仅视口级**：init、resize、orientationchange、布局模式切换、字体就绪、ResizeObserver、合并标签切换、放大预览 |
+  | `refreshLayoutKeepGroups()` | 不重算分组（标签保持原位），只更新顶栏高度/合并标签定位/预览高度/浮动状态 | 内容级：切换行、改参数、撤销/恢复、行数切换、填充数量切换、`rerenderModule()` |
+  > 需求依据（用户明确要求）：**只有视口调整才允许拆分/合并标签组**；标签组内标签尺寸变化（如颜色 pane 单色→渐变变高）必须保持标签原位，否则标签会在组间跳位，让用户找不到。
+- **结构签名跳过无谓重建**：`groupsSignature(tabs, groups)` = "分组划分 + 标签启用态"（**不含激活态**）。`renderTabGroupsFromGroups(moduleId, container, tabs, groups, forceRebuild)` 在 `!forceRebuild && container.dataset.renderSig === sig` 时**直接返回、完全不触碰 DOM**（避免无关模块闪烁；视口变化但分组没变时同样不重建）。`forceRebuild=true` 仅用于内容确实变化的 `rerenderModule()`。
+- **保持标签原位**：`readCurrentGroups(container, tabs)` 从 DOM 的 `data-group` 反解当前分组为索引数组；`rerenderModule()` 优先沿用它（DOM 标签集合与预期不符时才回退 `computeTabLayout`），因此内容变化不会引起重新拆分。
 
 ### 4.7 响应式布局（layout.js + css/layout.css）
 
@@ -201,6 +209,8 @@ row.params / currentLayout / layerOrder 更新
 4. **`exportCanvas` 模板中的 `<\/script>` 转义不可去掉**。
 5. **pane 是"结构 + 行为"分离**：panes.js 只出 HTML 字符串；行为一律在 interactions.js（或局部渲染函数）里绑定。动态重建的局部 DOM（如 `#edgeParamsWrap`、`#fillBody2`）重建后必须重新调用 `bindPaneInteractions`。
 6. **版本号**：改动后同步更新 `index.html` 顶栏 `.ver` 徽标、`snapshotState().version`、`exportHTML` 注释、`init()` 欢迎语，以及 `Changelog.md`（V2.08 起 head 中已无 `<version>`/`<changelog>` 标签，勿再添加）；各模块文件头有自己的版本号递增。
+7. **刷新入口不可混用**（V2.11）：内容变化只能调用 `refreshLayoutKeepGroups()`；只有视口/布局变化才可调用 `refreshLayout()`。**禁止**在内容变化路径上调用 `relayoutAllModules()` 重算分组，否则标签会在标签组之间跳位。
+8. **pane 重建的副作用**：轻量刷新不再顺带重建其它模块 DOM。若某模块的 pane 内容依赖被修改的状态（如 `fill` 依赖 `fillCount`），必须在该状态的修改处**显式** `rerenderModule('模块名')`，不可依赖旧版"列全量重建"的副作用。
 
 ### 5.3 自检清单（提交前过一遍）
 
@@ -209,20 +219,26 @@ row.params / currentLayout / layerOrder 更新
 - [ ] 改过滑块后：联动、撤销（Ctrl+Z）、重做（Ctrl+Y）行为正常
 - [ ] 修改过状态字段：JSON 导出（下载 pane → JSON）内容包含新字段
 - [ ] 窗口缩放：three→two→one 切换、合并标签、预览浮动均正常
+- [ ] **标签稳定性**：切换内容行、单色⇄渐变、启用阴影等操作后，样式/形状/填充模块的标签停留在原位，无关模块不闪烁；缩放窗口时标签组才允许重新拆分
 
-## 6. 特别说明（V2.08 FA 字体本地化）
+## 6. 特别说明（当前设计约束与历史注意）
 
-- 本版本（V2.08）解决"FA 图标显示为方框"：方框＝码点在字体中找不到字形。图标**元数据**（码点/分类/关键词）在 `data/fa-icons.js`，而**字形**存于 FA6 字体文件；此前字体经 cdnjs 在线加载，网络不可达时码点无字形可用。现字体已 base64 内嵌于 `data/fa-fonts.css`，随应用本地分发，file:// 与离线均可渲染。
+- **标签组重算的边界（V2.11 起）**：只有视口变化（resize/方向/布局模式/字体就绪/合并标签/放大预览）才重算标签组拆分与合并；内容变化一律走 `refreshLayoutKeepGroups()`，标签保持原位。注意，不要在内容变化路径调用 `relayoutAllModules()`——那会让标签在标签组之间跳位，也会因整体 `innerHTML` 重建而让无关模块闪烁。
+- FA 图标字体已完全本地化（`data/fa-fonts.css`，base64 内嵌，file:// 与离线均可渲染），不依赖任何 CDN；图标**元数据**在 `data/fa-icons.js`（1895 个：码点/字族/分类/关键词）。
 - 注意，head 中的 `<version>`/`<changelog>` 标签已按需求移除，且**不要再添加回去**；版本信息以顶栏 `.ver` 徽标与 `Changelog.md` 为准。
 - 数据文件（data/fa-icons.js、data/fa-fonts.css）均为脚本生成物，头注释含来源与基准版本；升级 FA6 版本时一并重新生成。
-- 搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
+- FA 搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
 - FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略。图片模式与背景形状/填充渲染仍暂缓。
-- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构，各版本记录见 Changelog.md 对应条目。
+- 预览模块的 画布尺寸 下拉与下载 pane 的 导出尺寸 下拉共享 `iconSize`，同步点唯一收敛在 `updateSize()`；新增尺寸入口时必须接入该函数，不要各自维护变量。
+- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复，各版本记录见 Changelog.md 对应条目。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.08 | 2026-09-20 | 4.6 增补"两级刷新入口"与结构签名机制、5.2 新增两条硬约束、5.3 增自检项、特别说明改写 | V2.11 |
+| V0.07 | 2026-09-17 | 模块表更新（19 文件）、特别说明改为"预览模块瘦身与尺寸双入口" | V2.10 |
+| V0.06 | 2026-09-17 | 第 3 节改写为"引导器动态加载"、模块表更新（21 条目） | V2.09 |
 | V0.05 | 2026-09-17 | data/ 增加 fa-fonts.css、4.5b 字体装载改写、5.2 版本号约束更新、特别说明改写 | V2.08 |
 | V0.04 | 2026-09-17 | 文件结构增加 data/、4.5b 改写为全量数据集与新面板布局、特别说明改写 | V2.07 |
 | V0.03 | 2026-09-17 | 新增 4.5b FA 图标模式说明、模块表/加载顺序更新至 20 文件、特别说明改写 | V2.06 |

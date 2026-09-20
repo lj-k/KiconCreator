@@ -8,7 +8,7 @@
      - renderContentTabs / updateActiveTab：内容纵向标签
      - renderContentBody：文本模式面板（字体/粗细/斜体/排版/字号，
        全部 data-pkey 绑定行状态）；FA 面板由 js/fa.js 挂载；图片占位
-   版本：V0.03（V2.06：FA 树状选图面板接入，标签标题显示 FA代号）
+   版本：V0.04（V2.11：行数切换改用内容级刷新，标签组结构不变）
    ============================================================ */
 
 function rowLabel(r){
@@ -35,7 +35,7 @@ function renderRowCount(){
       renderStyle();
       $('#layerParam').style.display = rowCount > 1 ? '' : 'none';
       drawIcon();
-      requestAnimationFrame(refreshLayout);
+      requestAnimationFrame(refreshLayoutKeepGroups); // 内容级刷新：标签组结构不变
       commitHistory();
     };
     box.appendChild(b);

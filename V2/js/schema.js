@@ -41,6 +41,11 @@ const SHADOW_KEYS = [
   'shadow.y'         // Y 偏移 -100~100
 ];
 
+/* ---------- 图片模式参数（需求 3.4：每个图片模式的行独立开关） ---------- */
+const IMAGE_KEYS = [
+  'image.whiteTransparent' // 设置图片中的白色为透明
+];
+
 /* ---------- 文本字体参数（需求 2.6） ---------- */
 const FONT_KEYS = [
   'font.cn',         // 中文字体
@@ -65,6 +70,8 @@ const PARAM_DEFS = {
   'color.mode':     { label: '颜色模式', type: 'select', options: ['单色', '渐变'], def: '单色' },
   'color.c1':       { label: '颜色 1',   type: 'color',  def: '#6C8CFF' },
   'color.c2':       { label: '颜色 2',   type: 'color',  def: '#22D3EE' },
+
+  'image.whiteTransparent': { label: '白色作为透明色', type: 'bool', def: false },
 
   'shadow.enabled': { label: '启用阴影', type: 'bool', def: false },
   'shadow.color':   { label: '颜色',     type: 'color', def: '#1D2333' },
