@@ -7,20 +7,31 @@
      - checkbox/select[data-pkey]：布尔与选项参数（斜体、排版、裁切…）
      - 颜色控件：取色器与 HEX 输入双向同步
      - 颜色建议 swatch：点击写回 color.c1/c2（需求 3.4）
-     - chip 单选组、边界形状切换、形状互斥（背景暂缓，保留 UI 行为）
-   版本：V0.02（V2.05：状态驱动 + 逐行联动）
+     - chip 单选组、边界形状切换、形状种类与"填满"按钮（需求 三.1）
+   版本：V0.03（V2.17：支持全局背景参数键（BG_PARAM_DEFS → bgParams）——滑块/数字框/重置/
+       布尔/取色器/HEX 输入统一按"行参数 or 全局参数"分派；形状种类 chip 与"填满"落地）
    注意：动态重建的局部 DOM（如 edgeParamsWrap）需重新绑定，
         所以内部存在 bindPaneInteractions 的递归调用。
    ============================================================ */
 function bindPaneInteractions(moduleId, container, rowIdx){
   const row = rowIdx != null ? rows[rowIdx] : null;
+  /* 背景（形状与外框）参数是全局唯一的：键在 BG_PARAM_DEFS 注册，
+     写入 bgParams 而非行参数；联动/重置对全局键不适用（无"其它行"可联动） */
+  const isGlobalKey = k => !!(k && typeof BG_PARAM_DEFS !== 'undefined' && BG_PARAM_DEFS[k]);
 
   /* ---------- 滑块 + 数字输入 ---------- */
   container.querySelectorAll('input[type=range]').forEach(r => {
     const rowEl = r.closest('.param');
     const min = +r.min || 0, max = +r.max || 100;
     const key = rowEl?.dataset.name;
-    const writable = row && key && PARAM_DEFS[key];
+    const gkey = isGlobalKey(key) ? key : null;
+    const rowKey = (!gkey && row && key && PARAM_DEFS[key]) ? key : null;
+    const writable = !!gkey || !!rowKey;
+    const write = v => {
+      if (gkey) bgParams[gkey] = v;
+      else row.params[rowKey] = v;
+      if (gkey === 'shape.inner') syncInnerZeroWarn(container);
+    };
     const upd = () => {
       const v = +r.value;
       r.style.setProperty('--fill', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
@@ -30,10 +41,14 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     upd();
     r.addEventListener('input', () => {
       upd();
-      if (writable){ row.params[key] = +r.value; scheduleDrawIcon(); } // 拖动实时重绘，不入栈
+      if (writable){ write(+r.value); scheduleDrawIcon(); } // 拖动实时重绘，不入栈
     });
     r.addEventListener('change', () => {
-      if (writable){ applyLinkedParam(key, +r.value, rowIdx); scheduleDrawIcon(); }
+      if (writable){
+        if (gkey) write(+r.value);
+        else applyLinkedParam(rowKey, +r.value, rowIdx);
+        scheduleDrawIcon();
+      }
       commitHistory();
     });
     const num = rowEl?.querySelector('.num');
@@ -46,7 +61,11 @@ function bindPaneInteractions(moduleId, container, rowIdx){
           return;
         }
         r.value = v; upd();
-        if (writable){ applyLinkedParam(key, v, rowIdx); scheduleDrawIcon(); }
+        if (writable){
+          if (gkey) write(v);
+          else applyLinkedParam(rowKey, v, rowIdx);
+          scheduleDrawIcon();
+        }
         commitHistory();
       });
     }
@@ -59,28 +78,34 @@ function bindPaneInteractions(moduleId, container, rowIdx){
         const n = rowEl.querySelector('.num');
         if (n) n.value = def;
         upd();
-        if (writable){ applyLinkedParam(key, +def, rowIdx); scheduleDrawIcon(); }
+        if (writable){
+          if (gkey) write(+def);
+          else applyLinkedParam(rowKey, +def, rowIdx);
+          scheduleDrawIcon();
+        }
         commitHistory();
       }
     });
-    /* 链条切换（逐行联动） */
+    /* 链条切换（逐行联动；全局背景参数不提供联动） */
     const chain = rowEl?.querySelector('.chain');
-    if (chain && key && PARAM_DEFS[key]){
-      chain.classList.toggle('on', !!rows[rowIdx].link[key]);
+    if (chain && rowKey){
+      chain.classList.toggle('on', !!rows[rowIdx].link[rowKey]);
       chain.addEventListener('click', e => {
         e.stopPropagation();
-        toggleRowLink(key, rowIdx);
+        toggleRowLink(rowKey, rowIdx);
       });
     }
   });
 
-  /* ---------- 布尔参数（斜体/启用阴影/裁切…） ---------- */
+  /* ---------- 布尔参数（斜体/启用阴影/启用边框/启用形状阴影…） ---------- */
   container.querySelectorAll('input[type=checkbox][data-pkey]').forEach(cb => {
     if (cb.dataset.bound) return;
     cb.dataset.bound = '1';
     cb.addEventListener('change', () => {
-      if (!row) return;
-      row.params[cb.dataset.pkey] = cb.checked;
+      const k = cb.dataset.pkey;
+      if (isGlobalKey(k)) bgParams[k] = cb.checked;
+      else if (row) row.params[k] = cb.checked;
+      else return;
       if (cb.dataset.rerender) rerenderModule(cb.dataset.rerender);
       scheduleDrawIcon();
       commitHistory();
@@ -92,11 +117,13 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     if (sel.dataset.bound) return;
     sel.dataset.bound = '1';
     sel.addEventListener('change', () => {
-      if (!row) return;
-      row.params[sel.dataset.pkey] = sel.value;
-      const def = PARAM_DEFS[sel.dataset.pkey];
+      const k = sel.dataset.pkey;
+      const def = (isGlobalKey(k) ? BG_PARAM_DEFS[k] : PARAM_DEFS[k]);
+      if (isGlobalKey(k)) bgParams[k] = sel.value;
+      else if (row) row.params[k] = sel.value;
+      else return;
       if (def?.options && !def.options.includes(sel.value)) sel.value = def.options[0];
-      ensureWebFont(row.params); // 字体加载完成后再渲染（需求 2.6）
+      if (row) ensureWebFont(row.params); // 字体加载完成后再渲染（需求 2.6）
       scheduleDrawIcon();
       commitHistory();
     });
@@ -104,8 +131,9 @@ function bindPaneInteractions(moduleId, container, rowIdx){
 
   /* ---------- 颜色控件（取色器 ⇄ HEX 输入） ---------- */
   const setColorValue = (key, val, srcEl) => {
-    if (!row) return;
-    row.params[key] = val;
+    if (isGlobalKey(key)) bgParams[key] = val;
+    else if (row) row.params[key] = val;
+    else return;
     container.querySelectorAll(`[data-pkey="${key}"]`).forEach(el => {
       if (el !== srcEl) el.value = val;
     });
@@ -115,18 +143,23 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     if (cp.dataset.bound) return;
     cp.dataset.bound = '1';
     cp.addEventListener('input', () => setColorValue(cp.dataset.pkey, cp.value, cp));
-    cp.addEventListener('change', () => { commitHistory(); rerenderModule('style'); });
+    cp.addEventListener('change', () => {
+      commitHistory();
+      if (!isGlobalKey(cp.dataset.pkey)) rerenderModule('style');
+    });
   });
   container.querySelectorAll('input.mini-input[data-hex]').forEach(hex => {
     if (hex.dataset.bound) return;
     hex.dataset.bound = '1';
     hex.addEventListener('change', () => {
+      const k = hex.dataset.pkey;
+      const cur = isGlobalKey(k) ? bgParams[k] : (row?.params[k] || '#000000');
       const v = /^#[0-9a-fA-F]{6}$/.test(hex.value.trim()) ? hex.value.trim().toUpperCase() : null;
-      if (!v){ flashInvalid(hex, 0, 100); hex.value = row?.params[hex.dataset.pkey] || '#000000'; return; }
+      if (!v){ flashInvalid(hex, 0, 100); hex.value = cur; return; }
       hex.value = v;
-      setColorValue(hex.dataset.pkey, v, hex);
+      setColorValue(k, v, hex);
       commitHistory();
-      rerenderModule('style');
+      if (!isGlobalKey(k)) rerenderModule('style');
     });
   });
 
@@ -179,12 +212,6 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     });
   });
 
-  /* ---------- 形状模块启用开关（背景暂缓：仅徽标） ---------- */
-  const be = container.querySelector('#borderEnable');
-  if (be && !be.dataset.bound){ be.dataset.bound = '1'; be.addEventListener('change', () => { rerenderModule('shape'); commitHistory(); }); }
-  const fs = container.querySelector('#fshadowEnable');
-  if (fs && !fs.dataset.bound){ fs.dataset.bound = '1'; fs.addEventListener('change', () => { rerenderModule('shape'); commitHistory(); }); }
-
   /* ---------- 颜色模式切换（单色 ⇄ 渐变） ---------- */
   const seg = container.querySelector('#colorModeSeg');
   if (seg && !seg.dataset.bound){
@@ -215,33 +242,45 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     });
   }
 
-  /* ---------- 形状 chip 互斥（背景暂缓） ---------- */
+  /* ---------- 形状种类选择（需求 三.1.1：基础/边形/角星三组互斥） ---------- */
   container.querySelectorAll('[data-group="shape"] .chip').forEach(chip => {
     if (chip.dataset.bound) return;
     chip.dataset.bound = '1';
     chip.addEventListener('click', () => {
-      container.querySelectorAll('[data-group="shape"] .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      toast('形状：' + chip.textContent);
+      const kind = chip.dataset.kind;
+      if (!kind || kind === bgParams['shape.kind']) return;
+      bgParams['shape.kind'] = kind;
+      // 形状参数随种类增减（弧度/内角），需重渲染本模块 pane
+      rerenderModule('shape');
+      scheduleDrawIcon();
       commitHistory();
+      toast(kind === '无' ? '形状：无（背景按白底/透明）' : '形状：' + kind);
     });
   });
 
-  /* ---------- 填满按钮（背景暂缓） ---------- */
+  /* ---------- 填满绘图区域（需求 1.1.2） ---------- */
   const fb = container.querySelector('#fillShapeBtn');
   if (fb && !fb.dataset.bound){
     fb.dataset.bound = '1';
     fb.addEventListener('click', () => {
-      const sizeRow = container.querySelector('[data-name="尺寸"]');
-      if (sizeRow){
-        const r = sizeRow.querySelector('input[type=range]');
-        const n = sizeRow.querySelector('.num');
-        if (r && n){ r.value = 200; n.value = 200; r.style.setProperty('--fill', '100%'); }
+      if (shapeKindInfo(bgParams['shape.kind']).type === 'none'){
+        toast('请先选择形状');
+        return;
       }
-      toast('形状已填满绘图区域');
+      bgParams['shape.size'] = shapeFillSize(bgParams, iconSize);
+      rerenderModule('shape');
+      scheduleDrawIcon();
       commitHistory();
+      toast('形状已填满绘图区域（尺寸 ' + bgParams['shape.size'] + '%）');
     });
   }
+}
+
+/* 角星内角 0° → 形状不可见（需求 1.1.1）：红字提示随拖动实时显隐 */
+function syncInnerZeroWarn(container){
+  const w = container.querySelector('#innerZeroWarn');
+  if (!w) return;
+  w.style.display = (+bgParams['shape.inner'] || 0) <= 0 ? '' : 'none';
 }
 
 /* ---------- Web 字体按需加载（需求 2.6） ----------

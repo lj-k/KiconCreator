@@ -7,7 +7,8 @@
      - 字体注册表 FONT_DEFS：web 字体优先、系统字体回退，
        web:false 或 unavailable 的字体在下拉框标注（未下载）
      - makeRow(text)：构造带完整参数与联动标记的行对象
-   版本：V0.04（V2.14：图片裁剪默认比例改为"原图"——缺 crop 字段时不再静默裁方）
+   版本：V0.05（V2.17：新增形状与外框参数表 BG_PARAM_DEFS 与 makeBgParams/normalizeBgParams——
+        背景参数全局唯一，键前缀 shape./border./shapeShadow. 与行参数键互不冲突）
    约束：本文件必须先于 state.js 加载（state.js 在顶层调用 makeRow）。
         新增可渲染参数：在 PARAM_DEFS 注册 → panes.js 加 UI →
         canvas.js 渲染读取 → history.js 快照自动覆盖（rows 深拷贝）。
@@ -183,3 +184,43 @@ function normalizeRow(r){
    offsetPx = val / 100 × S × 0.2 */
 function shadowBlurPx(p, S){ return (p['shadow.blur'] + p['shadow.size'] * 0.6) / 100 * S * 0.25; }
 function shadowOffsetPx(v, S){ return v / 100 * S * 0.2; }
+
+/* ---------- 形状与外框参数（背景栏，需求 三.1） ----------
+   背景参数是"全局唯一"的（不按行、不按模式），因此单独成表：
+   键前缀 shape./border./shapeShadow. 与行参数键互不冲突；
+   统一由 state.js 的 bgParams（扁平对象）持有，随快照整体保存。
+   shape.kind 取值：无 | 圆形 | 圆角方形 | 正3边形…正8边形 | 3角星…8角星 */
+const BG_PARAM_DEFS = {
+  'shape.kind':     { label: '形状',     type: 'select', def: '无' },
+  'shape.size':     { label: '尺寸',     min: 1,   max: 300, def: 100, unit: '%' },
+  'shape.stretchX': { label: '水平拉伸', min: 1,   max: 300, def: 100, unit: '%' },
+  'shape.stretchY': { label: '垂直拉伸', min: 1,   max: 300, def: 100, unit: '%' },
+  'shape.angle':    { label: '方向',     min: 0,   max: 360, def: 0,   unit: '°' },
+  'shape.round':    { label: '弧度',     min: 0,   max: 100, def: 0,   unit: '%' },
+  'shape.inner':    { label: '内角',     min: 0,   max: 135, def: 60,  unit: '°' }, // 上限按角星数动态：180 − 360/n
+
+  'border.enabled': { label: '启用边框', type: 'bool',  def: true },
+  'border.width':   { label: '边框宽度', min: 0,   max: 100, def: 6,     unit: 'px' },
+  'border.color':   { label: '颜色',     type: 'color', def: '#FFFFFF' },
+
+  'shapeShadow.enabled': { label: '启用形状阴影', type: 'bool',  def: false },
+  'shapeShadow.color':   { label: '颜色',       type: 'color', def: '#1D2333' },
+  'shapeShadow.size':    { label: '大小',       min: 0,   max: 100, def: 16, unit: '' },
+  'shapeShadow.blur':    { label: '模糊',       min: 0,   max: 100, def: 14, unit: '' },
+  'shapeShadow.x':       { label: 'X 偏移',     min: -100, max: 100, def: 0,  unit: '' },
+  'shapeShadow.y':       { label: 'Y 偏移',     min: -100, max: 100, def: 8,  unit: '' }
+};
+
+/* 背景参数默认值工厂 / 规范化（只补缺失键，绝不覆盖已有值——需求 四.1） */
+function makeBgParams(){
+  const o = {};
+  Object.keys(BG_PARAM_DEFS).forEach(k => { o[k] = BG_PARAM_DEFS[k].def; });
+  return o;
+}
+function normalizeBgParams(src){
+  const out = makeBgParams();
+  if (src && typeof src === 'object'){
+    Object.keys(src).forEach(k => { if (src[k] !== undefined && src[k] !== null) out[k] = src[k]; });
+  }
+  return out;
+}

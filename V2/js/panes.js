@@ -4,7 +4,9 @@
      - 预设/历史/下载 pane（静态结构）
      - 样式 pane：尺寸/颜色/阴影 —— 全部从激活行状态生成
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
-   版本：V0.04（V2.15：预设导入/导出按钮补 title 说明"一文件一预设 / 导出当前参数"）
+   - 形状模块 pane：形状种类/尺寸/拉伸/方向/弧度/内角 + 边框 + 形状阴影
+       （需求 三.1，参数读写全局 bgParams；弧度与内角随形状种类动态出现）
+   版本：V0.05（V2.17：形状/边框/形状阴影 pane 改为状态驱动，键为全局 shape./border./shapeShadow.）
    约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
 
@@ -98,34 +100,48 @@ function paneShadow(){
     ${paramRow('Y 偏移', p['shadow.y'], -100, 100, '', { key: 'shadow.y', chain: true })}`;
 }
 
-/* ---------- 形状 pane（背景暂缓：保留 UI） ---------- */
+/* ---------- 形状 pane（需求 三.1.1：形状种类 + 形状参数） ----------
+   形状参数全局唯一（bgParams），键写作 shape.*；
+   参数行随形状种类动态显示：弧度用于 圆角方形/边形/角星，内角仅角星 */
+function shapeChipRow(name, labels, values){
+  const cur = bgParams['shape.kind'];
+  return `<div class="param inline-chips" data-group="shape"><span class="pname">${name}</span><div class="pctrl"><div class="chip-row">${labels.map((c, i) => `<button class="chip${values[i] === cur ? ' active' : ''}" data-kind="${values[i]}">${c}</button>`).join('')}</div></div></div>`;
+}
 function shapePaneHTML(){
+  const info = shapeKindInfo(bgParams['shape.kind']);
+  const hasRound = info.type === 'roundRect' || info.type === 'poly' || info.type === 'star';
+  const hasInner = info.type === 'star';
+  const innerMax = shapeInnerMax(info.n || 3);
+  const innerZero = hasInner && (+bgParams['shape.inner'] || 0) <= 0;
   return `
-    ${inlineChips('基础', ['无', '圆形', '圆角方形'], 2, { group: 'shape' })}
-    ${inlineChips('边形', ['3', '4', '5', '6', '7', '8'], -1, { group: 'shape' })}
-    ${inlineChips('角星', ['3', '4', '5', '6', '7', '8'], -1, { group: 'shape' })}
+    ${shapeChipRow('基础', ['无', '圆形', '圆角方形'], ['无', '圆形', '圆角方形'])}
+    ${shapeChipRow('边形', ['3', '4', '5', '6', '7', '8'], SHAPE_POLY_KINDS)}
+    ${shapeChipRow('角星', ['3', '4', '5', '6', '7', '8'], SHAPE_STAR_KINDS)}
     <div class="divider"></div>
-    ${paramRow('尺寸', 100, 1, 200, '%')}
-    ${paramRow('拉伸', 100, 1, 200, '%')}
-    ${paramRow('方向', 0, 0, 360, '°')}
-    ${paramRow('弧度', 0, 0, 100, '%')}
+    ${paramRow('尺寸', bgParams['shape.size'], 1, 300, '%', { key: 'shape.size', reset: true })}
+    ${paramRow('水平拉伸', bgParams['shape.stretchX'], 1, 300, '%', { key: 'shape.stretchX', reset: true })}
+    ${paramRow('垂直拉伸', bgParams['shape.stretchY'], 1, 300, '%', { key: 'shape.stretchY', reset: true })}
+    ${paramRow('方向', bgParams['shape.angle'], 0, 360, '°', { key: 'shape.angle', reset: true })}
+    ${hasRound ? paramRow('弧度', bgParams['shape.round'], 0, 100, '%', { key: 'shape.round', reset: true }) : ''}
+    ${hasInner ? paramRow('内角', bgParams['shape.inner'], 0, innerMax, '°', { key: 'shape.inner', reset: true }) : ''}
     <div class="param"><span class="pname"></span><div class="pctrl"><button class="btn ghost sm" style="flex:1" id="fillShapeBtn">填满绘图区域</button></div></div>
-    <div style="font-size:10px;color:var(--muted);padding-top:6px">角星内角为 0° 时形状不可见</div>`;
+    <div id="innerZeroWarn" style="font-size:10.5px;color:#e5484d;padding-top:6px${innerZero ? '' : ';display:none'}">内角 0° 形状不可见</div>`;
 }
 function borderPaneHTML(){
   return `
-    <label class="check-row" style="padding-top:0"><input type="checkbox" checked id="borderEnable"> 启用边框</label>
-    ${paramRow('边框宽度', 6, 0, 100, 'px')}
-    <div class="param tight"><span class="pname">颜色</span><div class="pctrl"><button class="fill-swatch" style="background:#ffffff;width:24px;height:24px;border-radius:7px"></button><input class="mini-input" value="#FFFFFF" style="flex:1"></div></div>
+    ${checkRow('启用边框', 'border.enabled', bgParams['border.enabled'], { rerender: 'shape' })}
+    ${paramRow('边框宽度', bgParams['border.width'], 0, 100, 'px', { key: 'border.width', reset: true })}
+    ${colorRow('颜色', 'border.color', bgParams['border.color'])}
     <div style="font-size:10px;color:var(--muted);padding-top:6px">边框从形状边界向外延伸</div>`;
 }
 function fshadowPaneHTML(){
   return `
-    <label class="check-row" style="padding-top:0"><input type="checkbox" id="fshadowEnable"> 启用形状阴影</label>
-    ${paramRow('大小', 16, 0, 100, '')}
-    ${paramRow('模糊', 14, 0, 100, '')}
-    ${paramRow('X 偏移', 0, -8, 8, '')}
-    ${paramRow('Y 偏移', 8, -8, 8, '')}`;
+    ${checkRow('启用形状阴影', 'shapeShadow.enabled', bgParams['shapeShadow.enabled'], { rerender: 'shape' })}
+    ${colorRow('颜色', 'shapeShadow.color', bgParams['shapeShadow.color'])}
+    ${paramRow('大小', bgParams['shapeShadow.size'], 0, 100, '', { key: 'shapeShadow.size', reset: true })}
+    ${paramRow('模糊', bgParams['shapeShadow.blur'], 0, 100, '', { key: 'shapeShadow.blur', reset: true })}
+    ${paramRow('X 偏移', bgParams['shapeShadow.x'], -100, 100, '', { key: 'shapeShadow.x', reset: true })}
+    ${paramRow('Y 偏移', bgParams['shapeShadow.y'], -100, 100, '', { key: 'shapeShadow.y', reset: true })}`;
 }
 
 /* ---------- 填充 pane（背景暂缓：保留 UI） ---------- */

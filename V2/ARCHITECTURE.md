@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.13**（对应项目代码版本 **V2.16**）
+> **文档版本：V0.14**（对应项目代码版本 **V2.17**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -26,9 +26,9 @@ V2/
 ├── data/
 │   ├── fa-icons.js         # FA6 全量免费图标数据集（本地打包，1895 个：FA_ICONS + FA_GROUPS，生成勿手改）
 │   └── fa-fonts.css        # FA6 字体本地化（solid-900/brands-400 woff2 以 base64 内嵌，离线/file:// 可用，生成勿手改）
-├── js/                     # 22 个模块 + data/fa-icons.js，加载顺序 = 依赖顺序（详见第 3 节）
-│   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 字体表 + 行工厂 makeRow/makeImageState/normalizeRow
-│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link/faName/image、currentLayout/layerOrder）+ HistoryStack
+├── js/                     # 23 个模块 + data/fa-icons.js，加载顺序 = 依赖顺序（详见第 3 节）
+│   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 背景参数表 BG_PARAM_DEFS + 字体表 + 行工厂 makeRow/makeImageState/normalizeRow
+│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link/faName/image、currentLayout/layerOrder、bgParams 形状与外框）+ HistoryStack
 │   ├── utils.js            # ③ $/$$/escapeHtml/clamp/roundRect/toast/flashInvalid/CHAIN_SVG
 │   ├── images.js           # ④ 会话图片仓库：注册/解码/引用计数/延迟释放/裁剪几何/白色透明/预设序列化（含编码保真）
 │   ├── layout.js           # ⑤ 响应式布局引擎 + tab 动态展开算法 + refreshLayout 两级刷新
@@ -41,27 +41,28 @@ V2/
 │   ├── history.js          # ⑫ commitHistory/undo/redo + 状态化 snapshotState/restoreState
 │   ├── exports.js          # ⑬ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 文件名 + 下载历史
 │   ├── presets.js          # ⑭ 预设增删改/导入导出（含图片数据）+ 预设/历史列表渲染 + data-act 委托
-│   ├── canvas.js           # ⑮ 渲染引擎：layoutCells + drawRow（文本/FA/图片）+ drawIcon + renderSnapshotThumb
-│   ├── content.js          # ⑯ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
-│   ├── imagePane.js        # ⑰ 图片模式面板：打开/进度条/剪裁后预览/剪裁器（缩放·比例·拖拽）
-│   ├── fills.js            # ⑱ 内部填充渲染（UI，背景暂缓）
-│   ├── theme.js            # ⑲ 主题切换 + 两栏合并标签切换（顶层绑定）
-│   ├── topbar.js           # ⑳ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
-│   ├── preview.js          # ㉑ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
-│   └── main.js             # ㉒ init() 入口（必须最后加载）
+│   ├── bgshape.js          # ⑮ 形状（外框）几何引擎与绘制：种类解析/采样/尺寸拉伸方向变换/填满/绘制栈
+│   ├── canvas.js           # ⑯ 渲染引擎：layoutCells + drawRow（文本/FA/图片）+ drawIcon + renderSnapshotThumb
+│   ├── content.js          # ⑰ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
+│   ├── imagePane.js        # ⑱ 图片模式面板：打开/进度条/剪裁后预览/剪裁器（缩放·比例·拖拽）
+│   ├── fills.js            # ⑲ 内部填充模块 UI 与色块色值来源（fillColors）
+│   ├── theme.js            # ⑳ 主题切换 + 两栏合并标签切换（顶层绑定）
+│   ├── topbar.js           # ㉑ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
+│   ├── preview.js          # ㉒ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
+│   └── main.js             # ㉓ init() 入口（必须最后加载）
 ├── ARCHITECTURE.md         # 本文档
 └── Changelog.md            # 变更记录
 ```
 
 ## 3. 模块加载顺序与依赖（V2.09 起由引导器动态加载）
 
-`index.html` 不再静态书写 `<link>`/`<script>` 标签，而是由页尾**引导器**（内联脚本）按 `steps` 数组顺序逐个动态加载 4 个 CSS 与 23 个 JS（含 data/fa-icons.js），并在启动屏上实时显示进度。**顺序即依赖，steps 数组禁止调整**：
+`index.html` 不再静态书写 `<link>`/`<script>` 标签，而是由页尾**引导器**（内联脚本）按 `steps` 数组顺序逐个动态加载 4 个 CSS 与 24 个 JS（含 data/fa-icons.js），并在启动屏上实时显示进度。**顺序即依赖，steps 数组禁止调整**：
 
 ```
 base/layout/components.css + fa-fonts.css
    └► schema ─► state ─► utils ─► images ─► layout ─► builders ─► fa-icons(data) ─► fa ─► panes ─► tabs ─► interactions ─► linkage
                                                                                         │
-   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── imagePane ◄── content ◄── canvas ◄── presets/exports/history
+   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── imagePane ◄── content ◄── canvas ◄── bgshape ◄── presets/exports/history
 ```
 
 加载顺序的设计依据（为什么必须如此）：
@@ -259,6 +260,29 @@ row.params / currentLayout / layerOrder 更新
 
 **注意**：仓库 id 只在本次会话有效，导入外部预设时必须**先作废旧 id** 再按数据重建，否则可能命中同名的另一张图。
 
+### 4.11 形状与外框（需求 三.1，V2.17）
+
+**形状是"背景"本身**：形状非"无"时，`drawIcon` 先画形状（轮廓 + 边框 + 形状阴影）并**不再铺白底**——形状之外的区域保持透明，圆形/圆角/星形才不会被白底补成方块；形状为"无"时维持原逻辑（未勾选透明 → 白底，勾选 → 透明，需求 1.8）。
+
+**参数是全局唯一的**：按钮、滑块、取色器写在 `bgParams`（`schema.js` 的 `BG_PARAM_DEFS` 注册键，前缀 `shape. / border. / shapeShadow.`），与行参数 `rows[i].params` 完全分离。`interactions.js` 的 `bindPaneInteractions` 按"键在 BG_PARAM_DEFS 里 → 写 `bgParams`，否则写行参数"分派，因此**背景参数天然没有"逐行联动"**（没有其它行可联动）。
+
+| 关注点 | 位置 | 规则 |
+|---|---|---|
+| 形状种类 | `bgParams['shape.kind']` | 无 / 圆形 / 圆角方形 / 正3~8边形 / 3~8角星；三组 chip 互斥选择 |
+| 尺寸 | `shapeOutline` | **外接框长边 = 尺寸% × 画布边长**（默认 100% 即长边等于画布），拉伸与方向在其后施加 |
+| 方向 | 同上 | 0° = 形状最下面的边水平；正值顺时针；绕形状包围盒中心旋转 |
+| 弧度 | `shapeUnitPoints` | 0~100%：原始形状与"内切圆"之间按极角线性过渡；**100% 即圆形**（圆角方形/边形/角星通用） |
+| 内角（角星） | 同上 | 尖角角度；0° → 点集为空、形状消失（面板红字提示）；上限 `floor(180 − 360/n)`，到上限时内顶点落在正 n 边形边中点 → 退化为正 n 边形；越界值按上限截断 |
+| 边框 | `drawBgShape` | 描边宽度 = **2×边框宽度**、随后被内部填充盖住内半 → 视觉上**只向形状外延伸**；宽度以 256 画布为基准等比缩放（`width × S / 256`），预览与各导出尺寸观感一致 |
+| 形状阴影 | 同上 | 投影与边框一起投（无边框时以轮廓投）；多色分块填充不再叠加阴影，避免阴影重复加深 |
+| 内部填充 | 同上 | 轮廓内铺满填充色块：单色 = `fillColors[0]`，多色 = **横向等分**（矩阵布局层数=1 的默认形态）；完整布局/边界过渡属"填充"模块 |
+| 内容裁切 | `bgShapeClip`（`drawRow` 内调用） | `style.clip = false`（"显示超出形状范围的内容"取消勾选）时，行内容按形状轮廓裁切（需求 3.5） |
+| 填满按钮 | `shapeFillSize` | 把外接框撑到绘图区域，**只放大不缩小**；拉伸与方向按当前值参与计算 |
+
+**几何约束（需求 1.1.3）**：所有形状必须是**对中心可见的星形域**——任意方向从中心出发只与轮廓相交一次。这样轮廓天然封闭连续、边线不交叠，`shapeRadiusAt` 的极点采样与 `ctx.clip` 才可靠。新增形状种类必须保持该性质。
+
+> 注意，采样与描边/裁切共用同一份轮廓点（`shapeOutline` 一次求值多处复用：绘制、包围盒、填满求解），因此不存在"填充区域与裁切区域不一致"的可能；改动形状几何只需改 `bgshape.js`。
+
 ## 5. AI Agent 编辑指引
 
 ### 5.1 "想改 X，去哪个文件"
@@ -269,6 +293,9 @@ row.params / currentLayout / layerOrder 更新
 | 新增模式专属数据（如 FA 图标名、图片引用） | 行对象添加独立字段（`makeRow`/`makeImageState`）+ `normalizeRow` 兜底 + 对应模式渲染/UI 读写 | **禁止**借用其它模式的字段承接（需求 四.1 例2） |
 | 图片模式相关（上传/裁剪/引用） | `js/images.js`（仓库与几何）+ `js/imagePane.js`（面板）+ `js/canvas.js`（`drawRowImage`） | 行内只存 `image.id`；新引用方必须 `imgRetain/imgRelease` |
 | 改图片导出分辨率/编码 | `js/images.js` 的 `imgEncodeCanvas` / `IMG_MAX_EDGE` / `IMG_PNG_MAX` | 导出上限必须与入库上限同值（见 4.10"往返保真的三个条件"） |
+| 形状几何/绘制（种类、采样、边框、填满） | `js/bgshape.js`（几何与绘制栈）+ `js/panes.js` 形状 pane + `js/interactions.js`（chip/填满） | 参数键必须在 `BG_PARAM_DEFS` 注册并走 `bgParams`；新形状必须是对中心可见的星形域（见 4.11） |
+| 新增背景（全局）参数 | `js/schema.js` 的 `BG_PARAM_DEFS` → `js/panes.js` 加 `paramRow({key})` → 渲染处读 `bgParams` | 快照已由 `snapshotState` 的 `bg` 字段整体覆盖；`normalizeBgParams` 负责补键 |
+| 内部填充色值 | `js/state.js` 的 `fillColors`（唯一来源） | 形状内部填充、色块缩略、快照三处都从这里派生，勿再写死颜色 |
 | 新增图片引用持有者（新列表/新缓存） | `js/images.js` 的 `imgRetainSnap/imgReleaseSnap` + 该对象的创建/销毁处 | 用稳定 uid 做引用键，勿用数组下标 |
 | 新增一个 pane/tab | `js/tabs.js` 的 `MODULE_TABS` + `js/panes.js` 加生成函数 | 需要建议色则同时改 `js/builders.js` |
 | 新增可撤销的顶层状态 | `js/state.js` 声明 → `js/history.js` 的 snapshot/restore 各加一行 | 行内参数（rows.params）自动覆盖 |
@@ -297,6 +324,7 @@ row.params / currentLayout / layerOrder 更新
 10. **图片只存引用**（V2.13，需求 六.1）：图片数据只允许存在于 `ImageRepo`。行、预设、下载历史、撤销快照都只存 `image.id`；**新增任何持有方都必须在创建时 `imgRetain`、销毁时 `imgRelease`**，否则图片不会被释放（泄漏）或被提前释放（渲染空白）。恢复快照后必须调用 `imgSyncRowRefs()`。导入外部预设时，仓库 id 一律先作废再按数据重建。
 11. **图片面板的选择器纪律**：`imagePane.js` 生成的 DOM 不得使用 `data-name`/`data-pkey`/`.chip-row`/`[data-group]`，因为这些会被 `bindPaneInteractions` 委托（导致参数串写）；剪裁器的滑块自行绑定。
 12. **图片分辨率的两个标准必须一致**（V2.16）：入库上限 `IMG_MAX_EDGE` 与导出编码上限是**同一个值**。`imgLoadData`（预设导入）与 `imgLoadFile` 都必须按它降采样；`imgCropDataURL` / `imgFullDataURL` 的 `maxEdge` 默认值必须取自该常量。禁止在调用处传入更小的上限，也禁止绕开 `imgEncodeCanvas` 自行编码（JPEG 会丢透明通道）。
+13. **背景参数走全局通道**（V2.17）：`shape./border./shapeShadow.` 前缀的键必须在 `schema.js` 的 `BG_PARAM_DEFS` 注册，读写一律经 `bgParams`（**禁止**塞进 `rows[i].params`，那会让 9 行各存一份互不相干的形状）。新增背景状态必须同时扩展 `snapshotState` 的 `bg` 与 `restoreState`。形状轮廓必须保持"对中心可见的星形域"，且绘制、包围盒、填满、内容裁切共用 `shapeOutline` 同一份点集。
 
 ### 5.3 自检清单（提交前过一遍）
 
@@ -309,6 +337,7 @@ row.params / currentLayout / layerOrder 更新
 - [ ] **数据保留**：行 2 输入文本+改参数 → 行数切到 1 → 切回 2，内容与参数原样；文本模式输入 → 切 FA 选图标 → 切回文本，文本仍在；切换填充数量/行数后各选项的既有参数不丢
 - [ ] **图片模式**：上传后画布显示真实图像；白色透明开关生效；剪裁器缩放/比例/拖拽/滚轮均实时反映到画布；行数切换、模式切换后图片与裁剪参数仍在；撤销/重做可回退图片更换；下载历史/预设缩略图显示真实样式；`imgStats()` 中无被遗忘的引用
 - [ ] **图片导出往返**：加载图片 → 剪裁 → 导出预设（两种模式各试一次）→ 刷新页面 → 导入，画面与导出前一致（重点验证不发生二次裁切、**清晰度不下降**）：导入后图片像素尺寸应与"整图/裁切窗口"一致（窗口 ≤ 1024 时不被缩放）；平涂图标应走 PNG 无损，照片类退 WebP 且不应出现明显块状伪影。
+- [ ] **形状与外框**：选 圆形/圆角方形/正3~8边形/3~8角星 后画布立即出现对应轮廓且**形状之外透明**；"方向 0° 时最下面的边水平"；弧度 100% 变圆形；角星内角拖到 0° 形状消失并出现红字提示、拖到上限变成正 n 边形；边框只向形状外延伸且在不同导出尺寸下粗细观感一致；形状阴影只投一次影（多色填充不加深）；"填满"只放大不缩小；取消"显示超出形状范围的内容"后行内容被轮廓裁切；切形状种类/撤销重做/应用预设后形状与参数原样恢复，形状标签标题显示当前形状名。
 
 ## 6. 特别说明（当前设计约束与历史注意）
 
@@ -317,18 +346,20 @@ row.params / currentLayout / layerOrder 更新
 - 注意，head 中的 `<version>`/`<changelog>` 标签已按需求移除，且**不要再添加回去**；版本信息以顶栏 `.ver` 徽标与 `Changelog.md` 为准。
 - 数据文件（data/fa-icons.js、data/fa-fonts.css）均为脚本生成物，头注释含来源与基准版本；升级 FA6 版本时一并重新生成。
 - FA 搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
-- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略；图片模式的图片参数只在图片面板出现，背景形状/填充渲染仍暂缓。
+- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略；图片模式的图片参数只在图片面板出现。背景形状已落地（见 4.11），"填充数量和布局"与"内部填充"的完整参数体系仍暂缓。
 - 预览模块的 画布尺寸 下拉与下载 pane 的 导出尺寸 下拉共享 `iconSize`，同步点唯一收敛在 `updateSize()`；新增尺寸入口时必须接入该函数，不要各自维护变量。
 - **数据保留（V2.12 起）**：切换模式/行数/填充数量都不得丢数据。跨模式数据必须各用独立字段（`text` 文本 / `faName` FA / `image.*` 图片）；快照、恢复、外部预设导入统一经 `normalizeRow` 规范化（只补缺失键，不覆盖已有值）。
 - **图片模式（V2.13 起）**：图片数据只在 `ImageRepo` 存一份，行/预设/历史/快照只存 id；引用计数不足会提前释放、漏注销会泄漏。裁剪参数（比例/缩放/偏移）属行数据，随模式切换与撤销保留。导出图片时必须先决定"整图+参数"还是"剪裁后像素+清零参数"，两者混用会造成二次裁切（V2.14）。
 - **预设导出/导入语义（V2.15 起）**：导出只导出**当前参数**这一条（不是预设列表）；导入是**一个 json 文件 = 一条预设**，批量导入 = 多选文件。注意，不要写成"导出 `PRESETS` 整个数组"或"一个文件里打包多条预设"。
 - **图片编码与分辨率（V2.16 起）**：图片分辨率只有 `IMG_MAX_EDGE`（1024）一个标准，入库与导出同值；导出编码走 `imgEncodeCanvas`（PNG 无损优先 → WebP q0.95 近无损，不用 JPEG）。为图片剪裁/导出往返保持一致，应保证"几何（等比量）+ 像素（上限同值）+ 编码（无损优先）"三者同时成立：几何决定裁到哪里，像素与编码决定恢复出的画面有多接近导出前。若只满足几何而把导出上限压到入库上限以下，导入后的画面会比导出前模糊——这类差异容易被误判为"裁切位置变了"。
-- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复、V2.12 数据保留、V2.13 图片模式与会话图片仓库、V2.14 图片导出二次裁切修复、V2.15 预设导出语义校正、V2.16 图片导出编码保真与入库分辨率统一，各版本记录见 Changelog.md 对应条目。
+- **形状与外框（V2.17 起）**：形状即背景——形状非"无"时不铺白底，形状之外保持透明；内部填充目前是"单色整片 / 多色横向等分"，完整的矩阵·饼图布局、层间层内比例、sin/tan/锯齿边界与过渡样式属"填充"模块（尚未开发）。边框宽度语义是"以 256 画布为基准的像素"并随画布等比缩放，所以 6px 在 2048 画布上是 48px——这是**有意为之**，保证预览与各导出尺寸观感一致；若改成绝对像素，大尺寸导出时边框会细到看不见。角星内角上限取 `floor(180 − 360/n)` 而非 `180 − 180/n`：后者会让内顶点凸出到外接圆之外，轮廓不再贴合正 n 边形。
+- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复、V2.12 数据保留、V2.13 图片模式与会话图片仓库、V2.14 图片导出二次裁切修复、V2.15 预设导出语义校正、V2.16 图片导出编码保真与入库分辨率统一、V2.17 形状与外框（形状几何引擎 + 边框 + 形状阴影 + 内容按形状裁切），各版本记录见 Changelog.md 对应条目。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.14 | 2026-09-21 | 新增 4.11 形状与外框（种类/参数/几何约束/绘制栈/裁切/填满）、5.1/5.2/5.3 增补、文件结构与加载链 +bgshape.js | V2.17 |
 | V0.13 | 2026-09-21 | 4.10 新增"往返保真的三个条件"与编码行、5.1/5.2/5.3 增补（导出上限须与入库上限同值） | V2.16 |
 | V0.12 | 2026-09-21 | 4.8 新增"JSON 出口语义"对照表（三条出口各产出一条预设、导入一文件一预设） | V2.15 |
 | V0.11 | 2026-09-20 | 4.10 增补"导出图片的两种模式"对照表与二次裁切禁忌、5.3 增图片导出往返自检项 | V2.14 |

@@ -4,10 +4,12 @@
      - 布局几何 layoutCells()：1.2 全部排版模式的单元格切分
      - drawRow()：单行渲染 —— 文本/FA 字形、图片（裁剪窗口 + 白色透明）、
        单色/渐变填充、阴影、大小/角度/拉伸/偏移变换（三模式共用同一变换管线）
-     - drawIcon()：背景（白底或透明，需求 1.8）→ 按层次顺序逐行绘制
+     - drawIcon()：背景（形状轮廓或白底/透明，需求 1.8/三.1）→ 按层次顺序逐行绘制
+       （行内容可选按形状轮廓裁切，需求 3.5 style.clip）
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.05（V2.13：图片模式真实渲染——裁剪窗口 + 白色透明 + 共用变换管线）
-   暂缓（按任务要求）：背景形状/填充渲染。
+   版本：V0.06（V2.17：接入背景形状——形状轮廓 + 边框 + 形状阴影，内容按形状裁切）
+   暂缓（按任务要求）：填充数量和布局（矩阵/饼图、层数、边界过渡）与内部填充的
+        完整参数体系；当前形状内部按"填充色块横向等分"铺色（见 bgshape.js）。
    说明：辅助线/安全边距由 index.html 的 SVG 覆盖层与 #safeBox 承担，
         不画进画布，因此天然不导出（需求 2.34/1.7）。
    ============================================================ */
@@ -215,6 +217,10 @@ function drawRow(r, cell, S){
   const cy = (isRing ? 0.5 : cell.y + cell.h / 2) * S;
 
   ctx.save();
+  /* 显示超出形状范围的内容（需求 3.5）：关闭时先按形状轮廓裁切，
+     再进入内容变换 —— 裁切路径在画布坐标系建立，随后的 translate/rotate/scale
+     不会影响已建立的裁切区域 */
+  if (!p['style.clip']) bgShapeClip(S);
   // 偏移（画布坐标系，先于旋转 —— 3.5 偏移为画布方向）
   ctx.translate(cx + p['style.offsetX'] / 100 * S, cy + p['style.offsetY'] / 100 * S);
   // 角度：绕内容中心旋转（3.5）
@@ -254,7 +260,7 @@ function drawRow(r, cell, S){
 function renderSnapshotThumb(snap, canvas, size){
   if (!snap || !canvas) return;
   const S = Math.max(16, Math.min(64, size || 48));
-  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder };
+  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder, bgParams, fillCount, fillColors };
   const tc = $('#transparentChk');
   const bakTc = tc ? tc.checked : false;
   try {
@@ -268,6 +274,9 @@ function renderSnapshotThumb(snap, canvas, size){
     activeRow = 0;
     currentLayout = snap.currentLayout || '全在上（左右分）';
     layerOrder = snap.layerOrder || '1to9';
+    bgParams = normalizeBgParams(snap.bg);              // 形状与外框随预设真实呈现（需求 2.1）
+    fillCount = Math.max(1, Math.min(6, snap.fillCount || fillCount));
+    fillColors = (snap.fills || []).map(f => f && f.color).filter(Boolean).concat(fillColors).slice(0, 6);
     if (tc) tc.checked = !!snap.transparent;
     drawIcon();
   } catch (e){
@@ -282,6 +291,9 @@ function renderSnapshotThumb(snap, canvas, size){
     activeRow = bak.activeRow;
     currentLayout = bak.currentLayout;
     layerOrder = bak.layerOrder;
+    bgParams = bak.bgParams;
+    fillCount = bak.fillCount;
+    fillColors = bak.fillColors;
   }
 }
 
@@ -298,11 +310,15 @@ function drawIcon(){
   const S = iconSize;
   if (cvs.width !== S){ cvs.width = S; cvs.height = S; }
   ctx.clearRect(0, 0, S, S);
-  // 形状为无：勾选透明 → 透明背景；否则白底（需求 1.8）
-  const transparent = $('#transparentChk')?.checked || false;
-  if (!transparent){
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, S, S);
+  /* 背景（需求 1.8 / 三.1）：形状非无 → 形状轮廓（含边框与形状阴影），
+     形状之外的区域透明（形状本身即背景，圆角/圆形才不会被白底补成方块）；
+     形状为无 → 勾选透明则透明，否则白底 */
+  if (!drawBgShape(S)){
+    const transparent = $('#transparentChk')?.checked || false;
+    if (!transparent){
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, S, S);
+    }
   }
   // 布局单元格 + 层次顺序（1.3）
   const cells = layoutCells(currentLayout, rowCount);

@@ -71,7 +71,7 @@ $('#styleReset').addEventListener('click', () => {
   toast('已重置当前行样式');
 });
 
-/* ---------- 填充数量（背景暂缓：仅 UI 联动） ---------- */
+/* ---------- 填充数量（形状内部按数量分色块，切数量即重绘） ---------- */
 $('#fillCount').addEventListener('click', e => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -84,6 +84,7 @@ $('#fillCount').addEventListener('click', e => {
   renderFillBody2();
   // 布局/填充边界 pane 的内容随单色⇄多色切换（不能只靠列刷新，须显式重渲染该模块）
   rerenderModule('fill');
+  scheduleDrawIcon();   // 形状内部色块数量随之变化
   toast(`填充数量：${fillCount === 1 ? '单色' : fillCount + '色'}`);
   commitHistory();
 });

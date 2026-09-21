@@ -5,8 +5,8 @@
      - PRESETS / downloadHistory：预设数组与下载历史（P0-4/P0-5）
      - rows：9 行内容状态（makeRow 构造，含 params/link，见 schema.js）
      - currentLayout / layerOrder：排版模式与多行排列层次（需求 1.2/1.3）
-     - fillCount 等填充状态：背景渲染暂缓，仅供 UI
-   版本：V0.04（V2.13：撤销栈持/注销图片引用——FIFO 淘汰与被覆盖快照均注销）
+     - bgParams / fillColors / fillCount：背景形状与外框参数、填充色块色值（需求 三.1）
+   版本：V0.05（V2.17：新增 bgParams（形状与外框，全局唯一）与 fillColors（填充色值唯一来源））
    约束：本文件必须最先加载（schema.js 之后）；任何模块读写状态请引用
         这里的变量，不要新建平行状态，避免快照/撤销遗漏字段。
    ============================================================ */
@@ -74,10 +74,15 @@ let styleClipboard = null;       // 复制样式（仅 style./color./shadow. 参
 let currentLayout = '全在上（左右分）'; // 当前生效的排版模式
 let layoutByCount = {};          // 各"行数"下用户已选的排版模式（需求 四.1 例3：切回原行数时恢复选择）
 let layerOrder = '1to9';         // '1to9'：行1 最后绘制在最顶层；'9to1'：行9 顶层
-let currentEdgeShape = '直线';    // 填充边界 UI（背景暂缓）
+let currentEdgeShape = '直线';    // 填充边界 UI（背景布局模块暂缓）
 let fillCount = 2;
 let activeFill = 0;
 let fillModes = ['纯', '纯', '纯', '纯', '纯', '纯'];
+/* 填充色块的真实色值（唯一来源）：形状内部填充按它取色，
+   色块列表的缩略渐变与快照也由它派生，避免出现第二套颜色 */
+let fillColors = ['#6C8CFF', '#22C55E', '#F97316', '#0EA5E9', '#FACC15', '#EC4899'];
+/* 形状与外框参数（背景栏，需求 三.1）：全局唯一，扁平存键（schema.js 定义键与默认值） */
+let bgParams = makeBgParams();
 let stateReady = false; // 初始渲染完成后才允许 commitHistory
 
 /* 画布导出尺寸（与 render/exports 共享） */

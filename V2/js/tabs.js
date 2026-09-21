@@ -7,8 +7,7 @@
      - relayoutColumn / relayoutAllModules：按列高分配 tab 展开分组
      - renderTabGroupsFromGroups：渲染分组后的 tab-group 并绑定切换
      - rerenderModule：单个模块重渲染入口
-   版本：V0.03（V2.11：新增结构签名跳过无谓重建、readCurrentGroups 保持标签原位；
-        rerenderModule 改为内容级刷新）
+   版本：V0.04（V2.17：标签标题支持函数（形状标签直接显示当前形状名））
    依赖：layout.js（computeTabLayout/measureTabHeights/refreshLayoutKeepGroups）、
         interactions.js（bindPaneInteractions）、presets.js（renderPresets/renderHistory）、
         exports.js（bindDownloadPaneInteractions）—— 均为运行时调用，加载顺序见 index.html。
@@ -25,7 +24,8 @@ const MODULE_TABS = {
     { id: 'shadow', label: '阴影', badge: '✓', enabled: () => getShadowEnabled(), getContent: () => paneShadow() }
   ],
   shape: [
-    { id: 'shape', label: '形状', getContent: () => shapePaneHTML() },
+    // 形状标签标题直接显示当前形状（需求 五：形状非"无"时在标签上显示形状）
+    { id: 'shape', label: () => shapeTabLabel(), getContent: () => shapePaneHTML() },
     { id: 'border', label: '边框', badge: '✓', enabled: () => getBorderEnabled(), getContent: () => borderPaneHTML() },
     { id: 'shadow', label: '阴影', badge: '✓', enabled: () => getFShadowEnabled(), getContent: () => fshadowPaneHTML() }
   ],
@@ -44,7 +44,9 @@ function collectTabModuleInfo(moduleId){
   const tabDefs = MODULE_TABS[moduleId];
   if (!tabDefs) return null;
   const tabs = tabDefs.map(t => ({
-    id: t.id, label: t.label, badge: t.badge || '',
+    id: t.id,
+    label: typeof t.label === 'function' ? t.label() : t.label,  // 动态标题（如形状标签显示当前形状）
+    badge: t.badge || '',
     enabled: t.enabled ? t.enabled() : false,
     contentHTML: t.getContent()
   }));

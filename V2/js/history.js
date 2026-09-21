@@ -4,7 +4,7 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.07（V2.13：恢复后同步行图片引用；图片只存 id，随快照深拷贝）
+   版本：V0.08（V2.17：快照纳入 bgParams（形状与外框）与填充色值 fillColors）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,17 +30,18 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.16',
+    version: '2.17',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),
     currentLayout,
     layoutByCount: { ...layoutByCount },
     layerOrder,
-    fills: fillModes.map((m, i) => ({ mode: m, color: FILL_COLORS[i]?.bg || '' })),
+    fills: fillModes.map((m, i) => ({ mode: m, color: fillColors[i] || '' })),
     fillCount,
     activeFill,
     currentEdgeShape,
+    bg: normalizeBgParams(bgParams),   // 形状与外框（需求 三.1）：全局唯一，整体入快照
     iconSize,
     safeMargin: +$('#safePct').value || 10,
     safeChk: $('#safeChk').checked,
@@ -63,6 +64,14 @@ function restoreState(snap){
     if (snap.fillCount !== undefined) fillCount = snap.fillCount;
     if (snap.activeFill !== undefined) activeFill = Math.min(snap.activeFill, fillCount - 1);
     if (snap.currentEdgeShape !== undefined) currentEdgeShape = snap.currentEdgeShape;
+    if (snap.fills){ // 色块模式与色值（旧快照的 color 为 CSS 渐变串，非 #RRGGBB 时忽略）
+      snap.fills.forEach((f, i) => {
+        if (!f || i > 5) return;
+        if (f.mode) fillModes[i] = f.mode;
+        if (/^#[0-9a-fA-F]{6}$/.test(f.color || '')) fillColors[i] = f.color.toUpperCase();
+      });
+    }
+    if (snap.bg) bgParams = normalizeBgParams(snap.bg);   // 形状与外框（需求 三.1）
     if (snap.iconSize !== undefined){
       iconSize = snap.iconSize;
       const si = document.querySelector('#sizeInput');
@@ -98,6 +107,7 @@ function restoreState(snap){
     renderFillBody2();
     rerenderModule('style');
     rerenderModule('fill'); // 布局/边界 pane 随 fillCount 快照恢复
+    rerenderModule('shape'); // 形状/边框/阴影 pane 与标签标题随形状快照恢复
     renderPresets();
     renderHistory();
     ensureWebFont(rows[activeRow].params);

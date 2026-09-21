@@ -5,8 +5,9 @@
      - selectRow / checkRow / colorRow：下拉、布尔、颜色参数行
      - getShadowEnabled：从行状态读取（tab 徽标）
      - 颜色建议（需求 3.4）：HSL 公式实时计算互补/类似/柔和/明亮
-   版本：V0.02（V2.05：参数键绑定、状态驱动、建议公式化）
-   注意：data-name/data-pkey 是联动、快照与渲染回写的唯一依据。
+   版本：V0.03（V2.17：paramRow 的"重置"回注册表默认值；边框/形状阴影启用态改读 bgParams）
+   注意：data-name/data-pkey 是联动、快照与渲染回写的唯一依据；
+        BG_PARAM_DEFS 注册的全局键（shape./border./shapeShadow.）写 bgParams。
    ============================================================ */
 
 /* ---------- 滑块参数行 ---------- */
@@ -14,9 +15,12 @@ function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}){
   const step = opts.step ?? 1;
   const showChain = opts.chain === true;
   const showReset = opts.reset === true;
-  const key = opts.key || name; // 未给 key 时退化为显示名（背景模块等 UI-only 参数）
+  const key = opts.key || name; // 未给 key 时退化为显示名（纯 UI 参数）
+  // 重置按钮回到"参数注册表的默认值"；未注册的 UI-only 行回退为当前值
+  const def = (typeof PARAM_DEFS !== 'undefined' && PARAM_DEFS[key]) ? PARAM_DEFS[key].def
+    : ((typeof BG_PARAM_DEFS !== 'undefined' && BG_PARAM_DEFS[key]) ? BG_PARAM_DEFS[key].def : value);
   const cls = opts.tight ? 'param tight' : (opts.stacked ? 'param stacked' : 'param');
-  return `<div class="${cls}" data-name="${key}" data-min="${min}" data-max="${max}" data-default="${value}">
+  return `<div class="${cls}" data-name="${key}" data-min="${min}" data-max="${max}" data-default="${def}">
     <span class="pname">${name}</span>
     <div class="pctrl">
       <input type="range" min="${min}" max="${max}" value="${value}" step="${step}">
@@ -64,8 +68,8 @@ function inlineChips(name, chips, activeIdx = 0, opts = {}){
 
 /* ---------- 启用状态读取（tab 徽标 / MODULE_TABS） ---------- */
 function getShadowEnabled(){ return !!rows[activeRow].params['shadow.enabled']; }
-function getBorderEnabled(){ const el = document.querySelector('#borderEnable'); return el ? el.checked : true; }   // 背景模块暂缓，读 UI
-function getFShadowEnabled(){ const el = document.querySelector('#fshadowEnable'); return el ? el.checked : false; } // 背景模块暂缓，读 UI
+function getBorderEnabled(){ return !!bgParams['border.enabled']; }      // 形状边框（需求 三.1.2）
+function getFShadowEnabled(){ return !!bgParams['shapeShadow.enabled']; } // 形状阴影（需求 三.1.3）
 
 /* ============================================================
    颜色建议引擎（需求 3.4：公式实时计算）
