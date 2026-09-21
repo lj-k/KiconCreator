@@ -7,10 +7,20 @@
      - pushDownloadHistory：写入下载历史（含缩略图 + 全量快照，P0-5）
      - bindDownloadPaneInteractions：尺寸、透明色、格式按钮绑定
      - updateSize / updateFileName：导出尺寸联动
-   版本：V0.04（V2.10：updateSize 统一同步预览/下载两处尺寸下拉；移除 sizeTag）
+   版本：V0.06（V2.14：JSON 导出改用 currentStateJSONText——携带图片数据并先提示保存方式）
    注意：exportCanvas 的模板字符串中包含内联 <script>，
         必须保持 <\/script> 转义写法，否则会截断宿主页面。
    ============================================================ */
+
+/* 文件名内容：所有行拼接——文本用文本、FA 用 FA 代号、图片用原图片名（需求 2.35） */
+function fileNameContent(){
+  const raw = rows.slice(0, rowCount).map(r => {
+    if (r.mode === 'fa') return r.faName || 'fa-icon';
+    if (r.mode === 'image') return (r.image && r.image.name) ? r.image.name.replace(/\.[^.]+$/, '') : 'image';
+    return r.text || '';
+  }).join('');
+  return raw.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 20) || 'icon';
+}
 
 function buildFileName(ext, withSize = true){
   const now = new Date();
@@ -20,10 +30,7 @@ function buildFileName(ext, withSize = true){
     + String(now.getHours()).padStart(2, '0')
     + String(now.getMinutes()).padStart(2, '0')
     + String(now.getSeconds()).padStart(2, '0');
-  // 文本内容：首行内容；FA 行使用 FA代号（需求 2.35）
-  const r0 = rows[0];
-  const raw = r0.mode === 'fa' ? (r0.faName || 'fa-icon') : (r0.text || 'icon');
-  const text = raw.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 20) || 'icon';
+  const text = fileNameContent();
   return withSize ? `KIcon-${iconSize}-${text}-${stamp}.${ext}` : `KIcon-${text}-${stamp}.${ext}`;
 }
 
@@ -84,9 +91,11 @@ img.src = "${dataURL}";
   pushDownloadHistory('canvas');
 }
 
-function exportJSON(){
-  const data = JSON.stringify(snapshotState(), null, 2);
-  downloadBlob(new Blob([data], { type: 'application/json' }), buildFileName('json', false));
+/* JSON 导出 = 导出预设（需求 2.34）；涉及已剪裁图片时先提示保存方式（需求 2.1） */
+async function exportJSON(){
+  const text = await currentStateJSONText();
+  if (!text){ toast('已取消导出'); return; }
+  downloadBlob(new Blob([text], { type: 'application/json' }), buildFileName('json', false));
   pushDownloadHistory('json');
 }
 
@@ -94,7 +103,7 @@ function exportHTML(){
   const html = `<link rel="icon" type="image/png" href="favicon.png" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#6c8cff">
-<!-- 由 KiconCreator V2.12 生成 · ${new Date().toISOString()} -->`;
+<!-- 由 KiconCreator V2.14 生成 · ${new Date().toISOString()} -->`;
   navigator.clipboard?.writeText(html)
     .then(() => toast('HTML link 标签已复制到剪贴板'))
     .catch(() => {
@@ -118,24 +127,20 @@ function exportSVG(){
 
 /* ---------- 下载历史（P0-5） ---------- */
 function pushDownloadHistory(fmt){
-  const now = new Date();
-  const stamp = now.getFullYear().toString()
-    + String(now.getMonth() + 1).padStart(2, '0')
-    + String(now.getDate()).padStart(2, '0')
-    + String(now.getHours()).padStart(2, '0')
-    + String(now.getMinutes()).padStart(2, '0')
-    + String(now.getSeconds()).padStart(2, '0');
+  const snap = snapshotState();
   const thumb = document.createElement('canvas');
   thumb.width = 52; thumb.height = 52;
-  const tctx = thumb.getContext('2d');
-  tctx.drawImage(cvs, 0, 0, 52, 52);
+  renderSnapshotThumb(snap, thumb, 52); // 由数据 json 绘制预览图（需求 2.2）
   const entry = {
-    name: `KIcon-256-${(rows[0].text || 'icon').slice(0, 8)}-${stamp}.${fmt}`,
-    snap: snapshotState(),
+    name: buildFileName(fmt),
+    snap,
     thumb: thumb.toDataURL('image/png')
   };
   downloadHistory.unshift(entry);
-  if (downloadHistory.length > HISTORY_MAX) downloadHistory.length = HISTORY_MAX;
+  imgRetainSnap(entry, 'hist:');   // 下载历史持引用（需求 六.1）
+  while (downloadHistory.length > HISTORY_MAX){
+    imgReleaseSnap(downloadHistory.pop()); // 超出上限淘汰 → 注销图片引用
+  }
   renderHistory();
 }
 

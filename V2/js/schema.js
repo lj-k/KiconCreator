@@ -7,7 +7,7 @@
      - 字体注册表 FONT_DEFS：web 字体优先、系统字体回退，
        web:false 或 unavailable 的字体在下拉框标注（未下载）
      - makeRow(text)：构造带完整参数与联动标记的行对象
-   版本：V0.02（V2.12：新增 image.whiteTransparent；新增 normalizeRow 系列补齐缺失键）
+   版本：V0.04（V2.14：图片裁剪默认比例改为"原图"——缺 crop 字段时不再静默裁方）
    约束：本文件必须先于 state.js 加载（state.js 在顶层调用 makeRow）。
         新增可渲染参数：在 PARAM_DEFS 注册 → panes.js 加 UI →
         canvas.js 渲染读取 → history.js 快照自动覆盖（rows 深拷贝）。
@@ -124,7 +124,29 @@ function makeRow(text, mode = 'text'){
   Object.keys(PARAM_DEFS).forEach(k => { params[k] = PARAM_DEFS[k].def; });
   const link = {};
   Object.keys(PARAM_DEFS).forEach(k => { link[k] = false; });
-  return { mode, text: text || '', faName: null, params, link };
+  return { mode, text: text || '', faName: null, image: makeImageState(), params, link };
+}
+
+/* 图片模式的行数据（需求 2.8/3.6）：只存图片仓库 id 与裁剪参数，
+   不存图片数据本身（满足需求 六.1"只保存一份资源、各处只引用"）。
+   切换行/模式不解除引用、裁剪参数随行保留（需求 四.1） */
+function makeImageState(o){
+  o = o || {};
+  const c = o.crop || {};
+  return {
+    id: o.id || null,
+    name: o.name || '',
+    w: o.w || 0,
+    h: o.h || 0,
+    crop: {
+      /* 默认"原图"=不裁切。注意不要默认成 1:1——那会让非方形图在
+         未做任何剪裁操作时被静默裁成方形（外部预设缺 crop 字段时尤其明显） */
+      aspect: c.aspect || '原图',  // 原图 / 1:1 / 4:3 / 16:9 / 3:4
+      zoom: +c.zoom || 1,          // 1~8
+      ox: +c.ox || 0,              // -1~1 水平拖动
+      oy: +c.oy || 0               // -1~1 垂直拖动
+    }
+  };
 }
 
 /* 补齐缺失参数键（旧版本快照 / 外部导入的预设）：
@@ -150,6 +172,7 @@ function normalizeRow(r){
     mode: r.mode || 'text',
     text: r.text || '',
     faName: r.faName || null,
+    image: makeImageState(r.image),
     params: normalizeRowParams(r.params),
     link: normalizeRowLink(r.link)
   };

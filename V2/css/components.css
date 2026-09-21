@@ -2,9 +2,9 @@
    KiconCreator V2 · components.css
    职责：可复用控件与面板内部组件 —— 按钮/标签组(tab-group)/参数行/
         芯片/胶囊/预设网格/历史列表/内容纵向标签(vtab)/内部填充/TOAST/模态
-   版本：V0.02（V2.06：FA 选图树面板、图标字形、页脚版权行）
-   说明：pane 内的 HTML 由 js/panes.js、js/fa.js、js/tabs.js 动态生成，
-        修改选择器类名时必须同步对应 JS 模板字符串。
+   版本：V0.04（V2.14：新增询问对话框样式 .ask-*）
+   说明：pane 内的 HTML 由 js/panes.js、js/fa.js、js/imagePane.js、js/tabs.js
+        动态生成，修改选择器类名时必须同步对应 JS 模板字符串。
    ============================================================ */
 .btn{border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;line-height:1.2}
 .btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
@@ -108,6 +108,27 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .cp-label{font-size:10.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
 .cp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
 .cp-thumb{width:88px;height:88px;border-radius:10px;border:1px dashed var(--border-strong);background:var(--panel);display:grid;place-items:center;color:var(--muted);font-size:10px;text-align:center;line-height:1.5}
+
+/* ---------- 图片模式面板（js/imagePane.js，需求 2.8 / 3.6） ---------- */
+.img-row{display:flex;gap:10px;align-items:flex-start}
+.img-thumb{flex:0 0 auto;width:96px;height:96px;border-radius:10px;border:1px solid var(--border-strong);background:var(--panel);overflow:hidden;cursor:pointer;transition:border-color .15s}
+.img-thumb:hover{border-color:var(--accent)}
+.img-thumb canvas{display:block;width:96px;height:96px}
+.img-meta{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
+.img-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.img-dim{font-size:10px;color:var(--muted)}
+.img-prog{position:relative;height:6px;border-radius:99px;background:var(--field);margin-top:8px;overflow:hidden}
+.img-prog[hidden]{display:none}
+.img-prog i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .18s}
+.img-prog.err i{background:#e5484d}
+.crop-box{margin-top:9px;border-radius:10px;border:1px solid var(--border-strong);overflow:hidden;background:var(--field)}
+.crop-box canvas{display:block;width:100%;height:auto;cursor:grab;touch-action:none}
+.crop-box canvas:active{cursor:grabbing}
+.crop-ratios{display:flex;gap:4px;flex-wrap:wrap}
+.crop-hint{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5}
+.cp-note{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.6}
+.btn.ghost.on{border-color:var(--accent);color:var(--accent)}
+.btn[disabled]{opacity:.45;pointer-events:none}
 .fa-search{width:100%;height:26px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:11px;padding:0 9px;margin-bottom:8px}
 .fa-search:focus{outline:none;border-color:var(--accent)}
 /* FA6 分类下拉 + 统一候选图标框（需求 2.7 / V2.07 布局） */
@@ -146,4 +167,14 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .modal-body{flex:1;min-height:0;overflow:auto;background-color:var(--checker-a);background-image:linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;place-items:center}
 .modal-body:active{cursor:grabbing}
 .modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
+
+/* ---------- 询问对话框（js/imagePane.js askImageExportMode，需求 2.1） ---------- */
+.ask-mask{position:fixed;inset:0;background:rgba(8,10,18,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:grid;place-items:center;z-index:210;padding:16px}
+.ask-box{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 16px 13px;box-shadow:0 24px 60px rgba(0,0,0,.45);max-width:440px;width:100%;display:flex;flex-direction:column;gap:10px}
+.ask-title{font-size:13px;font-weight:700}
+.ask-text{font-size:11.5px;line-height:1.6;color:var(--text)}
+.ask-list{color:var(--muted)}
+.ask-opt{display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:1.6;color:var(--muted);background:var(--field);border:1px solid var(--border);border-radius:10px;padding:9px 10px}
+.ask-opt b{color:var(--text)}
+.ask-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:2px}
 @media (max-width:520px){.format-grid{grid-template-columns:repeat(3,1fr)}.linkage-btn span.lbl{display:none}.modal-body canvas{width:80vw!important;height:80vw!important}.topbar{padding:7px 10px;gap:8px}.brand-text p{display:none}.layout{padding:8px 10px;gap:8px}.module-head{padding:7px 10px;font-size:12px}.module-body{padding:9px 10px 11px}}

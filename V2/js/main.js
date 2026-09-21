@@ -86,7 +86,7 @@ function init(){
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); }
   });
 
-  setTimeout(() => toast('欢迎使用 KiconCreator V2.12'), 400);
+  setTimeout(() => toast('欢迎使用 KiconCreator V2.14'), 400);
   // FA6 字体与图标库在主界面加载后异步装载（需求 2.7）
   setTimeout(ensureFaFonts, 0);
 }

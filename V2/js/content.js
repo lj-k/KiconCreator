@@ -8,12 +8,12 @@
      - renderContentTabs / updateActiveTab：内容纵向标签
      - renderContentBody：文本模式面板（字体/粗细/斜体/排版/字号，
        全部 data-pkey 绑定行状态）；FA 面板由 js/fa.js 挂载；图片占位
-   版本：V0.05（V2.12：排版模式按行数记忆；FA 标签标题只认 faName）
+   版本：V0.06（V2.13：图片模式接入 js/imagePane.js，标签标题显示原图片名）
    ============================================================ */
 
 function rowLabel(r){
   if (r.mode === 'text') return r.text || '空';
-  if (r.mode === 'image') return '图片.png';
+  if (r.mode === 'image') return (r.image && r.image.name) || '未选择图片';
   // FA 行只认 faName（text 属文本模式，不可借用做回退，需求 四.1 例2）
   return r.faName || '未选择图标';
 }
@@ -171,7 +171,9 @@ function renderContentBody(){
       ${selectRow('排版', 'font.layout', p['font.layout'], PARAM_DEFS['font.layout'].options)}
       ${paramRow('字号', p['font.size'], 1, 300, '%', { key: 'font.size', chain: true })}`;
   } else if (r.mode === 'image'){
-    body.innerHTML = `<div class="cp-label">第 ${idx} 行 · 图片模式（暂缓）</div><div class="cp-actions"><button class="btn sm">打开图片</button><button class="btn ghost sm">剪裁</button></div><div class="cp-thumb">图片预览<br>（剪裁后）</div><div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">动图仅取首帧；大于 1MB 的图片可能造成卡顿。</div>`;
+    // 图片模式：打开/更换、进度条、剪裁后预览与剪裁器（数据与绑定在 js/imagePane.js）
+    body.innerHTML = '';
+    mountImagePane(body, activeRow);
   } else {
     // FA 模式：树状分类面板（数据/绑定在 js/fa.js，需求 2.7）
     body.innerHTML = '';

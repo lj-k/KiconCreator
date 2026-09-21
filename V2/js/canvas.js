@@ -2,17 +2,18 @@
    KiconCreator V2 · js/canvas.js
    职责：画布渲染引擎（需求 1.1/1.8 + 2.6 + 3.4/3.5/3.6）。
      - 布局几何 layoutCells()：1.2 全部排版模式的单元格切分
-     - drawRow()：单行渲染 —— 字体/粗细/斜体/字号、横排/纵排/环形向心、
-       单色/渐变填充、阴影、大小/角度/拉伸/偏移变换
+     - drawRow()：单行渲染 —— 文本/FA 字形、图片（裁剪窗口 + 白色透明）、
+       单色/渐变填充、阴影、大小/角度/拉伸/偏移变换（三模式共用同一变换管线）
      - drawIcon()：背景（白底或透明，需求 1.8）→ 按层次顺序逐行绘制
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.04（V2.12：FA 字形改由 faName 取用，与文本模式 text 相互独立）
-   暂缓（按任务要求）：图片模式（灰色占位）、背景形状/填充渲染。
+   版本：V0.05（V2.13：图片模式真实渲染——裁剪窗口 + 白色透明 + 共用变换管线）
+   暂缓（按任务要求）：背景形状/填充渲染。
    说明：辅助线/安全边距由 index.html 的 SVG 覆盖层与 #safeBox 承担，
         不画进画布，因此天然不导出（需求 2.34/1.7）。
    ============================================================ */
-const cvs = $('#iconCanvas');
-const ctx = cvs.getContext('2d');
+/* 渲染目标：常规指向主画布；renderSnapshotThumb 会临时切换后恢复 */
+let cvs = $('#iconCanvas');
+let ctx = cvs.getContext('2d');
 const viewerModal = $('#viewerModal');
 const modalBody = $('#modalBody');
 const viewerCanvas = $('#viewerCanvas');
@@ -109,8 +110,39 @@ function rowFontPx(text, layout, cell, p, S){
   return base;
 }
 
+/* 图片模式（需求 2.8 / 3.4 / 3.6）：按裁剪窗口把图片画进内容盒。
+   白色透明开启时改用色度键结果；大小/拉伸/角度/偏移由外层变换统一处理 */
+function drawRowImage(r, p, cell, S){
+  const entry = imgGet(r.image && r.image.id);
+  const w = cell.w * S, h = cell.h * S;
+  if (!entry){
+    // 未选择图片：虚线占位（编辑期提示用，非最终图形）
+    ctx.save();
+    ctx.strokeStyle = 'rgba(120,130,150,.45)';
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(-w / 2, -h / 2, w, h);
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(120,130,150,.6)';
+    ctx.font = `500 ${Math.max(8, Math.round(S * 0.05))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('未选择图片', 0, 0);
+    ctx.restore();
+    return;
+  }
+  const src = p['image.whiteTransparent'] ? imgChroma(entry) : entry.bitmap;
+  const { sx, sy, sw, sh } = imgCropRect(entry, r.image.crop);
+  // 目标盒：按裁切比例在单元格内等比适配（大小% 由外层 scale 承担）
+  const aspect = sw / sh;
+  let dw = w, dh = w / aspect;
+  if (dh > h){ dh = h; dw = h * aspect; }
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
+}
+
 /* 计算一行内容的绘制指令（在已变换的局部坐标系中，原点=内容中心） */
 function drawRowContent(r, p, layout, cell, S){
+  if (r.mode === 'image'){ drawRowImage(r, p, cell, S); return; }
   /* 取字形：FA 模式优先用 faName（与文本模式 text 相互独立，切换模式互不覆盖，需求 四.1 例2）；
      faName 为空时回退 text（兼容早期版本把字形写入 text 的数据） */
   const text = r.mode === 'fa'
@@ -171,26 +203,11 @@ function drawRowContent(r, p, layout, cell, S){
   }
 }
 
-/* 单行渲染：单元格 → 偏移 → 旋转 → 拉伸/大小 → 颜色/阴影 → 内容 */
+/* 单行渲染：单元格 → 偏移 → 旋转 → 拉伸/大小 → 颜色/阴影 → 内容
+   三种内容模式共用同一条变换管线（需求 3.5：尺寸类参数各模式同一批） */
 function drawRow(r, cell, S){
   const p = r.params;
   const layout = p['font.layout'];
-
-  if (r.mode === 'image'){
-    // 图片模式暂缓：灰色占位框
-    ctx.save();
-    ctx.strokeStyle = 'rgba(120,130,150,.5)';
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(cell.x * S + 8, cell.y * S + 8, cell.w * S - 16, cell.h * S - 16);
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(120,130,150,.45)';
-    ctx.font = `500 ${Math.round(S * 0.06)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('图片（暂缓）', (cell.x + cell.w / 2) * S, (cell.y + cell.h / 2) * S);
-    ctx.restore();
-    return;
-  }
 
   // 环形向心：以画布中心为环心（需求 2.6），忽略单元格位置
   const isRing = layout === '环形向心';
@@ -226,6 +243,46 @@ function drawRow(r, cell, S){
 
   drawRowContent(r, p, layout, cell, S);
   ctx.restore();
+}
+
+/* ============================================================
+   缩略图渲染：用任意快照在任意画布上画真实样式
+   （需求 2.1 "预设应按真实样式显示" / 2.2 "根据数据 json 绘制预览图"）
+   做法：临时切换渲染目标与业务状态 → 复用 drawIcon → 恢复。
+   全部同步执行，无异步穿插，因此不会污染主画布与当前状态。
+   ============================================================ */
+function renderSnapshotThumb(snap, canvas, size){
+  if (!snap || !canvas) return;
+  const S = Math.max(16, Math.min(64, size || 48));
+  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder };
+  const tc = $('#transparentChk');
+  const bakTc = tc ? tc.checked : false;
+  try {
+    cvs = canvas;
+    ctx = canvas.getContext('2d');
+    canvas.width = S;
+    canvas.height = S;
+    iconSize = S;
+    rows = (snap.rows || []).map(normalizeRow);
+    rowCount = Math.max(1, Math.min(9, snap.rowCount || 1));
+    activeRow = 0;
+    currentLayout = snap.currentLayout || '全在上（左右分）';
+    layerOrder = snap.layerOrder || '1to9';
+    if (tc) tc.checked = !!snap.transparent;
+    drawIcon();
+  } catch (e){
+    // 快照异常时留空即可，不影响主界面
+  } finally {
+    if (tc) tc.checked = bakTc;
+    cvs = bak.cvs;
+    ctx = bak.ctx;
+    iconSize = bak.iconSize;
+    rows = bak.rows;
+    rowCount = bak.rowCount;
+    activeRow = bak.activeRow;
+    currentLayout = bak.currentLayout;
+    layerOrder = bak.layerOrder;
+  }
 }
 
 /* ============================================================

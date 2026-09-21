@@ -4,7 +4,7 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.06（V2.12：行数据经 normalizeRow 规范化；快照/恢复携带 layoutByCount）
+   版本：V0.07（V2.13：恢复后同步行图片引用；图片只存 id，随快照深拷贝）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,7 +30,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.12',
+    version: '2.14',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),
@@ -89,6 +89,7 @@ function restoreState(snap){
       if (tc) tc.checked = snap.transparent;
     }
     // 全量重绘
+    imgSyncRowRefs(); // 行引用与恢复后的 rows 对齐（快照只是引用，不解除引用）
     renderRowCount();
     renderLayoutChips();
     renderContentTabs();

@@ -6,7 +6,7 @@
      - rows：9 行内容状态（makeRow 构造，含 params/link，见 schema.js）
      - currentLayout / layerOrder：排版模式与多行排列层次（需求 1.2/1.3）
      - fillCount 等填充状态：背景渲染暂缓，仅供 UI
-   版本：V0.03（V2.12：新增 layoutByCount——各"行数"下已选排版模式）
+   版本：V0.04（V2.13：撤销栈持/注销图片引用——FIFO 淘汰与被覆盖快照均注销）
    约束：本文件必须最先加载（schema.js 之后）；任何模块读写状态请引用
         这里的变量，不要新建平行状态，避免快照/撤销遗漏字段。
    ============================================================ */
@@ -19,10 +19,13 @@ const HistoryStack = {
   isRestoring: false,
   push(snap){
     if (this.isRestoring) return;
+    // 被覆盖的重做链快照 → 注销其图片引用（需求 四.2）
+    this.stack.slice(this.pointer + 1).forEach(s => imgReleaseSnap(s));
     this.stack = this.stack.slice(0, this.pointer + 1);
     this.stack.push(snap);
+    imgRetainSnap(snap, 'undo:');      // 撤销栈持引用（需求 六.1）
     if (this.stack.length > this.maxSize){
-      this.stack.shift();
+      imgReleaseSnap(this.stack.shift()); // FIFO 淘汰 → 注销图片引用
     } else {
       this.pointer++;
     }
@@ -42,8 +45,10 @@ const HistoryStack = {
     return null;
   },
   reset(initialSnap){
+    this.stack.forEach(s => imgReleaseSnap(s));
     this.stack = [initialSnap];
     this.pointer = 0;
+    imgRetainSnap(initialSnap, 'undo:');
   }
 };
 

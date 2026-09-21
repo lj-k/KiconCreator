@@ -1,6 +1,6 @@
 # KiconCreator V2 · 开发说明文档（ARCHITECTURE）
 
-> **文档版本：V0.09**（对应项目代码版本 **V2.12**）
+> **文档版本：V0.11**（对应项目代码版本 **V2.14**）
 > 适用范围：`V2/` 目录。V1 与 V2_seedcode 不在本文件范围内。
 > 本文档面向后续参与开发的 AI Agent 与人类开发者，目标是"打开任意一个文件，30 秒内知道它负责什么、能改什么、不能动什么"。
 
@@ -26,40 +26,42 @@ V2/
 ├── data/
 │   ├── fa-icons.js         # FA6 全量免费图标数据集（本地打包，1895 个：FA_ICONS + FA_GROUPS，生成勿手改）
 │   └── fa-fonts.css        # FA6 字体本地化（solid-900/brands-400 woff2 以 base64 内嵌，离线/file:// 可用，生成勿手改）
-├── js/                     # 20 个模块，加载顺序 = 依赖顺序（详见第 3 节）
-│   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 字体表 + 行工厂 makeRow
-│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link/faName、currentLayout/layerOrder）
-│   ├── utils.js            # ③ $/$$/escapeHtml/roundRect/toast/flashInvalid/CHAIN_SVG
-│   ├── layout.js           # ④ 响应式布局引擎 + tab 动态展开算法 + refreshLayout 统一刷新
-│   ├── builders.js         # ⑤ paramRow/selectRow/checkRow/colorRow 模板 + 颜色建议 HSL 公式引擎
-│   ├── fa.js               # ⑥ FA6 选图面板（搜索/分类下拉/统一候选框）+ FA 字体装载（数据在 data/）
-│   ├── panes.js            # ⑦ 各模块 pane 的 HTML 生成器（样式 pane 从激活行状态生成）
-│   ├── tabs.js             # ⑧ 模块 tab 框架：MODULE_TABS 定义、测量、分组、渲染
-│   ├── interactions.js     # ⑨ bindPaneInteractions：滑块/下拉/布尔/颜色/建议/芯片统一绑定 + Web 字体按需加载
-│   ├── linkage.js          # ⑩ 逐行参数联动：applyLinkedParam/toggleRowLink/联动按钮三态
-│   ├── history.js          # ⑪ commitHistory/undo/redo + 状态化 snapshotState/restoreState
-│   ├── exports.js          # ⑫ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 下载 pane 绑定
-│   ├── presets.js          # ⑬ 预设增删改/导入导出 + 预设/历史列表渲染 + data-act 委托
-│   ├── canvas.js           # ⑭ 渲染引擎：layoutCells 排版几何 + drawRow 文本/FA 渲染 + drawIcon
-│   ├── content.js          # ⑮ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
-│   ├── fills.js            # ⑯ 内部填充渲染（UI，背景暂缓）
-│   ├── theme.js            # ⑰ 主题切换 + 两栏合并标签切换（顶层绑定）
-│   ├── topbar.js           # ⑱ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
-│   ├── preview.js          # ⑲ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
-│   └── main.js             # ⑳ init() 入口（必须最后加载）
+├── js/                     # 22 个模块 + data/fa-icons.js，加载顺序 = 依赖顺序（详见第 3 节）
+│   ├── schema.js           # ① 参数注册表 PARAM_DEFS（键/范围/默认值）+ 字体表 + 行工厂 makeRow/makeImageState/normalizeRow
+│   ├── state.js            # ② 全局唯一可变状态源（rows 含 params/link/faName/image、currentLayout/layerOrder）+ HistoryStack
+│   ├── utils.js            # ③ $/$$/escapeHtml/clamp/roundRect/toast/flashInvalid/CHAIN_SVG
+│   ├── images.js           # ④ 会话图片仓库：注册/解码/引用计数/延迟释放/裁剪几何/白色透明/预设序列化
+│   ├── layout.js           # ⑤ 响应式布局引擎 + tab 动态展开算法 + refreshLayout 两级刷新
+│   ├── builders.js         # ⑥ paramRow/selectRow/checkRow/colorRow 模板 + 颜色建议 HSL 公式引擎
+│   ├── fa.js               # ⑦ FA6 选图面板（搜索/分类下拉/统一候选框）+ FA 字体装载（数据在 data/）
+│   ├── panes.js            # ⑧ 各模块 pane 的 HTML 生成器（样式 pane 从激活行状态生成）
+│   ├── tabs.js             # ⑨ 模块 tab 框架：MODULE_TABS 定义、测量、分组、渲染
+│   ├── interactions.js     # ⑩ bindPaneInteractions：滑块/下拉/布尔/颜色/建议/芯片统一绑定 + Web 字体按需加载
+│   ├── linkage.js          # ⑪ 逐行参数联动：applyLinkedParam/toggleRowLink/联动按钮三态
+│   ├── history.js          # ⑫ commitHistory/undo/redo + 状态化 snapshotState/restoreState
+│   ├── exports.js          # ⑬ PNG/JPG/WebP/ICO/Canvas/JSON/HTML/SVG 导出 + 文件名 + 下载历史
+│   ├── presets.js          # ⑭ 预设增删改/导入导出（含图片数据）+ 预设/历史列表渲染 + data-act 委托
+│   ├── canvas.js           # ⑮ 渲染引擎：layoutCells + drawRow（文本/FA/图片）+ drawIcon + renderSnapshotThumb
+│   ├── content.js          # ⑯ 内容行渲染（行数/排版芯片/层次芯片/纵向标签/文本参数面板）
+│   ├── imagePane.js        # ⑰ 图片模式面板：打开/进度条/剪裁后预览/剪裁器（缩放·比例·拖拽）
+│   ├── fills.js            # ⑱ 内部填充渲染（UI，背景暂缓）
+│   ├── theme.js            # ⑲ 主题切换 + 两栏合并标签切换（顶层绑定）
+│   ├── topbar.js           # ⑳ 顶栏按钮 + 复制粘贴样式 + 按标签重置 + renderStyle
+│   ├── preview.js          # ㉑ 预览缩放/平移/模态/辅助线/安全边距（顶层绑定）
+│   └── main.js             # ㉒ init() 入口（必须最后加载）
 ├── ARCHITECTURE.md         # 本文档
 └── Changelog.md            # 变更记录
 ```
 
 ## 3. 模块加载顺序与依赖（V2.09 起由引导器动态加载）
 
-`index.html` 不再静态书写 `<link>`/`<script>` 标签，而是由页尾**引导器**（内联脚本）按 `steps` 数组顺序逐个动态加载 4 个 CSS 与 21 个 JS，并在启动屏上实时显示进度。**顺序即依赖，steps 数组禁止调整**：
+`index.html` 不再静态书写 `<link>`/`<script>` 标签，而是由页尾**引导器**（内联脚本）按 `steps` 数组顺序逐个动态加载 4 个 CSS 与 23 个 JS（含 data/fa-icons.js），并在启动屏上实时显示进度。**顺序即依赖，steps 数组禁止调整**：
 
 ```
 base/layout/components.css + fa-fonts.css
-   └► schema ─► state ─► utils ─► layout ─► builders ─► fa-icons(data) ─► fa ─► panes ─► tabs ─► interactions ─► linkage
+   └► schema ─► state ─► utils ─► images ─► layout ─► builders ─► fa-icons(data) ─► fa ─► panes ─► tabs ─► interactions ─► linkage
                                                                                         │
-   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── content ◄── canvas ◄── presets/exports/history
+   main ◄── preview ◄── topbar ◄── theme ◄── fills ◄── imagePane ◄── content ◄── canvas ◄── presets/exports/history
 ```
 
 加载顺序的设计依据（为什么必须如此）：
@@ -199,7 +201,44 @@ row.params / currentLayout / layerOrder 更新
 - **预览即导出**：辅助线与安全边距由 SVG 覆盖层/`#safeBox` 承担，不画进画布，因此天然不导出（需求 2.34/1.7）。
 - 透明选项 `transparentChk` 实时作用于画布背景（勾选 → 画布透明，PNG 导出透明；JPG 导出前强制铺白底）。
 - `exportCanvas()` 生成的独立 HTML 内含 `<script>` 字符串，**必须保留 `<\/script>` 转义**，否则会截断宿主页面。
-- 每次导出都会 `pushDownloadHistory`（含 52×52 缩略图 + 全量快照，上限 20 条）。
+- 每次导出都会 `pushDownloadHistory`（含 52×52 缩略图 + 全量快照，上限 20 条）；缩略图由 `renderSnapshotThumb` 按快照数据渲染（需求 2.2）。
+- 文件名 `buildFileName`：内容取**所有可见行**拼接——文本用文本、FA 用 FA 代号、图片用原图片名（去扩展名），过滤非法字符并截断（需求 2.35）。
+
+### 4.10 图片模式与会话图片仓库（需求 2.8 / 3.4 / 3.6 + 六.1，V2.13）
+
+**核心原则：图片数据全程序只保存一份**。`rows[i].image` 只存 `{ id, name, w, h, crop{aspect,zoom,ox,oy} }`，
+`mode` 无论切换到哪个模式都不清空该字段（需求 四.1 例2）。
+
+```
+文件/dataURL ──imgLoadFile/imgLoadData──► ImageRepo.map: id → { bitmap, w, h, src, refs:Set, timer, chroma }
+                                                    ▲
+   行参数 row:i ─┐                                  │ 引用键（refKeys: 引用键 → Set<id>）
+   预设  preset:  ├──imgRetain/imgRelease───────────┘  · 无引用 → 延迟 4s 释放（再次引用即取消）
+   历史  hist:    │                                    · 快照/预设对象 → 引用键存 WeakMap（不污染导出的 JSON）
+   撤销  undo:   ─┘
+```
+
+| 关注点 | 位置 | 说明 |
+|---|---|---|
+| 入库 | `imgLoadFile` / `imgLoadData` | 进度回调、>1MB 提醒、动图取首帧（`createImageBitmap`）、失败原因可读、最长边降采样到 1024 |
+| 引用 | `imgRetain` / `imgRelease` / `imgRetainSnap` / `imgReleaseSnap` / `imgSyncRowRefs` | 变更行图片时解除旧引用（需求 2.8）；切行/切模式不解除；恢复快照后必须 `imgSyncRowRefs()` |
+| 裁剪几何 | `imgCropRect(entry, crop)` | 比例（原图/1:1/4:3/16:9/3:4）→ 最大内接矩形 → zoom 缩小窗口 → ox/oy 平移（±1 贴边，自动限幅） |
+| 渲染 | `canvas.js drawRowImage` | 三模式共用变换管线（大小/角度/拉伸/偏移/阴影）；`image.whiteTransparent` 开时走 `imgChroma` 色度键缓存 |
+| 面板 | `imagePane.js mountImagePane` | 打开/更换、进度条、剪裁后预览、剪裁器（缩放滑块·快速比例·拖拽·滚轮·双击复位） |
+| 预设往返 | `snapForExport`（导出）/ `registerPresetImages`（导入） | 导出前若涉及**已裁切**图片，先询问"原始 / 剪裁后"（见下）；导入注册进仓库改为引用，解码失败或缺失 → 占位"图片缺失" |
+
+**导出图片的两种模式（V2.14，需求 2.1）**——这是本模块最容易踩的坑：
+
+| 模式 | 写入 JSON 的数据 | 剪裁参数 | 导入后 |
+|---|---|---|---|
+| `original`（默认） | `imgFullDataURL`：整张原图（≤1024、WebP） | **保留** | 与导出前逐字段一致 |
+| `cropped` | `imgCropDataURL`：只有裁切窗口内的像素 | **必须清零** | 只有一次裁切（清零后 = 不裁切） |
+
+> 注意，**不可**把"剪裁后的像素"与"剪裁参数"一起导出——导入时新图已是裁切结果，再套一次参数就是二次裁切，效果必然不一致。
+> 三条出口（预设导出 / 下载 JSON / 复制 JSON）都必须走 `snapForExport`，它先在深拷贝上操作，**不改动会话状态**。
+> `imgIsCropped()` 用"实际裁剪窗口 vs 整图矩形"判定是否需要提示（zoom=1 且比例为原图时，平移参数不产生实际裁切，不提示）。
+
+**注意**：仓库 id 只在本次会话有效，导入外部预设时必须**先作废旧 id** 再按数据重建，否则可能命中同名的另一张图。
 
 ## 5. AI Agent 编辑指引
 
@@ -208,7 +247,9 @@ row.params / currentLayout / layerOrder 更新
 | 需求 | 文件 | 说明 |
 |---|---|---|
 | 新增/修改可渲染参数 | `js/schema.js` 注册 → `js/panes.js` 或 `js/content.js` 加 UI → `js/canvas.js` 渲染读取 | data-name/data-pkey 必须等于参数键；联动与快照自动生效 |
-| 新增模式专属数据（如 FA 图标名、图片引用） | 行对象添加独立字段（`makeRow`）+ `normalizeRow` 兜底 + 对应模式渲染/UI 读写 | **禁止**借用其它模式的字段承接（需求 四.1 例2） |
+| 新增模式专属数据（如 FA 图标名、图片引用） | 行对象添加独立字段（`makeRow`/`makeImageState`）+ `normalizeRow` 兜底 + 对应模式渲染/UI 读写 | **禁止**借用其它模式的字段承接（需求 四.1 例2） |
+| 图片模式相关（上传/裁剪/引用） | `js/images.js`（仓库与几何）+ `js/imagePane.js`（面板）+ `js/canvas.js`（`drawRowImage`） | 行内只存 `image.id`；新引用方必须 `imgRetain/imgRelease` |
+| 新增图片引用持有者（新列表/新缓存） | `js/images.js` 的 `imgRetainSnap/imgReleaseSnap` + 该对象的创建/销毁处 | 用稳定 uid 做引用键，勿用数组下标 |
 | 新增一个 pane/tab | `js/tabs.js` 的 `MODULE_TABS` + `js/panes.js` 加生成函数 | 需要建议色则同时改 `js/builders.js` |
 | 新增可撤销的顶层状态 | `js/state.js` 声明 → `js/history.js` 的 snapshot/restore 各加一行 | 行内参数（rows.params）自动覆盖 |
 | 改文本渲染（字体/排版/阴影/渐变） | `js/canvas.js` 的 `drawRow/drawRowContent` | 布局几何在 `layoutCells` |
@@ -233,6 +274,8 @@ row.params / currentLayout / layerOrder 更新
 7. **刷新入口不可混用**（V2.11）：内容变化只能调用 `refreshLayoutKeepGroups()`；只有视口/布局变化才可调用 `refreshLayout()`。**禁止**在内容变化路径上调用 `relayoutAllModules()` 重算分组，否则标签会在标签组之间跳位。
 8. **pane 重建的副作用**：轻量刷新不再顺带重建其它模块 DOM。若某模块的 pane 内容依赖被修改的状态（如 `fill` 依赖 `fillCount`），必须在该状态的修改处**显式** `rerenderModule('模块名')`，不可依赖旧版"列全量重建"的副作用。
 9. **数据保留**（V2.12，需求 四.1）：任何"切换/增减选项"的操作都不得清空参数。切换类操作只改可见性与当前选择；行数据一律常驻 `rows[9]`；跨模式字段相互独立；快照/恢复/导入必须经 `normalizeRow`（只补缺失键，不覆盖已有值）。
+10. **图片只存引用**（V2.13，需求 六.1）：图片数据只允许存在于 `ImageRepo`。行、预设、下载历史、撤销快照都只存 `image.id`；**新增任何持有方都必须在创建时 `imgRetain`、销毁时 `imgRelease`**，否则图片不会被释放（泄漏）或被提前释放（渲染空白）。恢复快照后必须调用 `imgSyncRowRefs()`。导入外部预设时，仓库 id 一律先作废再按数据重建。
+11. **图片面板的选择器纪律**：`imagePane.js` 生成的 DOM 不得使用 `data-name`/`data-pkey`/`.chip-row`/`[data-group]`，因为这些会被 `bindPaneInteractions` 委托（导致参数串写）；剪裁器的滑块自行绑定。
 
 ### 5.3 自检清单（提交前过一遍）
 
@@ -243,6 +286,8 @@ row.params / currentLayout / layerOrder 更新
 - [ ] 窗口缩放：three→two→one 切换、合并标签、预览浮动均正常
 - [ ] **标签稳定性**：切换内容行、单色⇄渐变、启用阴影等操作后，样式/形状/填充模块的标签停留在原位，无关模块不闪烁；缩放窗口时标签组才允许重新拆分
 - [ ] **数据保留**：行 2 输入文本+改参数 → 行数切到 1 → 切回 2，内容与参数原样；文本模式输入 → 切 FA 选图标 → 切回文本，文本仍在；切换填充数量/行数后各选项的既有参数不丢
+- [ ] **图片模式**：上传后画布显示真实图像；白色透明开关生效；剪裁器缩放/比例/拖拽/滚轮均实时反映到画布；行数切换、模式切换后图片与裁剪参数仍在；撤销/重做可回退图片更换；下载历史/预设缩略图显示真实样式；`imgStats()` 中无被遗忘的引用
+- [ ] **图片导出往返**：加载图片 → 剪裁 → 导出预设（两种模式各试一次）→ 刷新页面 → 导入，画面与导出前一致（重点验证不发生二次裁切）
 
 ## 6. 特别说明（当前设计约束与历史注意）
 
@@ -251,15 +296,18 @@ row.params / currentLayout / layerOrder 更新
 - 注意，head 中的 `<version>`/`<changelog>` 标签已按需求移除，且**不要再添加回去**；版本信息以顶栏 `.ver` 徽标与 `Changelog.md` 为准。
 - 数据文件（data/fa-icons.js、data/fa-fonts.css）均为脚本生成物，头注释含来源与基准版本；升级 FA6 版本时一并重新生成。
 - FA 搜索为子串匹配，因此会出现宽泛命中（如搜 rocket 命中 sprocket），属预期行为。
-- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略。图片模式与背景形状/填充渲染仍暂缓。
+- FA 行在样式模块中的 尺寸/颜色/阴影 参数与文本行完全一致；字体域参数（font.*）属文本模式专属，FA 模式不显示且渲染时忽略；图片模式的图片参数只在图片面板出现，背景形状/填充渲染仍暂缓。
 - 预览模块的 画布尺寸 下拉与下载 pane 的 导出尺寸 下拉共享 `iconSize`，同步点唯一收敛在 `updateSize()`；新增尺寸入口时必须接入该函数，不要各自维护变量。
 - **数据保留（V2.12 起）**：切换模式/行数/填充数量都不得丢数据。跨模式数据必须各用独立字段（`text` 文本 / `faName` FA / `image.*` 图片）；快照、恢复、外部预设导入统一经 `normalizeRow` 规范化（只补缺失键，不覆盖已有值）。
-- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复、V2.12 数据保留，各版本记录见 Changelog.md 对应条目。
+- **图片模式（V2.13 起）**：图片数据只在 `ImageRepo` 存一份，行/预设/历史/快照只存 id；引用计数不足会提前释放、漏注销会泄漏。裁剪参数（比例/缩放/偏移）属行数据，随模式切换与撤销保留。导出图片时必须先决定"整图+参数"还是"剪裁后像素+清零参数"，两者混用会造成二次裁切（V2.14）。
+- 历史说明：V2.04 模块化拆分、V2.05 文本渲染与参数调节、V2.06 FA 模式、V2.07 FA 全量库与面板重构、V2.08 FA 字体本地化、V2.09 启动进度条与按序动态加载、V2.10 预览模块瘦身与尺寸双入口、V2.11 标签组稳定性修复、V2.12 数据保留、V2.13 图片模式与会话图片仓库、V2.14 图片导出二次裁切修复，各版本记录见 Changelog.md 对应条目。
 
 ## 7. 版本记录
 
 | 文档版本 | 日期 | 说明 | 对应代码 |
 |---|---|---|---|
+| V0.11 | 2026-09-20 | 4.10 增补"导出图片的两种模式"对照表与二次裁切禁忌、5.3 增图片导出往返自检项 | V2.14 |
+| V0.10 | 2026-09-20 | 文件结构/加载链更新（+images.js、+imagePane.js）、新增 4.10 图片模式与会话图片仓库、5.1/5.2/5.3 增补 | V2.13 |
 | V0.09 | 2026-09-20 | 新增 4.0b 数据保留专节（三用例 + 落点清单）、5.1/5.2/5.3 增补、版本表补 V0.06/V0.07 | V2.12 |
 | V0.08 | 2026-09-20 | 4.6 增补"两级刷新入口"与结构签名机制、5.2 新增两条硬约束、5.3 增自检项、特别说明改写 | V2.11 |
 | V0.07 | 2026-09-17 | 模块表更新（19 文件）、特别说明改为"预览模块瘦身与尺寸双入口" | V2.10 |
