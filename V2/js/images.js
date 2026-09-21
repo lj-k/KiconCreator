@@ -8,14 +8,17 @@
      - 裁剪几何：比例 + 缩放 + 拖动偏移 → 源矩形 imgCropRect()
      - 白色透明：色度键结果按图片缓存（需求 3.4）
      - 预设序列化：只导出可见裁切部分并量化（需求 2.1）
-   版本：V0.02（V2.14：新增 imgIsCropped 与 imgFullDataURL——导出时区分原图/剪裁后）
+   版本：V0.03（V2.16：导出编码改为"无损优先"——PNG 无损、超体量退 WebP 近无损，
+        编码上限由 256 提至 IMG_MAX_EDGE（不再额外降采样）；dataURL 入库与文件入库
+        共用同一 IMG_MAX_EDGE 降采样标准，避免多轮往返分辨率逐次劣化）
    约束：图片数据全项目只在本仓库保存一份；行/预设/历史/快照只存 id。
         新增引用方必须按"引用键"登记（imgRetain/imgRelease），
         并在对象销毁时注销，否则图片不会被释放或会被提前释放。
    ============================================================ */
 
 const IMG_RELEASE_DELAY = 4000;          // 无引用后延迟释放（ms）
-const IMG_MAX_EDGE = 1024;               // 入库最长边上限（内存保护）
+const IMG_MAX_EDGE = 1024;               // 入库最长边上限（内存保护）；导出编码上限同值
+const IMG_PNG_MAX = 256 * 1024;          // 导出编码：PNG dataURL 体量上限（超出退 WebP 近无损）
 const IMG_WARN_SIZE = 1 * 1024 * 1024;   // 大于 1MB 提醒可能卡顿（需求 2.8）
 
 /* 快速比例（需求 3.6：缩放、拖拽、快速比例） */
@@ -171,14 +174,30 @@ function imgLoadFile(file, onProgress){
   });
 }
 
-/* data URL 入库（预设导入 / 解码回退） */
+/* data URL 入库（预设导入 / 解码回退）：
+   与 imgLoadFile 共用同一分辨率标准（最长边 IMG_MAX_EDGE 降采样）。
+   两条入库路径标准不一时，外部大图会以原始像素入库，之后任何一次导出都被
+   编码上限降到 1024，于是每往返一轮分辨率就掉一档——必须在此就地统一。 */
 function imgLoadData(dataURL, name, type, size){
   return new Promise((resolve, reject) => {
     if (!dataURL || !/^data:image\//.test(dataURL)) return reject(new Error('图片数据缺失或格式不正确'));
     const im = new Image();
     im.onload = () => {
       try {
-        resolve(imgRegister({ bitmap: im, w: im.naturalWidth, h: im.naturalHeight, name: name || '导入图片', type: type || '', size: size || 0 }));
+        const iw = im.naturalWidth, ih = im.naturalHeight;
+        const maxEdge = Math.max(iw, ih);
+        if (maxEdge <= IMG_MAX_EDGE){
+          resolve(imgRegister({ bitmap: im, w: iw, h: ih, name: name || '导入图片', type: type || '', size: size || 0 }));
+          return;
+        }
+        const k = IMG_MAX_EDGE / maxEdge;
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(iw * k));
+        c.height = Math.max(1, Math.round(ih * k));
+        const g = c.getContext('2d');
+        g.imageSmoothingQuality = 'high';
+        g.drawImage(im, 0, 0, c.width, c.height);
+        resolve(imgRegister({ bitmap: c, w: c.width, h: c.height, name: name || '导入图片', type: type || '', size: size || 0 }));
       } catch (e){
         reject(new Error('图片登记失败'));
       }
@@ -243,22 +262,35 @@ function imgIsCropped(entry, crop){
       || Math.abs(r.sw - entry.w) > eps || Math.abs(r.sh - entry.h) > eps;
 }
 
-/* ---------- 预设序列化：只保存可见裁切部分并量化（需求 2.1） ---------- */
+/* ---------- 预设序列化：按当前裁切窗口/整图编码（需求 2.1） ---------- */
+
+/* 画布编码（导出共用）：图标类图像多为平涂色块 + 透明通道，PNG 无损且体积可控，
+   故优先 PNG；仅当 PNG dataURL 超过 IMG_PNG_MAX（照片类，1024 边长可达 MB 级）
+   才退 WebP 近无损。注意不用 JPEG 兜底：JPEG 无 Alpha 通道，会把透明背景压成黑底。 */
+function imgEncodeCanvas(c, quality){
+  const png = c.toDataURL('image/png');
+  if (png.length <= IMG_PNG_MAX) return png;
+  try {
+    return c.toDataURL('image/webp', quality || 0.95);
+  } catch (e){
+    return png; // 浏览器不支持 WebP 时保留无损 PNG（宁大不失真）
+  }
+}
+
+/* 裁切窗口编码（导出选"剪裁后"时用）：默认按 IMG_MAX_EDGE 上限输出，
+   即"窗口 ≤ 上限就不缩放"——窗口本身就是分辨率，不再二次降采样。 */
 function imgCropDataURL(entry, crop, maxEdge, quality){
   if (!entry) return '';
-  maxEdge = maxEdge || 256;
-  quality = quality || 0.82;
+  maxEdge = maxEdge || IMG_MAX_EDGE;
   const { sx, sy, sw, sh } = imgCropRect(entry, crop);
   const k = Math.min(1, maxEdge / Math.max(sw, sh));
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(sw * k));
   c.height = Math.max(1, Math.round(sh * k));
-  c.getContext('2d').drawImage(entry.bitmap, sx, sy, sw, sh, 0, 0, c.width, c.height);
-  try {
-    return c.toDataURL('image/webp', quality);
-  } catch (e){
-    return c.toDataURL('image/jpeg', quality);
-  }
+  const g = c.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(entry.bitmap, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return imgEncodeCanvas(c, quality);
 }
 
 /* 整图编码（导出选"保留原始图片"时用）：不裁切，按入库分辨率编码。
@@ -267,7 +299,6 @@ function imgCropDataURL(entry, crop, maxEdge, quality){
 function imgFullDataURL(entry, maxEdge, quality){
   if (!entry) return '';
   maxEdge = maxEdge || IMG_MAX_EDGE;
-  quality = quality || 0.9;
   const k = Math.min(1, maxEdge / Math.max(entry.w, entry.h));
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(entry.w * k));
@@ -275,11 +306,7 @@ function imgFullDataURL(entry, maxEdge, quality){
   const g = c.getContext('2d');
   g.imageSmoothingQuality = 'high';
   g.drawImage(entry.bitmap, 0, 0, c.width, c.height);
-  try {
-    return c.toDataURL('image/webp', quality);
-  } catch (e){
-    return c.toDataURL('image/jpeg', quality);
-  }
+  return imgEncodeCanvas(c, quality);
 }
 
 /* 仓库摘要（自检/调试：查看每张图的引用持有者） */

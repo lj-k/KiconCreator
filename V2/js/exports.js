@@ -7,7 +7,7 @@
      - pushDownloadHistory：写入下载历史（含缩略图 + 全量快照，P0-5）
      - bindDownloadPaneInteractions：尺寸、透明色、格式按钮绑定
      - updateSize / updateFileName：导出尺寸联动
-   版本：V0.06（V2.14：JSON 导出改用 currentStateJSONText——携带图片数据并先提示保存方式）
+   版本：V0.07（V2.15：抽取 timeStamp；JSON 导出携带图片数据并先提示保存方式）
    注意：exportCanvas 的模板字符串中包含内联 <script>，
         必须保持 <\/script> 转义写法，否则会截断宿主页面。
    ============================================================ */
@@ -22,15 +22,20 @@ function fileNameContent(){
   return raw.replace(/[\\/:*?"<>|\s]/g, '').slice(0, 20) || 'icon';
 }
 
-function buildFileName(ext, withSize = true){
-  const now = new Date();
-  const stamp = now.getFullYear().toString()
+/* 时间戳 YYYYMMDDHHmmss（需求 2.35 命名规则，文件名多处共用） */
+function timeStamp(d){
+  const now = d || new Date();
+  return now.getFullYear().toString()
     + String(now.getMonth() + 1).padStart(2, '0')
     + String(now.getDate()).padStart(2, '0')
     + String(now.getHours()).padStart(2, '0')
     + String(now.getMinutes()).padStart(2, '0')
     + String(now.getSeconds()).padStart(2, '0');
+}
+
+function buildFileName(ext, withSize = true){
   const text = fileNameContent();
+  const stamp = timeStamp();
   return withSize ? `KIcon-${iconSize}-${text}-${stamp}.${ext}` : `KIcon-${text}-${stamp}.${ext}`;
 }
 
@@ -103,7 +108,7 @@ function exportHTML(){
   const html = `<link rel="icon" type="image/png" href="favicon.png" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#6c8cff">
-<!-- 由 KiconCreator V2.14 生成 · ${new Date().toISOString()} -->`;
+<!-- 由 KiconCreator V2.16 生成 · ${new Date().toISOString()} -->`;
   navigator.clipboard?.writeText(html)
     .then(() => toast('HTML link 标签已复制到剪贴板'))
     .catch(() => {

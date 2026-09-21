@@ -5,8 +5,7 @@
      - renderPresets（预设网格，右键删除）
      - renderHistory（下载历史列表，点击恢复快照）
      - 顶层注册 [data-act] 委托点击（导入/导出/保存/复制 JSON/复制 HTML）
-   版本：V0.03（V2.14：导出/下载/复制 JSON 统一走 snapForExport——
-        已剪裁图片先提示"原始/剪裁后"，选剪裁后即清零剪裁参数避免二次裁切）
+   版本：V0.04（V2.15：导出改为"当前参数 → 单条预设"（需求 2.1）；导入保持一文件一预设、支持多选批量）
    依赖：state.js（PRESETS/downloadHistory）、history.js（snapshotState/restoreState）、
         images.js（ImageRepo/imgIsCropped/imgCropDataURL/imgFullDataURL）、
         imagePane.js（askImageExportMode）、canvas.js（renderSnapshotThumb）。
@@ -79,13 +78,24 @@ async function currentStateJSONText(){
   return JSON.stringify(snapForExport(undefined, mode), null, 2);
 }
 
+/* 导出：把**当前参数**导出为一条独立预设（需求 2.1——
+   "导出预设是导出当前的参数为预设，并非将预设列表中的所有预设全部导出"）。
+   产出单条 .json，文件名 KIcon-preset-{内容}-{时间}.json */
 async function exportPresets(){
-  if (PRESETS.length === 0){ toast('没有可导出的预设'); return; }
-  const mode = await pickImageExportMode(PRESETS.map(p => p.snap));
+  const snap = snapshotState();
+  const mode = await pickImageExportMode([snap]);
   if (!mode){ toast('已取消导出'); return; }
-  const data = JSON.stringify(PRESETS.map(p => ({ name: p.name, time: p.time, snap: snapForExport(p.snap, mode) })), null, 2);
-  downloadBlob(new Blob([data], { type: 'application/json' }), `KIcon-presets-${Date.now()}.json`);
-  toast(`已导出 ${PRESETS.length} 条预设（图片：${mode === 'cropped' ? '剪裁后' : '原始'}）`);
+  const name = fileNameContent() || '预设';
+  const payload = {
+    type: 'kicon-preset',
+    version: snap.version,
+    name,
+    time: Date.now(),
+    snap: snapForExport(snap, mode)
+  };
+  downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+    `KIcon-preset-${name}-${timeStamp()}.json`);
+  toast(`已导出当前参数为 1 条预设（图片：${mode === 'cropped' ? '剪裁后' : '原始'}）`);
 }
 
 /* 导入：把预设内的图片数据注册进会话仓库并改为引用；
@@ -125,7 +135,7 @@ function importPresets(){
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json,application/json';
-  input.multiple = true; // 需求 2.1：可批量导入多个 json 文件
+  input.multiple = true; // 需求 2.1：一个 json 文件 = 一条独立预设，可一次选多个文件批量导入
   input.onchange = async e => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -141,6 +151,8 @@ function importPresets(){
         continue;
       }
       const list = Array.isArray(raw) ? raw : [raw];
+      // 常规导出为单条；文件内为数组时（早期整表导出）按多条导入，避免丢数据
+      if (list.length > 1) diffs.push(`${file.name}：文件内含 ${list.length} 条预设，已按多条导入`);
       for (let i = 0; i < list.length; i++){
         const item = list[i];
         if (!item || typeof item !== 'object'){ failCount++; continue; }

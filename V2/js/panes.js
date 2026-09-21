@@ -4,7 +4,7 @@
      - 预设/历史/下载 pane（静态结构）
      - 样式 pane：尺寸/颜色/阴影 —— 全部从激活行状态生成
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
-   版本：V0.03（V2.12：图片模式"白色作为透明色"接入行状态，独立保留）
+   版本：V0.04（V2.15：预设导入/导出按钮补 title 说明"一文件一预设 / 导出当前参数"）
    约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
 
@@ -12,8 +12,8 @@
 function getPresetPaneHTML(){
   return `
     <div class="preset-tools">
-      <button class="btn ghost sm" data-act="import">导入</button>
-      <button class="btn ghost sm" data-act="export">导出</button>
+      <button class="btn ghost sm" data-act="import" title="一个 json 文件 = 一条预设，可一次选多个文件批量导入">导入</button>
+      <button class="btn ghost sm" data-act="export" title="把当前参数导出为一条预设（.json），不导出预设列表">导出</button>
       <button class="btn sm" data-act="save" title="保存仅本次有效，刷新后消失">保存</button>
       <button class="btn ghost sm" data-act="copy-json">复制 JSON</button>
       <button class="btn ghost sm" data-act="copy-html">复制 HTML</button>
