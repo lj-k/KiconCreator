@@ -31,7 +31,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.25',
+    version: '2.26',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),

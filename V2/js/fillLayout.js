@@ -10,7 +10,9 @@
      - fillExtentOf / paintFillPattern：矩阵布局（纵向 L 层 × 横向若干列）与
        饼图布局（L 个同心环 × 每环若干扇区）的几何与绘制
      - multiSliderHTML / bindMultiSliders：多分界线共享滑轨组件（+ 参数输入框 + 均分）
-   版本：V0.06（V2.25：新增 edgeFramePoints——"包含形状外框"开启时轮廓随边界形状起伏
+   版本：V0.07（V2.26：边界形状只作用于**内部接缝**——填充外边界（最左/最右竖边、最上层上边、最下层下边、
+        最外环外弧、单色层的半径）不再参与位移，修掉"贴边露空隙"；直线形状下采样降到 2 段）
+        V0.06（V2.25：新增 edgeFramePoints——"包含形状外框"开启时轮廓随边界形状起伏
         （弧长参数化 + 重采样 + 整周期取整保证闭合无台阶）；波形取值抽为 edgeWave）
         V0.05（V2.24：填充边界落地——edgeOffset（sin/tan/锯齿 + 安全截断）、过渡带五种样式、
         色块改用采样多边形（边界形状可位移）、边界形状/过渡样式芯片绑定）
@@ -369,8 +371,10 @@ function edgeShade(hex, d){ return edgeHexOf(edgeRgb(hex).map(v => v + d * 255))
 
 /* 采样密度：按曲线跨度取 ~2px 一段（下限 24 段、上限 240 段）。
    锯齿的折点、sin/tan 的峰谷都在采样点之间被线性插值"削平"，因此必须比"够看"更密：
-   2px 间隔下，折点处的振幅误差约为 A×2 /(齿宽/2)，肉眼不可见。 */
+   2px 间隔下折点处的振幅误差约为 A×2/(齿宽/2)，肉眼不可见。
+   形状为"直线"时没有任何位移 → 只给 2 段（3 个点），别为直边白采样上百个点。 */
 function edgeSteps(span){
+  if ((fillParams['edge.shape'] || '直线') === '直线') return 2;
   const s = Math.abs(span) || 0;
   return Math.max(24, Math.min(240, Math.round(s / 2)));
 }
@@ -397,24 +401,25 @@ function edgeCurveH(b, xA, xB, S){
    d_eff 在靠圆心的 1/4 画布内线性收敛到 0（振幅爬升）——需求 2.3 的截断保护：
    否则 r→0 时 d/r 发散，扇区会在圆心附近互相穿越、露出未着色区域。
    波形的相位原点仍在中心（arg = 2π·ω·r/S + φ），只是振幅从中心向外爬升。 */
-function edgeCurveRay(b, rA, rB, S){
+function edgeCurveRay(b, rA, rB, S, plain){
   const n = edgeSteps(rB - rA), out = [];
   const ramp = S * 0.25;
   for (let i = 0; i <= n; i++){
     const r = rA + (rB - rA) * i / n;
-    const d = edgeOffset(Math.max(1e-3, r), S, fillParams) * Math.min(1, r / ramp);
+    const d = plain ? 0 : edgeOffset(Math.max(1e-3, r), S, fillParams) * Math.min(1, r / ramp);
     const th = b + d / Math.max(1e-3, r);
     out.push({ x: Math.cos(th) * r, y: Math.sin(th) * r });
   }
   return out;
 }
-/* 饼图环分界曲线：r = b + edgeOffset(弧长)，弧长以该环的起始角 aOrigin 为原点（原点在中心） */
-function edgeCurveRing(b, aA, aB, S, aOrigin){
+/* 饼图环分界曲线：r = b + edgeOffset(弧长)，弧长以该环的起始角 aOrigin 为原点（原点在中心）。
+   plain=true 时不做位移（用于"填充的最外/最内边界"——它们必须贴合形状，见 paintFillPie） */
+function edgeCurveRing(b, aA, aB, S, aOrigin, plain){
   const n = Math.max(24, Math.min(240, Math.round(Math.abs(aB - aA) * Math.max(1, b) / 2) + 1));
   const out = [];
   for (let i = 0; i <= n; i++){
     const a = aA + (aB - aA) * i / n;
-    const r = Math.max(0, b + edgeOffset(Math.max(0, b) * (a - aOrigin), S, fillParams));
+    const r = plain ? b : Math.max(0, b + edgeOffset(Math.max(0, b) * (a - aOrigin), S, fillParams));
     out.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
   }
   return out;
@@ -482,24 +487,30 @@ function paintEdgeBand(c, pts, S, colA, colB, axis){
 /* ---------- 绘制 ---------- */
 /* 矩阵布局：纵向 L 层（层1 在最上），每层横向均分该层色块数；
    层间比例 = 层分界线的纵向位置，层内比例 = 该层竖线位置（需求 2.3）。
-   边界形状（需求 2.3）会把分界线按 edgeOffset 位移，因此色块改用"采样多边形"绘制：
-   相邻色块共用同一条采样曲线、角点取两端候选点的中点，故拼接处无缝隙。
-   过渡带延后到色块全部铺完再画（避免被后画的色块盖住）。 */
+   边界形状（需求 2.3）把**内部接缝**（色块之间/层与层之间的分界线）按 edgeOffset 位移成曲线，
+   色块因此改用"采样多边形"绘制：相邻色块共用同一条采样曲线、角点取两端候选点的中点，拼接处无缝。
+   **填充的外边界（最左/最右竖边、最上层上边、最下层下边）不参与位移**——它们必须始终贴合形状轮廓，
+   否则波形向内的一侧会与轮廓之间露出空隙（实测双色+sin 会露出 13% 面积），见 4.14 的注意。
+   过渡带延后到色块全部铺完再画（避免被后画的色块盖住），且只画在内部接缝上。 */
 function paintFillMatrix(c, model, ext, colors, S){
   const ys = fillBoundaries(fillParams['fill.layerRatios'], model.L, ext.hh);
+  const straightV = (b, yA, yB) => [{ x: b, y: yA }, { x: b, y: yB }];
+  const straightH = (b, xA, xB) => [{ x: xA, y: b }, { x: xB, y: b }];
   const ciOf = (li, j) => colors[(model.layerFirst[li] + j) % colors.length];
   let ci = 0;
   for (let li = 0; li < model.L; li++){
     const k = model.sizes[li];
     const yT = ys[li], yB = ys[li + 1];
     const xs = fillBoundaries(fillInValues(model, li), k, ext.hw);
-    const vCurves = xs.map(b => edgeCurveV(b, yT, yB, S));
+    /* 竖边：最左/最右是填充外边界（直），其余为内部接缝（按波形位移） */
+    const vCurves = xs.map((b, j) => (j === 0 || j === k) ? straightV(b, yT, yB) : edgeCurveV(b, yT, yB, S));
     for (let j = 0; j < k; j++){
       const col = colors[ci % colors.length];
       ci++;
       if (xs[j + 1] - xs[j] <= 0.25 || yB - yT <= 0.25) continue;   // 分界线重合 → 该色块消失
-      const top = edgeCurveH(yT, xs[j], xs[j + 1], S);
-      const bot = edgeCurveH(yB, xs[j], xs[j + 1], S);
+      /* 横边：最上层上边 / 最下层下边是填充外边界（直），其余（层间接缝）按波形位移 */
+      const top = (li === 0) ? straightH(yT, xs[j], xs[j + 1]) : edgeCurveH(yT, xs[j], xs[j + 1], S);
+      const bot = (li === model.L - 1) ? straightH(yB, xs[j], xs[j + 1]) : edgeCurveH(yB, xs[j], xs[j + 1], S);
       fillPolygon(c, cellPolygon(vCurves[j], vCurves[j + 1], top, bot), col);
     }
   }
@@ -544,8 +555,10 @@ function cellPolygon(left, right, top, bot){
   return pts;
 }
 
-/* 饼图扇区多边形：径向 A（内→外）＋外环（A→B）＋径向 B（外→内）＋内环（B→A） */
-function sectorPolygon(rayA, rayB, r0, r1, a0, a1, S, aBase){
+/* 饼图扇区多边形：径向 A（内→外）＋外环（A→B）＋径向 B（外→内）＋内环（B→A）。
+   outerPlain / innerPlain：该环是否"填充外边界"（最外环的外弧、最内环的内弧）——
+   它们必须贴合形状，不做波形位移（否则会在轮廓内侧露出空隙）。 */
+function sectorPolygon(rayA, rayB, r0, r1, a0, a1, S, aBase, outerPlain, innerPlain){
   const ang = p => Math.atan2(p.y, p.x);
   const unwrap = (a, ref) => {
     let x = a;
@@ -559,9 +572,9 @@ function sectorPolygon(rayA, rayB, r0, r1, a0, a1, S, aBase){
   const innerB = unwrap(ang(rayB[0]), a1);
   const pts = [];
   rayA.forEach(p => pts.push(p));
-  edgeCurveRing(r1, outerA, outerB, S, aBase).forEach(p => pts.push(p));
+  edgeCurveRing(r1, outerA, outerB, S, aBase, outerPlain).forEach(p => pts.push(p));
   for (let i = rayB.length - 1; i >= 0; i--) pts.push(rayB[i]);
-  edgeCurveRing(r0, innerB, innerA, S, aBase).forEach(p => pts.push(p));
+  edgeCurveRing(r0, innerB, innerA, S, aBase, innerPlain).forEach(p => pts.push(p));
   return pts;
 }
 
@@ -579,15 +592,17 @@ function paintFillPie(c, model, R, colors, S){
     const ths = fillAngles(fillInValues(model, li), k);
     if (r1 - r0 <= 0.25) continue;                            // 该环消失
     const aBase = -Math.PI / 2 + rot;
-    const rays = ths.map(t => edgeCurveRay(aBase + t, r0, r1, S));
+    /* 径向分界曲线：该层只有 1 个色块时那条半径不是"内部接缝"（整环无分界）→ 走 plain 直边 */
+    const rays = ths.map(t => edgeCurveRay(aBase + t, r0, r1, S, k < 2));
     for (let j = 0; j < k; j++){
       const a0 = aBase + ths[j];
       const a1 = aBase + (j + 1 < k ? ths[j + 1] : ths[0] + 2 * Math.PI);
-      fillPolygon(c, sectorPolygon(rays[j], rays[(j + 1) % k], r0, r1, a0, a1, S, aBase), colors[(base + j) % colors.length]);
+      /* 最外环的外弧 = 填充外边界（不做位移）；最内环的内弧（r0=0，中心的点）同理 */
+      const outerPlain = (li === 0), innerPlain = (li === model.L - 1);
+      fillPolygon(c, sectorPolygon(rays[j], rays[(j + 1) % k], r0, r1, a0, a1, S, aBase, outerPlain, innerPlain), colors[(base + j) % colors.length]);
     }
-    /* 过渡带：环内相邻扇区之间的径向分界（含整环首尾相接的那条）
-       法向取"指向前一扇区"的切向 (sin a, −cos a)：colA（前一色）在该侧 */
-    for (let j = 0; j < k; j++){
+    /* 过渡带：环内相邻扇区之间的径向分界（含整环首尾相接的那条）；单色层无内部接缝 → 跳过 */
+    for (let j = 0; k >= 2 && j < k; j++){
       const a = aBase + ths[j];
       paintEdgeBand(c, edgeCurveRay(a, r0, r1, S), S, colors[(base + (j - 1 + k) % k) % colors.length], colors[(base + j) % colors.length],
         { linear: { nx: Math.sin(a), ny: -Math.cos(a) } });
