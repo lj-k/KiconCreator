@@ -8,7 +8,9 @@
      - fillExtentOf / paintFillPattern：矩阵布局（纵向 L 层 × 横向若干列）与
        饼图布局（L 个同心环 × 每环若干扇区）的几何与绘制
      - multiSliderHTML / bindMultiSliders：多分界线共享滑轨组件（+ 参数输入框 + 均分）
-   版本：V0.03（V2.22：新增 convertInRatios——布局形式切换时换算层内比例，避免出现
+   版本：V0.04（V2.23：层内比例**逐层独立**——每层一条滑轨（offset 读写本层那一段），
+        syncFillArrays 逐层升序、convertInRatios 逐层换算）
+        V0.03（V2.22：新增 convertInRatios——布局形式切换时换算层内比例，避免出现
         重复分界（0 宽扇区 + 双宽扇区））
         V0.02（V2.22：饼图"层内比例"改用 i/k 等分（fillEqualAngles）——分界线首尾相接，
         两端留边公式会给出"k−1 个等宽扇区 + 1 个双倍宽扇区"；布局形式 chip 读取 data-val）
@@ -53,18 +55,24 @@ function fillEqualAngles(count){
   return out;
 }
 
-/* 层内比例的均分默认值：按布局取"两端留边（矩阵：色块数−1 条线）"或"首尾相接（饼图：色块数条线）" */
+/* 层内比例的均分默认值（逐层生成后按层顺序拼接）：
+   矩阵 = 该层 k−1 条竖线的"两端留边"值；饼图 = 该层 k 条角分界的"首尾相接"值 */
 function fillEqualInRatios(model){
-  return model.pie ? fillEqualAngles(model.inCount) : fillEqualRatios(model.inCount);
+  const out = [];
+  (model.groups || []).forEach(g => {
+    const eq = model.pie ? fillEqualAngles(g.count) : fillEqualRatios(g.count);
+    for (let i = 0; i < g.count; i++) out.push(eq[i] !== undefined ? eq[i] : 0);
+  });
+  return out;
 }
 
 /* ---------- 布局模型（UI 与渲染共用） ---------- */
 /* 关键规则（需求 2.3）：
    - 每层分界线数：矩阵布局 = 该层色块数−1（行有固定左右边）；
                    饼图布局 = 该层色块数（整环无固定起始边，k 条半径定义 k 个扇区）
-   - 各层色块数相同时"共享一组分界线"（四色矩阵层数2 → 1 条竖线同时作用于两行，
-     六色饼图层数2 → 3 条角度同时作用于两环）；不相同时按层各占一段，顺序拼接
-     （不等时层内分界线逐层独立：如五色饼图 3+2 层 → 3+2 条角分界）
+   - 层内比例**逐层独立**（用户要求，V2.23）：每层一组值、各占数组一段（offset/count），
+     界面上每层一条滑轨——各层的分界线互不影响（需求 2.3 原文为"各层色块数相同时共享
+     一组分界线"，用户改为逐层独立，故不再共享）
    - 饼图单层单色（整圆）时没有"扇区分界"可言，层内比例数量为 0（不给无意义的滑块）
    - 方向数量：饼图且层数≥2 → 每层一个；其余（矩阵 / 饼图单层）→ 1 个 */
 function fillLayoutModel(){
@@ -72,27 +80,22 @@ function fillLayoutModel(){
   const pie = (fillParams['fill.layout'] || '矩阵布局') === '饼图布局';
   const L = Math.max(1, Math.min(N, Math.round(fillParams['fill.layers']) || 1));
   const sizes = fillLayerSizes(N, L);
-  const uniform = sizes.every(k => k === sizes[0]);
   const perLayer = sizes.map(k => Math.max(0, pie ? (k > 1 ? k : 0) : k - 1));
   const groups = [];
-  if (uniform){
-    for (let i = 0; i < L; i++) groups.push({ count: perLayer[0], offset: 0 });
-  } else {
-    let off = 0;
-    perLayer.forEach(c => { groups.push({ count: c, offset: off }); off += c; });
-  }
-  const inCount = uniform ? perLayer[0] : perLayer.reduce((a, b) => a + b, 0);
+  let off = 0;
+  perLayer.forEach(c => { groups.push({ count: c, offset: off }); off += c; });
+  const inCount = off;
   const layerFirst = [];
   let acc = 0;
   sizes.forEach(k => { layerFirst.push(acc); acc += k; });
   return {
-    N, L, pie, sizes, uniform, groups, inCount, layerFirst,
+    N, L, pie, sizes, groups, inCount, layerFirst,
     layerCount: Math.max(0, L - 1),
     angleCount: (pie && L >= 2) ? L : 1
   };
 }
 
-/* 取某层的层内比例分界线（共享时各层返回同一段） */
+/* 取某层自己的层内比例分界线（逐层独立：按该层在数组中的 offset/count 切片） */
 function fillInValues(model, li){
   const g = model.groups[li];
   if (!g) return [];
@@ -107,17 +110,35 @@ function fillInValues(model, li){
    若直接沿用旧数组，切换后会得到重复分界：出现一个 0 宽扇区 + 一个双宽扇区。
    因此按"各段跨度"换算：矩阵→饼图在前面补 0（首条角分界落在基准角，各段跨度一一对应）；
    饼图→矩阵去掉首条角分界、其余减去它（跨度不变，末列自动接上剩余跨度）。两式互逆，
-   反复切换布局形式可原样来回——即参数不丢（需求 2.1），且不会产生退化色块。 */
+   反复切换布局形式可原样来回——即参数不丢（需求 2.1），且不会产生退化色块。
+   换算**逐层进行**（层内比例逐层独立，V2.23）：各层新旧分界线数相差 1（矩阵 k−1 / 饼图 k），
+   层号与每层色块数在两种布局下不变，因此按层取旧切片、换算后按层顺序拼回。 */
 function convertInRatios(toPie){
   const arr = Array.isArray(fillParams['fill.inRatios']) ? fillParams['fill.inRatios'] : [];
   if (!arr.length) return;
-  const v = arr.map(x => Math.max(0, Math.min(100, +x || 0)));
-  fillParams['fill.inRatios'] = toPie
-    ? [0].concat(v)
-    : v.slice(1).map(x => Math.round((x - v[0]) * 1000) / 1000);
+  const m = fillLayoutModel();                       // fill.layout 已在调用前更新为新布局
+  const out = [];
+  let oldOff = 0;
+  m.sizes.forEach(c => {
+    const oldCount = Math.max(0, toPie ? c - 1 : c); // 旧布局该层的分界线数
+    const newCount = Math.max(0, toPie ? c : c - 1); // 新布局该层的分界线数
+    const slice = [];
+    for (let j = 0; j < oldCount; j++){
+      const v = +arr[oldOff + j];
+      slice.push(Math.max(0, Math.min(100, isFinite(v) ? v : 0)));
+    }
+    const conv = toPie
+      ? [0].concat(slice)
+      : slice.slice(1).map(x => Math.round((x - slice[0]) * 1000) / 1000);
+    for (let j = 0; j < newCount; j++) out.push(conv[j] !== undefined ? conv[j] : 0);
+    oldOff += oldCount;
+  });
+  fillParams['fill.inRatios'] = out;
 }
 
-/* 按模型校准数组长度：保留已有值、新项取均分值；层间/层内比例升序，方向不排序（每层独立） */
+/* 按模型校准数组长度：保留已有值、新项取均分值。
+   升序规则：层间比例整段升序；层内比例**逐层各自升序**（整段排序会把各层的值混到一起）；
+   方向不排序（每层独立，0~360） */
 function syncFillArrays(){
   const m = fillLayoutModel();
   const resize = (key, count, def, sort) => {
@@ -132,7 +153,12 @@ function syncFillArrays(){
     fillParams[key] = cur;
   };
   resize('fill.layerRatios', m.layerCount, fillEqualRatios(m.layerCount), true);
-  resize('fill.inRatios', m.inCount, fillEqualInRatios(m), true);
+  resize('fill.inRatios', m.inCount, fillEqualInRatios(m), false);
+  const inArr = fillParams['fill.inRatios'];
+  m.groups.forEach(g => {
+    const slice = inArr.slice(g.offset, g.offset + g.count).sort((a, b) => a - b);
+    for (let i = 0; i < g.count; i++) inArr[g.offset + i] = slice[i] !== undefined ? slice[i] : 0;
+  });
   // 方向：0~360，每层独立，不排序
   const angles = Array.isArray(fillParams['fill.angles']) ? fillParams['fill.angles'].slice(0, m.angleCount) : [];
   while (angles.length < m.angleCount) angles.push(0);
@@ -268,15 +294,18 @@ function paintFillPattern(c, S, pts, colors){
 }
 
 /* ---------- 多分界线共享滑轨组件（需求 2.3） ---------- */
-/* opts: { key, label, values, max, unit, equal, hint }
+/* opts: { key, label, values, max, unit, equal, offset, hint }
    - 滑块数量 = values.length；有 equal 时显示"均分"按钮
+   - offset：本滑轨对应数组 fillParams[key] 的起始下标（层内比例逐层独立 → 每层一条滑轨，
+     各自读写自己那一段；缺省 0 = 整段）
    - 手柄位置 = 值 / max；拖拽按左右邻居夹取，禁止交叉（保持升序） */
 function multiSliderHTML(opts){
   const key = opts.key, values = opts.values || [], max = opts.max || 100, unit = opts.unit || '%';
+  const offset = Math.max(0, opts.offset || 0);
   if (!values.length) return `<div class="mslider-empty">${opts.hint || '当前无需设置'}</div>`;
   const handles = values.map((v, i) => `<button class="mslider-h" data-ms-i="${i}" style="left:${(v / max * 100).toFixed(3)}%" title="第 ${i + 1} 条分界线"></button>`).join('');
   const nums = values.map((v, i) => `<input class="num tiny" data-ms-i="${i}" value="${v}">`).join(`<span class="unit">${unit}</span>`) + (values.length ? `<span class="unit">${unit}</span>` : '');
-  return `<div class="param stacked" data-ms="${key}" data-ms-max="${max}">
+  return `<div class="param stacked" data-ms="${key}" data-ms-max="${max}" data-ms-offset="${offset}">
     <span class="pname">${opts.label}</span>
     <div class="mslider" data-ms-track><div class="mslider-rail"></div>${handles}</div>
     <div class="mslider-nums">${nums}${opts.equal ? `<button class="btn ghost sm" data-ms-equal="1">均分</button>` : ''}</div>
@@ -290,21 +319,24 @@ function bindMultiSliders(container){
     box.dataset.bound = '1';
     const key = box.dataset.ms;
     const max = +box.dataset.msMax || 100;
+    const off = Math.max(0, +box.dataset.msOffset || 0);   // 本滑轨在数组中的起始下标（逐层独立）
     const track = box.querySelector('[data-ms-track]');
     const handles = Array.from(box.querySelectorAll('.mslider-h'));
     const nums = Array.from(box.querySelectorAll('input.num'));
+    const n = handles.length;
     const arr = () => (Array.isArray(fillParams[key]) ? fillParams[key] : (fillParams[key] = []));
+    const at = i => +arr()[off + i] || 0;
     const paint = () => {
-      const a = arr();
-      handles.forEach((h, i) => { h.style.left = ((a[i] || 0) / max * 100).toFixed(3) + '%'; });
-      nums.forEach((n, i) => { if (document.activeElement !== n) n.value = Math.round((a[i] || 0) * 10) / 10; });
+      handles.forEach((h, i) => { h.style.left = (at(i) / max * 100).toFixed(3) + '%'; });
+      nums.forEach((x, i) => { if (document.activeElement !== x) x.value = Math.round(at(i) * 10) / 10; });
     };
-    /* 写值：按左右邻居夹取，保证升序不交叉；commit=true 时入撤销栈 */
+    /* 写值：在本段内按左右邻居夹取，保证升序不交叉（首尾以 0 / max 为界）；
+       commit=true 时入撤销栈 */
     const write = (i, v, commit) => {
       const a = arr();
-      const prev = i > 0 ? a[i - 1] : 0;
-      const next = i < a.length - 1 ? a[i + 1] : max;
-      a[i] = Math.max(prev, Math.min(next, v));
+      const prev = i > 0 ? (+a[off + i - 1] || 0) : 0;
+      const next = i < n - 1 ? (+a[off + i + 1] || 0) : max;
+      a[off + i] = Math.max(prev, Math.min(next, v));
       paint();
       scheduleDrawIcon();
       if (commit) commitHistory();
@@ -337,9 +369,8 @@ function bindMultiSliders(container){
     if (eq) eq.addEventListener('click', () => {
       const a = arr();
       /* 饼图的层内比例 = 角分界线（首尾相接），均分取 i/k；其余（矩阵比例 / 饼图环半径）取"两端留边" */
-      const base = (key === 'fill.inRatios' && fillLayoutModel().pie) ? fillEqualAngles(a.length) : fillEqualRatios(a.length);
-      const def = base.map(v => v / 100 * max);
-      for (let i = 0; i < a.length; i++) a[i] = Math.round(def[i] * 10) / 10;
+      const base = (key === 'fill.inRatios' && fillLayoutModel().pie) ? fillEqualAngles(n) : fillEqualRatios(n);
+      for (let i = 0; i < n; i++) a[off + i] = Math.round(base[i] / 100 * max * 10) / 10;
       paint();
       scheduleDrawIcon();
       commitHistory();

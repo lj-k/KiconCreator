@@ -6,7 +6,8 @@
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
    - 形状模块 pane：形状种类/尺寸/拉伸/方向/弧度/内角 + 边框 + 形状阴影
        （需求 三.1，参数读写全局 bgParams；弧度与内角随形状种类动态出现）
-   版本：V0.08（V2.22：布局形式的芯片逐片带 data-val——此前芯片无取值属性，点击不切换布局）
+   版本：V0.09（V2.23：层内比例改为每层一条滑轨（读 fillLayoutModel().groups 的 offset））
+        V0.08（V2.22：布局形式的芯片逐片带 data-val——此前芯片无取值属性，点击不切换布局）
         V0.07（V2.22：布局 pane 改为状态驱动，接 fillLayout.js 的共享滑轨与颜色建议）
    约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
@@ -157,6 +158,16 @@ function fillLayoutPaneHTML(){
   if (single) return `<div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">单色填充无需设置布局与边界，直接到下方「内部填充」调整颜色即可。</div>`;
   const m = fillLayoutModel();
   const pie = m.pie;
+  /* 层内比例：**每层一条滑轨**（用户要求，V2.23）——各层读写 fillParams['fill.inRatios']
+     中属于自己那一段（offset/count），互不影响；单层时不写"层n" */
+  const inRows = m.groups.map((g, li) => g.count > 0 ? multiSliderHTML({
+    key: 'fill.inRatios',
+    offset: g.offset,
+    label: (m.L > 1 ? `层内比例 · 层${li + 1}` : '层内比例')
+      + (pie ? (m.L > 1 && li === 0 ? '（最外环扇区分界角）' : '（扇区分界角）') : '（竖线位置）'),
+    values: (fillParams['fill.inRatios'] || []).slice(g.offset, g.offset + g.count),
+    max: 100, unit: '%', equal: true
+  }) : '').join('');
   return `
     ${fillShapeHintHTML()}
     ${inlineChips('布局形式', ['矩阵布局', '饼图布局'], pie ? 1 : 0, { group: 'fillLayout', values: ['矩阵布局', '饼图布局'] })}
@@ -166,11 +177,7 @@ function fillLayoutPaneHTML(){
       label: pie ? '层间比例（各环半径分界）' : '层间比例（层间横线位置）',
       values: fillParams['fill.layerRatios'], max: 100, unit: '%', equal: true
     }) : ''}
-    ${m.inCount > 0 ? multiSliderHTML({
-      key: 'fill.inRatios',
-      label: pie ? '层内比例（各环扇区分界角）' : '层内比例（各层竖线位置）',
-      values: fillParams['fill.inRatios'], max: 100, unit: '%', equal: true
-    }) : ''}
+    ${inRows}
     ${multiSliderHTML({
       key: 'fill.angles',
       label: m.angleCount > 1 ? '方向（每层独立）' : '方向（整体旋转）',

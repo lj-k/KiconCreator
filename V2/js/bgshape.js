@@ -9,7 +9,9 @@
      - bgShapePath / shapeBounds：轮廓路径与包围盒（内容裁切、内部填充共用）
      - drawBgShape：绘制栈 = 形状阴影 → 边框（只向形状外延伸）→ 内部填充
      - shapeFillSize："填满绘图区域"求解（含拉伸与方向）
-   版本：V0.03（V2.22：内部填充改由 fillLayout.js 的 paintFillPattern 承担——形状引擎只管
+   版本：V0.04（V2.23："填满绘图区域"改为取"不超出画布"前提下的尺寸最大值（min 比例），
+        并在启用边框时预留边框宽度）
+        V0.03（V2.22：内部填充改由 fillLayout.js 的 paintFillPattern 承担——形状引擎只管
         几何与边界，布局/比例/方向不再在本文件内实现）
         V0.02（V2.18：新增 resetBgParams 供模块/标签页重置按钮共用）
    依赖：schema.js（BG_PARAM_DEFS/normalizeBgParams）、state.js（bgParams/fillColors/fillCount）、
@@ -260,17 +262,21 @@ function drawBgShape(S){
 }
 
 /* ---------- "填满绘图区域"（需求 1.1.2） ----------
-   判据：把形状外接框撑到绘图区域（长边对齐画布），拉伸与方向按当前值参与计算；
-   只放大不缩小（k ≥ 1），因此不会出现"点了填满反而变小"。
-   例：圆形/正边形 100% 即长边等于画布；旋转 45° 的方形维持 100%；
-   正3边形需放大到约 116%，让外接框恰好盖住画布。
-   注意：不采用"必须盖住画布四角"的判据——尖角星形与三角形要盖满四角需远超滑块上限
-   （正3边形约 315%），既不可达也不符合"尺寸默认使长边等于画布"的既定语义。 */
+   判据（V2.23 修正为用户要求）：取"形状不超出画布边框"前提下的尺寸最大值——
+   按 size=100 探测轮廓外接框，再以 min(S/宽, S/高) 等比缩放（两轴都不得越界）。
+   例：圆形/未旋转的方形 = 100%（外接框本已等于画布）；旋转 45° 的方形 ≈ 70.7%；
+   正3边形 ≈ 116%（100% 时外接框小于画布，放大到贴边）。
+   启用边框时预留边框宽度（边框只向形状外延伸，需求 1.2），使渲染出的
+   形状 + 边框整体不越出画布；不预留则贴边时外圈边框会被画布裁掉。
+   注意，缩放系数一律向下取整到 0.001%，因此结果只会比理论最大值小零点几个像素，
+   绝不会因浮点误差越出画布。 */
 function shapeFillSize(cfg, S){
   const probe = Object.assign({}, cfg, { 'shape.size': 100 });
   const pts = shapeOutline(probe, S);
   if (!pts) return 100;
   const b = shapeBoundsOfPoints(pts);
-  const k = Math.max(1, S / Math.max(1e-6, b.maxX - b.minX), S / Math.max(1e-6, b.maxY - b.minY));
-  return Math.max(1, Math.min(300, Math.ceil(100 * k - 1e-6)));  // 向上取整并留浮点余量，确保不差一个像素
+  const borderOn = !!cfg['border.enabled'] && (+cfg['border.width'] || 0) > 0;
+  const avail = Math.max(1, S - (borderOn ? 2 * bgBorderPx(cfg, S) : 0));
+  const k = Math.min(avail / Math.max(1e-6, b.maxX - b.minX), avail / Math.max(1e-6, b.maxY - b.minY));
+  return Math.max(1, Math.min(300, Math.floor(100 * k * 1000) / 1000));
 }

@@ -8,7 +8,8 @@
      - 颜色控件：取色器与 HEX 输入双向同步
      - 颜色建议 swatch：点击写回 color.c1/c2（需求 3.4）
      - chip 单选组、边界形状切换、形状种类与"填满 / 重置形状参数"按钮（需求 三.1）
-   版本：V0.05（V2.22：新增 fill 参数通道、多分界线滑轨绑定、纯色模式控件与一键填充）
+   版本：V0.06（V2.23：通用滑块拖动时同步刷新数字框与 --fill 蓝色进度条）
+        V0.05（V2.22：新增 fill 参数通道、多分界线滑轨绑定、纯色模式控件与一键填充）
    说明：背景（形状与外框）参数是全局唯一的（BG_PARAM_DEFS → bgParams），
         滑块/数字框/重置/布尔/取色器/HEX 输入统一按"行参数 or 全局参数"分派。
    注意：动态重建的局部 DOM（如 edgeParamsWrap）需重新绑定，
@@ -52,6 +53,7 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     };
     upd();
     r.addEventListener('input', () => {
+      upd();                                    // 数字框与蓝色进度条随拖动实时跟随
       if (writable){ write(+r.value); resyncAfterWrite(rowEl); scheduleDrawIcon(); } // 拖动实时重绘，不入栈
     });
     r.addEventListener('change', () => {

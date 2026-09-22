@@ -7,7 +7,8 @@
      - 字体注册表 FONT_DEFS：web 字体优先、系统字体回退，
        web:false 或 unavailable 的字体在下拉框标注（未下载）
      - makeRow(text)：构造带完整参数与联动标记的行对象
-   版本：V0.06（V2.22：新增填充布局参数表 FILL_PARAM_DEFS 与 makeFillParams/normalizeFillParams；
+   版本：V0.07（V2.23：默认形状改为"圆角方形 + 弧度 30"（用户指定））
+        V0.06（V2.22：新增填充布局参数表 FILL_PARAM_DEFS 与 makeFillParams/normalizeFillParams；
         背景参数（BG_PARAM_DEFS，V2.17 起）与填充布局参数同为"全局唯一"，键前缀分别
         shape./border./shapeShadow. 与 fill.，与行参数键互不冲突）
    约束：本文件必须先于 state.js 加载（state.js 在顶层调用 makeRow）。
@@ -192,12 +193,12 @@ function shadowOffsetPx(v, S){ return v / 100 * S * 0.2; }
    统一由 state.js 的 bgParams（扁平对象）持有，随快照整体保存。
    shape.kind 取值：无 | 圆形 | 圆角方形 | 正3边形…正8边形 | 3角星…8角星 */
 const BG_PARAM_DEFS = {
-  'shape.kind':     { label: '形状',     type: 'select', def: '无' },
+  'shape.kind':     { label: '形状',     type: 'select', def: '圆角方形' },   // V2.23：默认即为圆角方形（用户指定）
   'shape.size':     { label: '尺寸',     min: 1,   max: 300, def: 100, unit: '%' },
   'shape.stretchX': { label: '水平拉伸', min: 1,   max: 300, def: 100, unit: '%' },
   'shape.stretchY': { label: '垂直拉伸', min: 1,   max: 300, def: 100, unit: '%' },
   'shape.angle':    { label: '方向',     min: 0,   max: 360, def: 0,   unit: '°' },
-  'shape.round':    { label: '弧度',     min: 0,   max: 100, def: 0,   unit: '%' },
+  'shape.round':    { label: '弧度',     min: 0,   max: 100, def: 30,  unit: '%' }, // V2.23：默认 30（用户指定）
   'shape.inner':    { label: '内角',     min: 0,   max: 135, def: 60,  unit: '°' }, // 上限按角星数动态：180 − 360/n
 
   'border.enabled': { label: '启用边框', type: 'bool',  def: true },
