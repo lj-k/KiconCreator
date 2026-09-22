@@ -6,7 +6,7 @@
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
    - 形状模块 pane：形状种类/尺寸/拉伸/方向/弧度/内角 + 边框 + 形状阴影
        （需求 三.1，参数读写全局 bgParams；弧度与内角随形状种类动态出现）
-   版本：V0.05（V2.17：形状/边框/形状阴影 pane 改为状态驱动，键为全局 shape./border./shapeShadow.）
+   版本：V0.06（V2.18：形状标签页在"填满绘图区域"后新增"重置形状参数"按钮）
    约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
 
@@ -124,7 +124,10 @@ function shapePaneHTML(){
     ${paramRow('方向', bgParams['shape.angle'], 0, 360, '°', { key: 'shape.angle', reset: true })}
     ${hasRound ? paramRow('弧度', bgParams['shape.round'], 0, 100, '%', { key: 'shape.round', reset: true }) : ''}
     ${hasInner ? paramRow('内角', bgParams['shape.inner'], 0, innerMax, '°', { key: 'shape.inner', reset: true }) : ''}
-    <div class="param"><span class="pname"></span><div class="pctrl"><button class="btn ghost sm" style="flex:1" id="fillShapeBtn">填满绘图区域</button></div></div>
+    <div class="param"><span class="pname"></span><div class="pctrl">
+      <button class="btn ghost sm" style="flex:1" id="fillShapeBtn">填满绘图区域</button>
+      <button class="btn ghost sm" style="flex:1" id="shapeTabReset" title="把形状的 尺寸/拉伸/方向/弧度/内角 恢复默认值（保留当前所选形状）">重置形状参数</button>
+    </div></div>
     <div id="innerZeroWarn" style="font-size:10.5px;color:#e5484d;padding-top:6px${innerZero ? '' : ';display:none'}">内角 0° 形状不可见</div>`;
 }
 function borderPaneHTML(){

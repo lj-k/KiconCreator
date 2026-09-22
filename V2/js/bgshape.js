@@ -9,7 +9,7 @@
      - bgShapePath / shapeBounds：轮廓路径与包围盒（内容裁切、内部填充共用）
      - drawBgShape：绘制栈 = 形状阴影 → 边框（只向形状外延伸）→ 内部填充
      - shapeFillSize："填满绘图区域"求解（含拉伸与方向）
-   版本：V0.01（V2.17：随"形状和外框"功能新建）
+   版本：V0.02（V2.18：新增 resetBgParams 供模块/标签页重置按钮共用）
    依赖：schema.js（BG_PARAM_DEFS/normalizeBgParams）、state.js（bgParams/fillColors/fillCount）、
         canvas.js（ctx/iconSize——运行时读取）。
    约束：所有形状都必须是"对中心可见的星形域"（任意方向从中心出发只与轮廓相交一次），
@@ -40,6 +40,15 @@ function shapeKindInfo(kind){
 function shapeTabLabel(){
   const k = bgParams['shape.kind'] || SHAPE_NONE;
   return k === SHAPE_NONE ? '形状' : k;
+}
+
+/* 背景参数重置（需求 五：模块及各标签的重置按钮共用）：
+   prefix 省略 = 重置模块下三个标签的全部参数；传 'shape.' = 只重置形状标签页的参数。
+   只动注册表里登记过的键，默认值一律取自 BG_PARAM_DEFS（避免各处硬编码默认值）。 */
+function resetBgParams(prefix){
+  Object.keys(BG_PARAM_DEFS).forEach(k => {
+    if (!prefix || k.indexOf(prefix) === 0) bgParams[k] = BG_PARAM_DEFS[k].def;
+  });
 }
 
 /* 角星内角上限：180° − 360°/n。

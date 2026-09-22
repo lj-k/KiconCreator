@@ -5,7 +5,7 @@
      - renderPresets（预设网格，右键删除）
      - renderHistory（下载历史列表，点击恢复快照）
      - 顶层注册 [data-act] 委托点击（导入/导出/保存/复制 JSON/复制 HTML）
-   版本：V0.04（V2.15：导出改为"当前参数 → 单条预设"（需求 2.1）；导入保持一文件一预设、支持多选批量）
+   版本：V0.08（V2.21：本地预设简化为单一来源 presets/index.js（可手改）；预设列表加空态提示）
    依赖：state.js（PRESETS/downloadHistory）、history.js（snapshotState/restoreState）、
         images.js（ImageRepo/imgIsCropped/imgCropDataURL/imgFullDataURL）、
         imagePane.js（askImageExportMode）、canvas.js（renderSnapshotThumb）。
@@ -131,6 +131,20 @@ async function registerPresetImages(snap, presetName, diffs){
   return loaded;
 }
 
+/* 由预设数据对象构建一条预设（文件导入 / 本地预设目录共用）：
+   缺失字段按当前状态默认值补齐、内部图片注册进会话仓库、多余字段记入 diffs。
+   返回 { preset, extras }：extras = 多余字段个数（供导入统计"有差异"条数） */
+async function makePresetFromData(item, fallbackName, diffs){
+  const baseSnap = item.snap || item;
+  const defaults = snapshotState();
+  const merged = { ...defaults, ...baseSnap };
+  const diffKeys = Object.keys(baseSnap).filter(k => !(k in defaults));
+  const name = item.name || fallbackName;
+  await registerPresetImages(merged, name, diffs);
+  if (diffKeys.length > 0) diffs.push(`预设「${name}」：多余字段 ${diffKeys.join(', ')}`);
+  return { preset: { uid: 'p' + (++presetSeq), name, snap: merged, time: Date.now() }, extras: diffKeys.length };
+}
+
 function importPresets(){
   const input = document.createElement('input');
   input.type = 'file';
@@ -156,20 +170,11 @@ function importPresets(){
       for (let i = 0; i < list.length; i++){
         const item = list[i];
         if (!item || typeof item !== 'object'){ failCount++; continue; }
-        const baseSnap = item.snap || item;
-        const defaults = snapshotState();
-        const merged = { ...defaults, ...baseSnap };
-        const diffKeys = Object.keys(baseSnap).filter(k => !(k in defaults));
-        const name = item.name || `${file.name} #${i + 1}`;
-        await registerPresetImages(merged, name, diffs);
-        if (diffKeys.length > 0){
-          diffCount++;
-          diffs.push(`预设「${name}」：多余字段 ${diffKeys.join(', ')}`);
-        }
-        const preset = { uid: 'p' + (++presetSeq), name, snap: merged, time: Date.now() };
-        PRESETS.push(preset);
-        imgRetainSnap(preset, 'preset:');
-        okNames.push(name);
+        const r = await makePresetFromData(item, `${file.name} #${i + 1}`, diffs);
+        if (r.extras > 0) diffCount++;
+        PRESETS.push(r.preset);
+        imgRetainSnap(r.preset, 'preset:');
+        okNames.push(r.preset.name);
         okCount++;
       }
     }
@@ -179,6 +184,47 @@ function importPresets(){
     if (diffs.length) console.log('预设导入差异：', diffs);
   };
   input.click();
+}
+
+/* ---------- 本地预设（需求 2.1 第 3 条，V2.18；V2.21 简化为单一来源 presets/index.js） ----------
+   预设数据放在 `presets/index.js`：由引导器以 `<script>` 加载（**http 与 file:// 都能加载**，
+   绕开了"file:// 下浏览器禁止 fetch/XHR 读取本地文件"的限制），启动后由 loadLocalPresets() 读取。
+   该文件可直接手工编辑——把「导出预设」得到的 json 原文粘成 `files` 下的一个条目即可，
+   无需任何构建/生成步骤；条目格式与规则见该文件头部说明。
+   约束：条目键仅用于标识与去重，预设名优先取内容里的 name；每条都走 makePresetFromData
+        （补齐缺失字段 + 注册内嵌图片 + 登记图片引用，需求 六.1）。 */
+async function loadLocalPresets(){
+  const lib = (typeof window !== 'undefined' && window.KICON_LOCAL_PRESETS) || null;
+  const files = (lib && lib.files) || null;
+  const keys = files ? Object.keys(files) : [];
+  if (!keys.length){
+    /* 诊断：让"没加载"能在控制台一眼看出原因（不弹 toast，避免干扰） */
+    console.info('[本地预设] presets/index.js 里还没有预设。添加方法：把「导出预设」得到的 json 内容' +
+      '原样粘贴成 files 下的一个条目（格式见该文件头部说明）；若已有内容却未生效，' +
+      '请先检查该文件能否被浏览器正常解析（一处语法错会导致整份失效）。');
+    return 0;
+  }
+
+  const diffs = [];
+  let ok = 0, fail = 0;
+  for (const key of keys){
+    const item = files[key];
+    try {
+      if (!item || typeof item !== 'object') throw new Error('条目不是对象');
+      const r = await makePresetFromData(item, key.replace(/\.json$/i, ''), diffs);
+      PRESETS.push(r.preset);
+      imgRetainSnap(r.preset, 'preset:'); // 预设持图片引用（需求 六.1）
+      ok++;
+    } catch (e){
+      fail++;
+      console.warn('[本地预设] 已跳过 ' + key + '：' + (e && e.message));
+    }
+  }
+  renderPresets();
+  if (ok) toast(`已加载 ${ok} 条本地预设` + (fail ? `（跳过 ${fail} 条）` : ''));
+  if (diffs.length) console.log('本地预设差异：', diffs);
+  console.log(`[本地预设] 来源：presets/index.js；成功 ${ok} 条，失败 ${fail} 条`);
+  return ok;
 }
 
 function applyPreset(index){
@@ -193,6 +239,14 @@ function renderPresetsInternal(){
   const grid = $('#presetGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  if (PRESETS.length === 0){
+    // 空态提示：本地预设改由 presets/index.js 手工维护，用户需要知道入口在哪
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;padding:2px';
+    hint.textContent = '暂无预设：用上方「保存为预设」记录当前参数，或把预设 JSON 贴进 V2/presets/index.js（刷新后自动加载）。';
+    grid.appendChild(hint);
+    return;
+  }
   PRESETS.forEach((preset, i) => {
     const d = document.createElement('div');
     d.className = 'preset-item';

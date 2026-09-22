@@ -7,7 +7,7 @@
      - pushDownloadHistory：写入下载历史（含缩略图 + 全量快照，P0-5）
      - bindDownloadPaneInteractions：尺寸、透明色、格式按钮绑定
      - updateSize / updateFileName：导出尺寸联动
-   版本：V0.07（V2.15：抽取 timeStamp；JSON 导出携带图片数据并先提示保存方式）
+   版本：V0.08（V2.18：updateSize 内安全边距框改调 applySafeMargin——画布等比显示后 px 内缩会错位）
    注意：exportCanvas 的模板字符串中包含内联 <script>，
         必须保持 <\/script> 转义写法，否则会截断宿主页面。
    ============================================================ */
@@ -108,7 +108,7 @@ function exportHTML(){
   const html = `<link rel="icon" type="image/png" href="favicon.png" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#6c8cff">
-<!-- 由 KiconCreator V2.17 生成 · ${new Date().toISOString()} -->`;
+<!-- 由 KiconCreator V2.21 生成 · ${new Date().toISOString()} -->`;
   navigator.clipboard?.writeText(html)
     .then(() => toast('HTML link 标签已复制到剪贴板'))
     .catch(() => {
@@ -213,10 +213,8 @@ function updateSize(){
     // 自定义尺寸无对应选项时保持原显示（真实值以 #sizeInput 为准）
     if (sel && sel.querySelector('option[value="' + iconSize + '"]')) sel.value = String(iconSize);
   });
-  const S = iconSize;
-  const pct = Math.min(50, Math.max(0, +$('#safePct').value || 10));
-  const sb = $('#safeBox');
-  if (sb) sb.style.inset = (S * pct / 100) + 'px';
+  // 安全边距框内缩量交给 preview.js 统一按百分比设置（画布显示尺寸 ≠ 逻辑尺寸，不能用 px 写死）
+  applySafeMargin();
   drawIcon();
   updateFileName();
 }

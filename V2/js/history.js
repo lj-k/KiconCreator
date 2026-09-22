@@ -4,7 +4,7 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.08（V2.17：快照纳入 bgParams（形状与外框）与填充色值 fillColors）
+   版本：V0.09（V2.18：恢复安全边距时同步边距框内缩量）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,7 +30,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.17',
+    version: '2.21',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),
@@ -80,6 +80,7 @@ function restoreState(snap){
     if (snap.safeMargin !== undefined){
       const sp = $('#safePct');
       if (sp) sp.value = snap.safeMargin;
+      applySafeMargin();   // 边距框内缩量（百分比）随恢复同步（preview.js 提供）
     }
     if (snap.safeChk !== undefined){
       const sc = $('#safeChk');

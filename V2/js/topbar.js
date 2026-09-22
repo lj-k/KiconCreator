@@ -6,7 +6,7 @@
      - 样式重置：按当前激活标签重置对应参数组（需求 3.3）
      - 填充数量芯片（背景暂缓，仅 UI + 触发 fill 模块重渲染）
      - renderStyle：样式/内容模块头副标题同步 + style 模块重渲染
-   版本：V0.04（V2.12：复制样式/重置纳入 image. 参数）
+   版本：V0.05（V2.18：新增形状与外框模块头重置按钮 #shapeReset——重置三个标签全部参数）
    依赖：history.js（undo/redo/commitHistory，必须先于本文件加载）、
         linkage.js、schema.js、state.js、fills.js（运行时）。
    ============================================================ */
@@ -69,6 +69,15 @@ $('#styleReset').addEventListener('click', () => {
   drawIcon();
   commitHistory();
   toast('已重置当前行样式');
+});
+
+/* ---------- 形状与外框重置：模块头按钮 → 三个标签全部参数（需求 五） ---------- */
+$('#shapeReset').addEventListener('click', () => {
+  resetBgParams();          // 不带前缀 = 形状 + 边框 + 形状阴影 全部回默认值
+  rerenderModule('shape');
+  drawIcon();
+  commitHistory();
+  toast('已重置形状与外框的全部参数');
 });
 
 /* ---------- 填充数量（形状内部按数量分色块，切数量即重绘） ---------- */

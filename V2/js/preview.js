@@ -5,7 +5,8 @@
      - 双击画布：复位 + 打开 1:1 模态预览（ESC/点击遮罩/按钮关闭）
      - 放大预览按钮（左栏加宽）
      - 辅助线选择、安全边距开关与百分比输入
-   版本：V0.02（V2.10：新增画布尺寸下拉绑定，与导出尺寸共享变量）
+   版本：V0.03（V2.18：安全边距框内缩量改为百分比并初始化（applySafeMargin）；
+        画布随预览框等比显示后，像素内缩会错位）
    依赖：canvas.js（cvs/viewerModal 等 DOM 引用与 drawIcon，必须先加载）、
         history.js（commitHistory）、utils.js（flashInvalid）、layout.js（refreshLayout）。
    ============================================================ */
@@ -75,6 +76,13 @@ $('#enlargeBtn').addEventListener('click', () => {
 });
 
 /* ---------- 辅助线 / 安全边距 ---------- */
+/* 安全边距框：内缩量用百分比表达（= 画布尺寸的百分比），与画布的显示缩放无关；
+   画布可能被预览框等比放大/缩小，用像素写死会导致边距框与画布错位 */
+function applySafeMargin(){
+  const v = +$('#safePct').value || 0;
+  $('#safeBox').style.inset = v + '%';
+}
+applySafeMargin();
 $('#guideSelect').addEventListener('change', () => {
   const mode = $('#guideSelect').value;
   const layer = $('#guidesLayer');
@@ -92,11 +100,10 @@ $('#safePct').addEventListener('change', () => {
   let v = +$('#safePct').value;
   if (isNaN(v) || v < 0 || v > 50){
     v = flashInvalid($('#safePct'), 0, 50);
-    setTimeout(() => { $('#safePct').value = v; }, 620);
+    setTimeout(() => { $('#safePct').value = v; applySafeMargin(); }, 620);
     return;
   }
-  const S = iconSize;
-  $('#safeBox').style.inset = (S * v / 100) + 'px';
+  applySafeMargin();
   drawIcon();
   commitHistory();
 });

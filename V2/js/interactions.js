@@ -7,9 +7,10 @@
      - checkbox/select[data-pkey]：布尔与选项参数（斜体、排版、裁切…）
      - 颜色控件：取色器与 HEX 输入双向同步
      - 颜色建议 swatch：点击写回 color.c1/c2（需求 3.4）
-     - chip 单选组、边界形状切换、形状种类与"填满"按钮（需求 三.1）
-   版本：V0.03（V2.17：支持全局背景参数键（BG_PARAM_DEFS → bgParams）——滑块/数字框/重置/
-       布尔/取色器/HEX 输入统一按"行参数 or 全局参数"分派；形状种类 chip 与"填满"落地）
+     - chip 单选组、边界形状切换、形状种类与"填满 / 重置形状参数"按钮（需求 三.1）
+   版本：V0.04（V2.18：新增形状标签页"重置形状参数"按钮——保留所选形状，仅把形状参数回默认值）
+   说明：背景（形状与外框）参数是全局唯一的（BG_PARAM_DEFS → bgParams），
+        滑块/数字框/重置/布尔/取色器/HEX 输入统一按"行参数 or 全局参数"分派。
    注意：动态重建的局部 DOM（如 edgeParamsWrap）需重新绑定，
         所以内部存在 bindPaneInteractions 的递归调用。
    ============================================================ */
@@ -274,6 +275,13 @@ function bindPaneInteractions(moduleId, container, rowIdx){
       toast('形状已填满绘图区域（尺寸 ' + bgParams['shape.size'] + '%）');
     });
   }
+
+  /* ---------- 重置形状参数（形状标签页内，需求 五） ---------- */
+  const sr = container.querySelector('#shapeTabReset');
+  if (sr && !sr.dataset.bound){
+    sr.dataset.bound = '1';
+    sr.addEventListener('click', () => resetShapeTabParams(container));
+  }
 }
 
 /* 角星内角 0° → 形状不可见（需求 1.1.1）：红字提示随拖动实时显隐 */
@@ -281,6 +289,18 @@ function syncInnerZeroWarn(container){
   const w = container.querySelector('#innerZeroWarn');
   if (!w) return;
   w.style.display = (+bgParams['shape.inner'] || 0) <= 0 ? '' : 'none';
+}
+
+/* 形状标签页重置（需求 五）：只把形状参数恢复默认值，保留当前所选形状种类，
+   这样用户调乱尺寸/方向/弧度后能一键回到"干净的同一种形状" */
+function resetShapeTabParams(container){
+  const keepKind = bgParams['shape.kind'];
+  resetBgParams('shape.');
+  bgParams['shape.kind'] = keepKind;
+  rerenderModule('shape');
+  scheduleDrawIcon();
+  commitHistory();
+  toast('已重置形状参数' + (keepKind === SHAPE_NONE ? '' : '（保留「' + keepKind + '」）'));
 }
 
 /* ---------- Web 字体按需加载（需求 2.6） ----------

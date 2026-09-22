@@ -40,7 +40,7 @@
   <div class="brand">
     <div class="logo">K</div>
     <div class="brand-text">
-      <h1>KiconCreator <span class="ver">V2.17</span></h1>
+      <h1>KiconCreator <span class="ver">V2.21</span></h1>
       <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
     </div>
   </div>
@@ -169,7 +169,11 @@
 
   <section class="col col-right">
     <section class="module" id="moduleShape">
-      <div class="module-head"><span class="mh-title">形状与外框</span></div>
+      <div class="module-head">
+        <span class="mh-title">形状与外框</span>
+        <span class="mh-spacer"></span>
+        <button class="btn ghost sm" id="shapeReset" title="重置形状、边框、阴影三个标签的全部参数">重置</button>
+      </div>
       <div class="module-body">
         <div class="tab-groups" data-module="shape"></div>
       </div>
@@ -262,6 +266,7 @@
     ['js/history.js',           '撤销/快照'],
     ['js/exports.js',           '导出模块'],
     ['js/presets.js',           '预设模块'],
+    ['presets/index.js',        '本地预设', 1],   // 第 3 位 = 可选：文件缺失时跳过而不中断启动
     ['js/bgshape.js',           '形状引擎'],
     ['js/canvas.js',            '渲染引擎'],
     ['js/content.js',           '内容模块'],
@@ -272,6 +277,12 @@
     ['js/preview.js',           '预览模块'],
     ['js/main.js',              '应用入口']
   ];
+
+  /* 应用版本号（与顶栏 .ver 徽标保持一致）：http(s) 下给每个资源追加 ?v= 查询串，
+     避免静态服务器（多无 Cache-Control）与浏览器启发式缓存把旧模块喂给新页面；
+     file:// 下不加查询串，保证双击打开时仍按本地路径加载 */
+  var APP_VER = 'V2.21';
+  var BUST = (location.protocol === 'file:') ? '' : ('?v=' + APP_VER);
 
   function setProgress(done){
     var p = Math.round(done / steps.length * 100);
@@ -287,19 +298,28 @@
 
   function loadNext(idx){
     if (idx >= steps.length){ start(); return; }
-    var src = steps[idx][0], label = steps[idx][1];
+    var src = steps[idx][0], label = steps[idx][1], optional = steps[idx][2];
     status.textContent = '正在加载 ' + label + ' …';
     var el;
     if (/\.css$/.test(src)){
       el = document.createElement('link');
       el.rel = 'stylesheet';
-      el.href = src;
+      el.href = src + BUST;
     } else {
       el = document.createElement('script');
-      el.src = src;
+      el.src = src + BUST;
     }
     el.onload = function(){ setProgress(idx + 1); loadNext(idx + 1); };
-    el.onerror = function(){ fail(src); };
+    el.onerror = function(){
+      /* 可选资源（如 presets/index.js：用户可能删空预设目录）缺失时跳过，不中断启动 */
+      if (optional){
+        console.warn('[引导器] 可选资源缺失，已跳过：' + src);
+        setProgress(idx + 1);
+        loadNext(idx + 1);
+        return;
+      }
+      fail(src);
+    };
     document.head.appendChild(el);
   }
 

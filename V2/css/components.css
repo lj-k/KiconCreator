@@ -2,7 +2,7 @@
    KiconCreator V2 · components.css
    职责：可复用控件与面板内部组件 —— 按钮/标签组(tab-group)/参数行/
         芯片/胶囊/预设网格/历史列表/内容纵向标签(vtab)/内部填充/TOAST/模态
-   版本：V0.04（V2.14：新增询问对话框样式 .ask-*）
+   版本：V0.05（V2.18：模态预览画布去圆角与投影，与主画布保持同一"正方形画布"观感）
    说明：pane 内的 HTML 由 js/panes.js、js/fa.js、js/imagePane.js、js/tabs.js
         动态生成，修改选择器类名时必须同步对应 JS 模板字符串。
    ============================================================ */
@@ -166,7 +166,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .modal-head{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;font-size:12.5px;font-weight:700}
 .modal-body{flex:1;min-height:0;overflow:auto;background-color:var(--checker-a);background-image:linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;place-items:center}
 .modal-body:active{cursor:grabbing}
-.modal-body canvas{display:block;border-radius:12px;box-shadow:0 10px 26px rgba(18,26,48,.3)}
+.modal-body canvas{display:block;border-radius:0;box-shadow:none}
 
 /* ---------- 询问对话框（js/imagePane.js askImageExportMode，需求 2.1） ---------- */
 .ask-mask{position:fixed;inset:0;background:rgba(8,10,18,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:grid;place-items:center;z-index:210;padding:16px}
