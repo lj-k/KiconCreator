@@ -9,7 +9,9 @@
      - bgShapePath / shapeBounds：轮廓路径与包围盒（内容裁切、内部填充共用）
      - drawBgShape：绘制栈 = 形状阴影 → 边框（只向形状外延伸）→ 内部填充
      - shapeFillSize："填满绘图区域"求解（含拉伸与方向）
-   版本：V0.04（V2.23："填满绘图区域"改为取"不超出画布"前提下的尺寸最大值（min 比例），
+   版本：V0.05（V2.25：shapeOutline 末尾接入 edgeFramePoints——"包含形状外框"选项开启时，
+        轮廓随边界形状起伏（框线/裁切/填充覆盖范围一起变），默认关闭）
+        V0.04（V2.23："填满绘图区域"改为取"不超出画布"前提下的尺寸最大值（min 比例），
         并在启用边框时预留边框宽度）
         V0.03（V2.22：内部填充改由 fillLayout.js 的 paintFillPattern 承担——形状引擎只管
         几何与边界，布局/比例/方向不再在本文件内实现）
@@ -179,7 +181,10 @@ function shapeOutline(cfg, S){
     const x = (pts[i].x - cx) * sx, y = (pts[i].y - cy) * sy;
     out[i] = { x: c + x * ca - y * sa, y: c + x * sa + y * ca };
   }
-  return out;
+  /* 形状外框是否参与"填充边界"的边界形状（edge.frame，需求 2.3 扩展；默认关闭）：
+     开启后轮廓沿外法向按波形位移——框线、内容裁切、填充覆盖范围随之一起变形。
+     关闭时原样返回（零开销、零视觉变化）。 */
+  return typeof edgeFramePoints === 'function' ? edgeFramePoints(out, S) : out;
 }
 function shapeBounds(cfg, S){
   const pts = shapeOutline(cfg, S);

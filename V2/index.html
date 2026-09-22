@@ -40,7 +40,7 @@
   <div class="brand">
     <div class="logo">K</div>
     <div class="brand-text">
-      <h1>KiconCreator <span class="ver">V2.23</span></h1>
+      <h1>KiconCreator <span class="ver">V2.25</span></h1>
       <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
     </div>
   </div>
@@ -283,7 +283,7 @@
   /* 应用版本号（与顶栏 .ver 徽标保持一致）：http(s) 下给每个资源追加 ?v= 查询串，
      避免静态服务器（多无 Cache-Control）与浏览器启发式缓存把旧模块喂给新页面；
      file:// 下不加查询串，保证双击打开时仍按本地路径加载 */
-  var APP_VER = 'V2.23';
+  var APP_VER = 'V2.25';
   var BUST = (location.protocol === 'file:') ? '' : ('?v=' + APP_VER);
 
   function setProgress(done){
@@ -313,9 +313,11 @@
     }
     el.onload = function(){ setProgress(idx + 1); loadNext(idx + 1); };
     el.onerror = function(){
-      /* 可选资源（如 presets/index.js：用户可能删空预设目录）缺失时跳过，不中断启动 */
+      /* 可选资源（如 presets/index.js：用户可能删空预设目录）加载失败时跳过，不中断启动。
+         注意：脚本"存在但语法错"也会走到这里，因此提示要同时覆盖两种情况（V2.25 措辞修正） */
       if (optional){
-        console.warn('[引导器] 可选资源缺失，已跳过：' + src);
+        console.warn('[引导器] 可选资源未生效（文件缺失，或存在语法错误导致无法解析），已跳过：' + src
+          + ' —— 若该文件本应有内容，请检查它能否被浏览器正常解析（一处语法错会让整份失效）');
         setProgress(idx + 1);
         loadNext(idx + 1);
         return;

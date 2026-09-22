@@ -5,7 +5,8 @@
      - selectRow / checkRow / colorRow：下拉、布尔、颜色参数行
      - getShadowEnabled：从行状态读取（tab 徽标）
      - 颜色建议（需求 3.4）：HSL 公式实时计算互补/类似/柔和/明亮
-   版本：V0.05（V2.22：inlineChips 支持 opts.values —— 逐片输出 data-val 供专用绑定读取）
+   版本：V0.06（V2.24：删除预留的 buildEdgeParams——填充边界的参数行改由 panes.js 生成真实控件）
+        V0.05（V2.22：inlineChips 支持 opts.values —— 逐片输出 data-val 供专用绑定读取）
         V0.04（V2.22：paramRow 支持 FILL_PARAM_DEFS 默认值与 resync；新增 fillAdvicePalette 按文本颜色生成 N 色组合）
    注意：data-name/data-pkey 是联动、快照与渲染回写的唯一依据；
         BG_PARAM_DEFS 注册的全局键（shape./border./shapeShadow.）写 bgParams。
@@ -155,15 +156,4 @@ function fillAdvicePalette(group, baseHex, N){
     else out.push(hslToHex(h + i * spread, Math.min(1, s * 1.25), 0.58));
   }
   return out;
-}
-
-function buildEdgeParams(shape){
-  if (shape === '直线') return `<div style="font-size:10.5px;color:var(--muted);padding:4px 0">直线边界无可调参数</div>`;
-  if (shape === 'sin' || shape === 'tan'){
-    return `<div class="param tight"><span class="pname">边界参数</span><div class="pctrl" style="gap:6px">${['A', 'ω', 'φ', 'k'].map(p => `<div style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="font-size:9.5px;color:var(--muted)">${p}</span><input class="num tiny" style="width:100%;flex:1" value="1"></div>`).join('')}</div></div>`;
-  }
-  if (shape === '锯齿'){
-    return `<div class="param tight"><span class="pname">边界参数</span><div class="pctrl" style="gap:6px">${['A', 'ω'].map(p => `<div style="display:flex;flex-direction:column;gap:3px;align-items:center"><span style="font-size:9.5px;color:var(--muted)">${p}</span><input class="num tiny" style="width:100%;flex:1" value="1"></div>`).join('')}</div></div>`;
-  }
-  return '';
 }

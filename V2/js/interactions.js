@@ -8,7 +8,8 @@
      - 颜色控件：取色器与 HEX 输入双向同步
      - 颜色建议 swatch：点击写回 color.c1/c2（需求 3.4）
      - chip 单选组、边界形状切换、形状种类与"填满 / 重置形状参数"按钮（需求 三.1）
-   版本：V0.06（V2.23：通用滑块拖动时同步刷新数字框与 --fill 蓝色进度条）
+   版本：V0.07（V2.24：填充边界的边界形状/过渡样式芯片改走 bindFillParamChips（data-val → fillParams））
+        V0.06（V2.23：通用滑块拖动时同步刷新数字框与 --fill 蓝色进度条）
         V0.05（V2.22：新增 fill 参数通道、多分界线滑轨绑定、纯色模式控件与一键填充）
    说明：背景（形状与外框）参数是全局唯一的（BG_PARAM_DEFS → bgParams），
         滑块/数字框/重置/布尔/取色器/HEX 输入统一按"行参数 or 全局参数"分派。
@@ -222,7 +223,8 @@ function bindPaneInteractions(moduleId, container, rowIdx){
   container.querySelectorAll('.chip-row').forEach(crow => {
     if (crow.closest('[data-group="shape"]')) return;
     if (crow.closest('[data-group="fillLayout"]')) return;
-    if (crow.closest('#edgeShapeRow')) return;
+    if (crow.closest('[data-group="edgeShape"]')) return;
+    if (crow.closest('[data-group="edgeStyle"]')) return;
     if (crow.dataset.bound) return;
     crow.dataset.bound = '1';
     crow.addEventListener('click', e => {
@@ -245,21 +247,6 @@ function bindPaneInteractions(moduleId, container, rowIdx){
       renderStyle();
       scheduleDrawIcon();
       commitHistory();
-    });
-  }
-
-  /* ---------- 边界形状切换（背景暂缓） ---------- */
-  const edgeRow = container.querySelector('#edgeShapeRow');
-  if (edgeRow && !edgeRow.dataset.bound){
-    edgeRow.dataset.bound = '1';
-    edgeRow.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        currentEdgeShape = chip.dataset.shape;
-        edgeRow.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
-        const wrap = container.querySelector('#edgeParamsWrap');
-        if (wrap){ wrap.innerHTML = buildEdgeParams(currentEdgeShape); bindPaneInteractions(moduleId, wrap, rowIdx); }
-        commitHistory();
-      });
     });
   }
 
@@ -303,8 +290,9 @@ function bindPaneInteractions(moduleId, container, rowIdx){
     sr.addEventListener('click', () => resetShapeTabParams(container));
   }
 
-  /* ---------- 填充布局：布局形式 chip / 多分界线滑轨（需求 2.3） ---------- */
+  /* ---------- 填充布局 / 填充边界：芯片与多分界线滑轨（需求 2.3） ---------- */
   if (container.querySelector('[data-group="fillLayout"]')) bindFillLayoutChips(container);
+  if (container.querySelector('[data-group="edgeShape"], [data-group="edgeStyle"]')) bindFillParamChips(container);
   if (container.querySelector('[data-ms]')) bindMultiSliders(container);
 
   /* ---------- 内部填充：纯色模式控件与颜色建议（需求 3.2.1） ---------- */

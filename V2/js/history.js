@@ -4,7 +4,8 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.10（V2.22：快照/恢复纳入 fillParams 并在恢复后校准分界线数组）
+   版本：V0.11（V2.24：快照移除 UI-only 的 currentEdgeShape；fill 字段现在含填充边界参数）
+        V0.10（V2.22：快照/恢复纳入 fillParams 并在恢复后校准分界线数组）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,7 +31,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.23',
+    version: '2.25',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),
@@ -40,8 +41,7 @@ function snapshotState(){
     fills: fillModes.map((m, i) => ({ mode: m, color: fillColors[i] || '' })),
     fillCount,
     activeFill,
-    fill: normalizeFillParams(fillParams),  // 填充数量与布局（需求 三.2）：含三组多分界线数组
-    currentEdgeShape,
+    fill: normalizeFillParams(fillParams),  // 填充数量与布局 + 填充边界（需求 三.2）：含三组多分界线数组
     bg: normalizeBgParams(bgParams),   // 形状与外框（需求 三.1）：全局唯一，整体入快照
     iconSize,
     safeMargin: +$('#safePct').value || 10,
@@ -64,7 +64,6 @@ function restoreState(snap){
     if (snap.layerOrder !== undefined) layerOrder = snap.layerOrder;
     if (snap.fillCount !== undefined) fillCount = snap.fillCount;
     if (snap.activeFill !== undefined) activeFill = Math.min(snap.activeFill, fillCount - 1);
-    if (snap.currentEdgeShape !== undefined) currentEdgeShape = snap.currentEdgeShape;
     if (snap.fills){ // 色块模式与色值（旧快照的 color 为 CSS 渐变串，非 #RRGGBB 时忽略）
       snap.fills.forEach((f, i) => {
         if (!f || i > 5) return;
@@ -73,7 +72,7 @@ function restoreState(snap){
       });
     }
     if (snap.bg) bgParams = normalizeBgParams(snap.bg);   // 形状与外框（需求 三.1）
-    if (snap.fill) fillParams = normalizeFillParams(snap.fill); // 填充数量与布局（需求 三.2）
+    if (snap.fill) fillParams = normalizeFillParams(snap.fill); // 填充数量与布局 + 填充边界（需求 三.2）
     syncFillArrays();   // 分界线数组长度按恢复后的 色块数/层数 校准（fillLayout.js）
     if (snap.iconSize !== undefined){
       iconSize = snap.iconSize;

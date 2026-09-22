@@ -5,10 +5,16 @@
      - fillLayoutModel：层/分组/分界线数量/方向数量的统一模型（UI 与渲染共用同一份推算）
      - syncFillArrays：按模型校准三组数组参数（层间比例/层内比例/每层方向）
      - convertInRatios：布局形式切换时按"各段跨度"换算层内比例（矩阵 ⇄ 饼图语义不同）
+     - 填充边界（需求 2.3）：edgeOffset（边界形状 sin/tan/锯齿 的位移 + 10× 画布截断）、
+       edgeCurveV/H/Ray/Ring（把分界线采样成曲线）、paintEdgeBand（五种过渡样式的过渡带）
      - fillExtentOf / paintFillPattern：矩阵布局（纵向 L 层 × 横向若干列）与
        饼图布局（L 个同心环 × 每环若干扇区）的几何与绘制
      - multiSliderHTML / bindMultiSliders：多分界线共享滑轨组件（+ 参数输入框 + 均分）
-   版本：V0.04（V2.23：层内比例**逐层独立**——每层一条滑轨（offset 读写本层那一段），
+   版本：V0.06（V2.25：新增 edgeFramePoints——"包含形状外框"开启时轮廓随边界形状起伏
+        （弧长参数化 + 重采样 + 整周期取整保证闭合无台阶）；波形取值抽为 edgeWave）
+        V0.05（V2.24：填充边界落地——edgeOffset（sin/tan/锯齿 + 安全截断）、过渡带五种样式、
+        色块改用采样多边形（边界形状可位移）、边界形状/过渡样式芯片绑定）
+        V0.04（V2.23：层内比例**逐层独立**——每层一条滑轨（offset 读写本层那一段），
         syncFillArrays 逐层升序、convertInRatios 逐层换算）
         V0.03（V2.22：新增 convertInRatios——布局形式切换时换算层内比例，避免出现
         重复分界（0 宽扇区 + 双宽扇区））
@@ -223,32 +229,347 @@ function fillAngles(values, k){
   return out;
 }
 
+/* ---------- 填充边界（需求 2.3 标签"填充边界"） ---------- */
+/* 边界位移量（沿"垂直于边界"的方向，正值偏向 +x/+y）：
+     t = 边界上的位置参数，**原点在形状中心点**（需求 2.3：sin/tan 的圆点在中心、锯齿原点以中心为基准）
+         · 矩阵竖向分界 → 局部 y      · 矩阵横向分界 → 局部 x
+         · 饼图径向分界 → 半径 r      · 饼图环分界   → 沿环的弧长（环的原点角从中心辐射）
+     S = 画布边长（A 振幅、k 偏移都按画布边长的百分比换算）
+   形状：直线 → 0；sin/tan → A·f(2π·ω·t/S + φ) + k；锯齿 → 三角波（齿宽 ω%×S，t=0 处为齿峰）
+   安全保护（需求 2.3"参数范围限制 + 渲染截断"）：ω 取下限避免除零、tan 近渐近线先按 A 限幅、
+   最终位移一律截断到 ±10×画布，且绝不返回 NaN/Infinity。 */
+function clampEdge(x, lim){
+  if (!isFinite(x)) return 0;
+  return Math.max(-lim, Math.min(lim, x));
+}
+/* 波形取值（带 tan 的渐近线限幅）：arg 为函数自变量 */
+function edgeWave(shape, arg, S, cfg){
+  const lim = 10 * S, A = Math.max(0, +cfg['edge.A'] || 0) / 100 * S;
+  if (shape === 'tan'){
+    const cap = A > 1e-6 ? lim / A : lim;
+    return clampEdge(Math.tan(arg), cap);
+  }
+  return Math.sin(arg);
+}
+function edgeOffset(t, S, cfg){
+  const shape = (cfg && cfg['edge.shape']) || '直线';
+  if (shape === '直线') return 0;
+  const lim = 10 * S;
+  const A = Math.max(0, +cfg['edge.A'] || 0) / 100 * S;
+  if (shape === '锯齿'){
+    const tooth = Math.max(1, +cfg['edge.tooth'] || 12) / 100 * S;
+    const u = ((t % tooth) + tooth) % tooth;                          // 0…tooth；t=0 处为齿峰
+    const tri = (u < tooth / 2) ? (u / (tooth / 2)) : (2 - u / (tooth / 2));
+    return clampEdge(A * (1 - tri * 2), lim);                        // +A … −A（t=0 为峰、半齿为谷）
+  }
+  const w = Math.max(0.05, +cfg['edge.W'] || 2);                      // ω 下限：避免除零/零频
+  const phi = (+cfg['edge.phi'] || 0) * Math.PI / 180;
+  const k = (+cfg['edge.k'] || 0) / 100 * S;
+  const arg = 2 * Math.PI * w * (t / S) + phi;
+  return clampEdge(A * edgeWave(shape, arg, S, cfg) + k, lim);
+}
+
+/* 形状外框参与边界形状（`edge.frame`，需求 2.3 扩展；**默认关闭** → 只调节内部填充之间的边界）。
+   轮廓是闭合曲线，与"分界线"不同，因此这里：
+     · 位置参数 t = 沿轮廓的弧长，原点取"轮廓上最靠近基准方向（正上方，即 −90°）的点"——与饼图环分界同一约定
+     · 先把轮廓按 ~2px 重采样（形状自带的采样点远稀于一个波形周期，直接用会锯齿化）
+     · 周期数 / 齿数**取整**后再铺波：闭合轮廓必须让 d(0) = d(L)，否则起点处会出现一道台阶
+     · 位移沿该点的**外法向**（背离形状中心）
+   关闭该选项、形状为"无"或边界形状为"直线"时原样返回（零开销、零视觉变化）。 */
+function edgeFramePoints(pts, S){
+  if (!pts || pts.length < 3) return pts;
+  if (typeof fillParams === 'undefined' || !fillParams || !fillParams['edge.frame']) return pts;
+  const shape = fillParams['edge.shape'] || '直线';
+  if (shape === '直线') return pts;
+  const cfg = fillParams;
+  const n0 = pts.length;
+  const seg = [];
+  let L = 0;
+  for (let i = 0; i < n0; i++){
+    const a = pts[i], b = pts[(i + 1) % n0];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    seg.push({ a, b, len });
+    L += len;
+  }
+  if (!(L > 0)) return pts;
+  const step = Math.max(0.5, Math.min(4, L / 1200));
+  const res = [];
+  seg.forEach(sg => {
+    const n = Math.max(1, Math.round(sg.len / step));
+    for (let j = 0; j < n; j++){
+      const u = j / n;
+      res.push({ x: sg.a.x + (sg.b.x - sg.a.x) * u, y: sg.a.y + (sg.b.y - sg.a.y) * u });
+    }
+  });
+  const c = { x: S / 2, y: S / 2 };
+  /* 弧长原点：轮廓上最靠近正上方（−90°）的点 */
+  let start = 0, best = Infinity;
+  res.forEach((p, i) => {
+    const ang = Math.atan2(p.y - c.y, p.x - c.x);
+    const d = Math.abs(((ang + Math.PI / 2 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+    if (d < best){ best = d; start = i; }
+  });
+  /* 整周期（闭合接缝无台阶）：ω = 每倍画布边长的周期数 → 轮廓上的总周期取整；锯齿同理由齿数取整 */
+  const A = Math.max(0, +cfg['edge.A'] || 0) / 100 * S;
+  const kOff = (+cfg['edge.k'] || 0) / 100 * S;
+  const lim = 10 * S;
+  const cycles = shape === '锯齿'
+    ? Math.max(1, Math.round(L / Math.max(1, (+cfg['edge.tooth'] || 12) / 100 * S)))
+    : Math.max(1, Math.round(Math.max(1, +cfg['edge.W'] || 2) * (L / S)));
+  const phi = (+cfg['edge.phi'] || 0) * Math.PI / 180;
+  /* 按遍历顺序的弧长表（n=0 → 0，n 递增到接近 L） */
+  const order = [], arcs = [];
+  for (let n = 0; n < res.length; n++) order.push((start + n) % res.length);
+  let acc = 0;
+  for (let n = 0; n < order.length; n++){
+    if (n > 0){
+      const a = res[order[n - 1]], b = res[order[n]];
+      acc += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    arcs.push(acc);
+  }
+  const out = new Array(res.length);
+  for (let n = 0; n < order.length; n++){
+    const i = order[n];
+    const p = res[i], prev = res[(i - 1 + res.length) % res.length], next = res[(i + 1) % res.length];
+    let tx = next.x - prev.x, ty = next.y - prev.y;
+    const tl = Math.hypot(tx, ty) || 1;
+    tx /= tl; ty /= tl;
+    let nx = ty, ny = -tx;                                  // 轮廓法向
+    if ((p.x - c.x) * nx + (p.y - c.y) * ny < 0){ nx = -nx; ny = -ny; }   // 取"朝外"的一侧
+    const arc = arcs[n];
+    let d;
+    if (shape === '锯齿'){
+      const tooth = L / cycles;
+      const u = ((arc % tooth) + tooth) % tooth;
+      const tri = (u < tooth / 2) ? (u / (tooth / 2)) : (2 - u / (tooth / 2));
+      d = clampEdge(A * (1 - tri * 2), lim);
+    } else {
+      d = clampEdge(A * edgeWave(shape, 2 * Math.PI * cycles * (arc / L) + phi, S, cfg) + kOff, lim);
+    }
+    out[i] = { x: p.x + nx * d, y: p.y + ny * d };
+  }
+  return out;
+}
+
+/* 过渡带取色：两端色的混合 / 加深 / 变浅（RGB 线性运算，不引入第二套颜色体系） */
+function edgeRgb(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  const v = m ? m[1] : '000000';
+  return [0, 2, 4].map(i => parseInt(v.slice(i, i + 2), 16));
+}
+function edgeHexOf(rgb){
+  return '#' + rgb.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+function edgeMix(a, b, t){
+  const A = edgeRgb(a), B = edgeRgb(b);
+  return edgeHexOf(A.map((v, i) => v + (B[i] - v) * t));
+}
+function edgeShade(hex, d){ return edgeHexOf(edgeRgb(hex).map(v => v + d * 255)); }
+
+/* 采样密度：按曲线跨度取 ~2px 一段（下限 24 段、上限 240 段）。
+   锯齿的折点、sin/tan 的峰谷都在采样点之间被线性插值"削平"，因此必须比"够看"更密：
+   2px 间隔下，折点处的振幅误差约为 A×2 /(齿宽/2)，肉眼不可见。 */
+function edgeSteps(span){
+  const s = Math.abs(span) || 0;
+  return Math.max(24, Math.min(240, Math.round(s / 2)));
+}
+
+/* 矩阵竖向分界曲线：x = b + edgeOffset(y)，y ∈ [yA, yB] */
+function edgeCurveV(b, yA, yB, S){
+  const n = edgeSteps(yB - yA), out = [];
+  for (let i = 0; i <= n; i++){
+    const y = yA + (yB - yA) * i / n;
+    out.push({ x: b + edgeOffset(y, S, fillParams), y });
+  }
+  return out;
+}
+/* 矩阵横向分界曲线：y = b + edgeOffset(x)，x ∈ [xA, xB] */
+function edgeCurveH(b, xA, xB, S){
+  const n = edgeSteps(xB - xA), out = [];
+  for (let i = 0; i <= n; i++){
+    const x = xA + (xB - xA) * i / n;
+    out.push({ x, y: b + edgeOffset(x, S, fillParams) });
+  }
+  return out;
+}
+/* 饼图径向分界曲线：θ(r) = b + d_eff(r)/r。
+   d_eff 在靠圆心的 1/4 画布内线性收敛到 0（振幅爬升）——需求 2.3 的截断保护：
+   否则 r→0 时 d/r 发散，扇区会在圆心附近互相穿越、露出未着色区域。
+   波形的相位原点仍在中心（arg = 2π·ω·r/S + φ），只是振幅从中心向外爬升。 */
+function edgeCurveRay(b, rA, rB, S){
+  const n = edgeSteps(rB - rA), out = [];
+  const ramp = S * 0.25;
+  for (let i = 0; i <= n; i++){
+    const r = rA + (rB - rA) * i / n;
+    const d = edgeOffset(Math.max(1e-3, r), S, fillParams) * Math.min(1, r / ramp);
+    const th = b + d / Math.max(1e-3, r);
+    out.push({ x: Math.cos(th) * r, y: Math.sin(th) * r });
+  }
+  return out;
+}
+/* 饼图环分界曲线：r = b + edgeOffset(弧长)，弧长以该环的起始角 aOrigin 为原点（原点在中心） */
+function edgeCurveRing(b, aA, aB, S, aOrigin){
+  const n = Math.max(24, Math.min(240, Math.round(Math.abs(aB - aA) * Math.max(1, b) / 2) + 1));
+  const out = [];
+  for (let i = 0; i <= n; i++){
+    const a = aA + (aB - aA) * i / n;
+    const r = Math.max(0, b + edgeOffset(Math.max(0, b) * (a - aOrigin), S, fillParams));
+    out.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+  }
+  return out;
+}
+
+/* 折线描边 / 多边形填充（色块边界曲线一律走这里，保证共用同一份采样点） */
+function strokePolyline(c, pts){
+  c.beginPath();
+  pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
+  c.stroke();
+}
+function fillPolygon(c, pts, color){
+  c.beginPath();
+  pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
+  c.closePath();
+  c.fillStyle = color;
+  c.fill();
+  c.lineWidth = 1;                 // 同色描边：盖住相邻色块之间的抗锯齿细缝
+  c.strokeStyle = color;
+  c.stroke();
+}
+
+/* 过渡带（需求 2.3）：沿边界曲线描边，宽度 = 过渡宽度；colA/colB 为两侧色块色值
+   样式：单色 = 两端色的中值平涂；渐变 = 沿带法向在两端色之间渐变；
+        加深/变浅 = 中值色的明度加减；透明 = 用 destination-out 把带擦成透明
+   axis 指定渐变轴：{ linear:{nx,ny} } 开放边界按法向（colA 在 +n 侧）；
+                    { radial:{r} } 闭合环用径向渐变（colA 在外侧 = +r 侧） */
+function paintEdgeBand(c, pts, S, colA, colB, axis){
+  const w = Math.max(0, (+fillParams['edge.width'] || 0) / 100 * S);
+  if (w <= 0.05 || !pts || pts.length < 2) return;
+  const style = fillParams['edge.style'] || '渐变';
+  c.save();
+  c.lineWidth = w;
+  c.lineJoin = 'round';
+  if (style === '透明'){
+    c.globalCompositeOperation = 'destination-out';
+    c.strokeStyle = '#000';
+    strokePolyline(c, pts);
+    c.restore();
+    return;
+  }
+  if (style === '渐变'){
+    const mid = pts[Math.floor(pts.length / 2)];
+    let g;
+    if (axis && axis.radial){
+      g = c.createRadialGradient(0, 0, Math.max(0, axis.radial.r - w / 2), 0, 0, axis.radial.r + w / 2);
+      g.addColorStop(0, colB);
+      g.addColorStop(1, colA);                    // 外侧（大半径）= colA
+    } else {
+      const nx = axis ? axis.linear.nx : 1, ny = axis ? axis.linear.ny : 0;
+      /* colA 在 +n 侧：渐变起点放在该侧（stop 0 = colA） */
+      g = c.createLinearGradient(mid.x + nx * w / 2, mid.y + ny * w / 2, mid.x - nx * w / 2, mid.y - ny * w / 2);
+      g.addColorStop(0, colA);
+      g.addColorStop(1, colB);
+    }
+    c.strokeStyle = g;
+  } else {
+    const m = edgeMix(colA, colB, 0.5);
+    c.strokeStyle = style === '加深' ? edgeShade(m, -0.22) : (style === '变浅' ? edgeShade(m, 0.32) : m);
+  }
+  strokePolyline(c, pts);
+  c.restore();
+}
+
 /* ---------- 绘制 ---------- */
 /* 矩阵布局：纵向 L 层（层1 在最上），每层横向均分该层色块数；
-   层间比例 = 层分界线的纵向位置，层内比例 = 该层竖线位置（需求 2.3） */
-function paintFillMatrix(c, model, ext, colors){
+   层间比例 = 层分界线的纵向位置，层内比例 = 该层竖线位置（需求 2.3）。
+   边界形状（需求 2.3）会把分界线按 edgeOffset 位移，因此色块改用"采样多边形"绘制：
+   相邻色块共用同一条采样曲线、角点取两端候选点的中点，故拼接处无缝隙。
+   过渡带延后到色块全部铺完再画（避免被后画的色块盖住）。 */
+function paintFillMatrix(c, model, ext, colors, S){
   const ys = fillBoundaries(fillParams['fill.layerRatios'], model.L, ext.hh);
+  const ciOf = (li, j) => colors[(model.layerFirst[li] + j) % colors.length];
   let ci = 0;
   for (let li = 0; li < model.L; li++){
     const k = model.sizes[li];
-    const y0 = ys[li], y1 = ys[li + 1];
-    const h = y1 - y0;
+    const yT = ys[li], yB = ys[li + 1];
     const xs = fillBoundaries(fillInValues(model, li), k, ext.hw);
+    const vCurves = xs.map(b => edgeCurveV(b, yT, yB, S));
     for (let j = 0; j < k; j++){
-      const w = xs[j + 1] - xs[j];
       const col = colors[ci % colors.length];
       ci++;
-      if (w <= 0.25 || h <= 0.25) continue;   // 分界线重合 → 该色块消失（需求 2.3：比例取极值）
-      c.fillStyle = col;
-      c.fillRect(xs[j], y0, w + 0.5, h + 0.5); // +0.5：消除相邻色块间的抗锯齿细缝
+      if (xs[j + 1] - xs[j] <= 0.25 || yB - yT <= 0.25) continue;   // 分界线重合 → 该色块消失
+      const top = edgeCurveH(yT, xs[j], xs[j + 1], S);
+      const bot = edgeCurveH(yB, xs[j], xs[j + 1], S);
+      fillPolygon(c, cellPolygon(vCurves[j], vCurves[j + 1], top, bot), col);
     }
   }
+  /* 过渡带：层内竖向分界（同层相邻两色之间） */
+  for (let li = 0; li < model.L; li++){
+    const k = model.sizes[li];
+    const yT = ys[li], yB = ys[li + 1];
+    if (k < 2 || yB - yT <= 0.25) continue;
+    const xs = fillBoundaries(fillInValues(model, li), k, ext.hw);
+    for (let j = 1; j < k; j++){
+      /* 竖向分界：colA（左）在 −x 侧 → 法向取 (−1, 0) */
+      paintEdgeBand(c, edgeCurveV(xs[j], yT, yB, S), S, ciOf(li, j - 1), ciOf(li, j), { linear: { nx: -1, ny: 0 } });
+    }
+  }
+  /* 过渡带：层间横向分界（上/下两层在中心 x 处的两色之间） */
+  for (let li = 1; li < model.L; li++){
+    const y = ys[li];
+    const pick = (ly) => {
+      const k = model.sizes[ly];
+      const xs = fillBoundaries(fillInValues(model, ly), k, ext.hw);
+      let j = 0;
+      while (j < k - 1 && 0 > xs[j + 1]) j++;
+      return ciOf(ly, j);
+    };
+    /* 横向分界：colA（上层）在 −y 侧 → 法向取 (0, −1) */
+    paintEdgeBand(c, edgeCurveH(y, -ext.hw, ext.hw, S), S, pick(li - 1), pick(li), { linear: { nx: 0, ny: -1 } });
+  }
+}
+
+/* 色块多边形：左边界（上→下）＋下边界（左→右）＋右边界（下→上）＋上边界（右→左）；
+   四个角取"两条边界候选点"的中点，保证相邻色块共用同一角点（无缝拼接） */
+function cellPolygon(left, right, top, bot){
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const pts = [mid(left[0], top[0])];
+  for (let i = 1; i < left.length - 1; i++) pts.push(left[i]);
+  pts.push(mid(left[left.length - 1], bot[0]));
+  for (let i = 1; i < bot.length - 1; i++) pts.push(bot[i]);
+  pts.push(mid(right[right.length - 1], bot[bot.length - 1]));
+  for (let i = right.length - 2; i > 0; i--) pts.push(right[i]);
+  pts.push(mid(right[0], top[top.length - 1]));
+  for (let i = top.length - 2; i > 0; i--) pts.push(top[i]);
+  return pts;
+}
+
+/* 饼图扇区多边形：径向 A（内→外）＋外环（A→B）＋径向 B（外→内）＋内环（B→A） */
+function sectorPolygon(rayA, rayB, r0, r1, a0, a1, S, aBase){
+  const ang = p => Math.atan2(p.y, p.x);
+  const unwrap = (a, ref) => {
+    let x = a;
+    while (x - ref > Math.PI) x -= 2 * Math.PI;
+    while (ref - x > Math.PI) x += 2 * Math.PI;
+    return x;
+  };
+  const outerA = unwrap(ang(rayA[rayA.length - 1]), a0);
+  const outerB = unwrap(ang(rayB[rayB.length - 1]), a1);
+  const innerA = unwrap(ang(rayA[0]), a0);
+  const innerB = unwrap(ang(rayB[0]), a1);
+  const pts = [];
+  rayA.forEach(p => pts.push(p));
+  edgeCurveRing(r1, outerA, outerB, S, aBase).forEach(p => pts.push(p));
+  for (let i = rayB.length - 1; i >= 0; i--) pts.push(rayB[i]);
+  edgeCurveRing(r0, innerB, innerA, S, aBase).forEach(p => pts.push(p));
+  return pts;
 }
 
 /* 饼图布局：L 个同心环（层1 在最外），每环按角度分扇区；
    层间比例 = 环半径分界（0 → 内层消失，100 → 外层消失，需求 2.3），
-   层内比例 = 该环各扇区起始角，方向 = 该层整体旋转（需求 2.3） */
-function paintFillPie(c, model, R, colors){
+   层内比例 = 该环各扇区分界角，方向 = 该层整体旋转（需求 2.3）；
+   环分界与径向分界同样按 edgeOffset 位移（需求 2.3 的边界形状对两种布局都生效）。 */
+function paintFillPie(c, model, R, colors, S){
   const rs = fillRadii(fillParams['fill.layerRatios'], model.L, R); // [0 … R] 由内到外
   for (let li = 0; li < model.L; li++){
     const k = model.sizes[li];
@@ -257,16 +578,34 @@ function paintFillPie(c, model, R, colors){
     const rot = (fillParams['fill.angles'][li] || 0) * Math.PI / 180;
     const ths = fillAngles(fillInValues(model, li), k);
     if (r1 - r0 <= 0.25) continue;                            // 该环消失
+    const aBase = -Math.PI / 2 + rot;
+    const rays = ths.map(t => edgeCurveRay(aBase + t, r0, r1, S));
     for (let j = 0; j < k; j++){
-      const a0 = -Math.PI / 2 + rot + ths[j];
-      const a1 = -Math.PI / 2 + rot + (j + 1 < k ? ths[j + 1] : ths[0] + 2 * Math.PI);
-      c.fillStyle = colors[(base + j) % colors.length];
-      c.beginPath();
-      c.arc(0, 0, r1, a0, a1);
-      c.arc(0, 0, Math.max(0, r0), a1, a0, true);
-      c.closePath();
-      c.fill();
+      const a0 = aBase + ths[j];
+      const a1 = aBase + (j + 1 < k ? ths[j + 1] : ths[0] + 2 * Math.PI);
+      fillPolygon(c, sectorPolygon(rays[j], rays[(j + 1) % k], r0, r1, a0, a1, S, aBase), colors[(base + j) % colors.length]);
     }
+    /* 过渡带：环内相邻扇区之间的径向分界（含整环首尾相接的那条）
+       法向取"指向前一扇区"的切向 (sin a, −cos a)：colA（前一色）在该侧 */
+    for (let j = 0; j < k; j++){
+      const a = aBase + ths[j];
+      paintEdgeBand(c, edgeCurveRay(a, r0, r1, S), S, colors[(base + (j - 1 + k) % k) % colors.length], colors[(base + j) % colors.length],
+        { linear: { nx: Math.sin(a), ny: -Math.cos(a) } });
+    }
+  }
+  /* 过渡带：层间环分界（相邻两环在基准角处的两色之间）；闭合环 → 径向渐变 */
+  for (let li = 1; li < model.L; li++){
+    const r = rs[model.L - li];
+    if (r <= 0.25) continue;
+    const pick = (ly) => {
+      const k = model.sizes[ly];
+      const ths = fillAngles(fillInValues(model, ly), k);
+      let j = 0;
+      while (j < k - 1 && 0 > ths[j + 1]) j++;
+      const base = model.layerFirst[ly];
+      return colors[(base + j) % colors.length];
+    };
+    paintEdgeBand(c, edgeCurveRing(r, -Math.PI / 2, Math.PI * 1.5, S, -Math.PI / 2), S, pick(li - 1), pick(li), { radial: { r } });
   }
 }
 
@@ -288,8 +627,8 @@ function paintFillPattern(c, S, pts, colors){
   c.translate(cx, cy);
   if (angle) c.rotate(angle * Math.PI / 180);
   c.scale(sx, sy);
-  if (m.pie) paintFillPie(c, m, ext.r, colors);
-  else paintFillMatrix(c, m, ext, colors);
+  if (m.pie) paintFillPie(c, m, ext.r, colors, S);
+  else paintFillMatrix(c, m, ext, colors, S);
   c.restore();
 }
 
@@ -374,6 +713,29 @@ function bindMultiSliders(container){
       paint();
       scheduleDrawIcon();
       commitHistory();
+    });
+  });
+}
+
+/* 填充边界：边界形状 / 过渡样式 芯片（需求 2.3）
+   与"布局形式"同样逐片带取值（data-val）；边界形状变化会增减边界参数行 → 重渲染本模块 */
+function bindFillParamChips(container){
+  [['edgeShape', 'edge.shape'], ['edgeStyle', 'edge.style']].forEach(pair => {
+    const box = container.querySelector(`[data-group="${pair[0]}"]`);
+    if (!box || box.dataset.bound) return;
+    box.dataset.bound = '1';
+    box.addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      const key = pair[1];
+      const v = chip.dataset.val || chip.textContent.trim();
+      if (!v || v === fillParams[key]) return;
+      fillParams[key] = v;
+      if (key === 'edge.shape') rerenderModule('fill');     // 参数行随形状增减
+      else box.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+      scheduleDrawIcon();
+      commitHistory();
+      toast((key === 'edge.shape' ? '边界形状：' : '过渡样式：') + v);
     });
   });
 }

@@ -6,7 +6,8 @@
      - rows：9 行内容状态（makeRow 构造，含 params/link，见 schema.js）
      - currentLayout / layerOrder：排版模式与多行排列层次（需求 1.2/1.3）
      - bgParams / fillColors / fillCount：背景形状与外框参数、填充色块色值（需求 三.1）
-   版本：V0.06（V2.22：新增 fillParams（填充数量与布局，全局唯一）；V2.17 起含 bgParams 与 fillColors）
+   版本：V0.07（V2.24：移除 UI-only 的 currentEdgeShape——填充边界形状改存 fillParams['edge.shape']）
+        V0.06（V2.22：新增 fillParams（填充数量与布局，全局唯一）；V2.17 起含 bgParams 与 fillColors）
    约束：本文件必须最先加载（schema.js 之后）；任何模块读写状态请引用
         这里的变量，不要新建平行状态，避免快照/撤销遗漏字段。
    ============================================================ */
@@ -74,7 +75,6 @@ let styleClipboard = null;       // 复制样式（仅 style./color./shadow. 参
 let currentLayout = '全在上（左右分）'; // 当前生效的排版模式
 let layoutByCount = {};          // 各"行数"下用户已选的排版模式（需求 四.1 例3：切回原行数时恢复选择）
 let layerOrder = '1to9';         // '1to9'：行1 最后绘制在最顶层；'9to1'：行9 顶层
-let currentEdgeShape = '直线';    // 填充边界 UI（背景布局模块暂缓）
 let fillCount = 2;
 let activeFill = 0;
 let fillModes = ['纯', '纯', '纯', '纯', '纯', '纯'];
