@@ -7,8 +7,9 @@
      - 字体注册表 FONT_DEFS：web 字体优先、系统字体回退，
        web:false 或 unavailable 的字体在下拉框标注（未下载）
      - makeRow(text)：构造带完整参数与联动标记的行对象
-   版本：V0.05（V2.17：新增形状与外框参数表 BG_PARAM_DEFS 与 makeBgParams/normalizeBgParams——
-        背景参数全局唯一，键前缀 shape./border./shapeShadow. 与行参数键互不冲突）
+   版本：V0.06（V2.22：新增填充布局参数表 FILL_PARAM_DEFS 与 makeFillParams/normalizeFillParams；
+        背景参数（BG_PARAM_DEFS，V2.17 起）与填充布局参数同为"全局唯一"，键前缀分别
+        shape./border./shapeShadow. 与 fill.，与行参数键互不冲突）
    约束：本文件必须先于 state.js 加载（state.js 在顶层调用 makeRow）。
         新增可渲染参数：在 PARAM_DEFS 注册 → panes.js 加 UI →
         canvas.js 渲染读取 → history.js 快照自动覆盖（rows 深拷贝）。
@@ -210,6 +211,50 @@ const BG_PARAM_DEFS = {
   'shapeShadow.x':       { label: 'X 偏移',     min: -100, max: 100, def: 0,  unit: '' },
   'shapeShadow.y':       { label: 'Y 偏移',     min: -100, max: 100, def: 8,  unit: '' }
 };
+
+/* ---------- 填充数量与布局参数（背景栏 需求 三.2） ----------
+   与形状参数同样"全局唯一"：键前缀 fill.，统一由 state.js 的 fillParams 持有。
+   除下表的标量参数外，还有三组"多分界线"数组参数（长度随层数/色块数变化，
+   由 fillLayout.js 的 syncFillArrays 维护、multiSlider 组件读写）：
+     fill.layerRatios  层间比例（%）：长度 = 层数−1，升序
+     fill.inRatios     层内比例（%）：矩阵=每层色块数−1；饼图=每层色块数（升序）
+     fill.angles       每层方向（°）：饼图且层数≥2 时长度=层数，否则 1 */
+const FILL_PARAM_DEFS = {
+  'fill.layout':   { label: '布局形式', type: 'select', def: '矩阵布局' },
+  'fill.layers':   { label: '层数',     min: 1,   max: 6,   def: 1 },
+  'fill.offsetX':  { label: 'X 偏移',   min: -100, max: 100, def: 0,   unit: '%' },
+  'fill.offsetY':  { label: 'Y 偏移',   min: -100, max: 100, def: 0,   unit: '%' },
+  'fill.stretchX': { label: 'X 拉伸',   min: 1,   max: 300, def: 100, unit: '%' },
+  'fill.stretchY': { label: 'Y 拉伸',   min: 1,   max: 300, def: 100, unit: '%' }
+};
+
+/* 填充参数默认值工厂 / 规范化（只补缺失键，绝不覆盖已有值——需求 四.1；
+   数组参数的长度由 fillLayout.js 的 syncFillArrays 按当前色块数/层数校准） */
+function makeFillParams(){
+  const o = {};
+  Object.keys(FILL_PARAM_DEFS).forEach(k => { o[k] = FILL_PARAM_DEFS[k].def; });
+  o['fill.layerRatios'] = [];
+  o['fill.inRatios'] = [];
+  o['fill.angles'] = [];
+  return o;
+}
+function normalizeFillParams(src){
+  const out = makeFillParams();
+  if (src && typeof src === 'object'){
+    Object.keys(FILL_PARAM_DEFS).forEach(k => {
+      const v = src[k];
+      if (v === undefined || v === null) return;
+      const d = FILL_PARAM_DEFS[k];
+      if (d.type === 'select'){ out[k] = v; return; }
+      const n = +v;
+      if (isFinite(n)) out[k] = Math.max(d.min, Math.min(d.max, n));
+    });
+    ['fill.layerRatios', 'fill.inRatios', 'fill.angles'].forEach(k => {
+      if (Array.isArray(src[k])) out[k] = src[k].map(v => { const n = +v; return isFinite(n) ? n : 0; });
+    });
+  }
+  return out;
+}
 
 /* 背景参数默认值工厂 / 规范化（只补缺失键，绝不覆盖已有值——需求 四.1） */
 function makeBgParams(){

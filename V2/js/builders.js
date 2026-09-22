@@ -5,7 +5,8 @@
      - selectRow / checkRow / colorRow：下拉、布尔、颜色参数行
      - getShadowEnabled：从行状态读取（tab 徽标）
      - 颜色建议（需求 3.4）：HSL 公式实时计算互补/类似/柔和/明亮
-   版本：V0.03（V2.17：paramRow 的"重置"回注册表默认值；边框/形状阴影启用态改读 bgParams）
+   版本：V0.05（V2.22：inlineChips 支持 opts.values —— 逐片输出 data-val 供专用绑定读取）
+        V0.04（V2.22：paramRow 支持 FILL_PARAM_DEFS 默认值与 resync；新增 fillAdvicePalette 按文本颜色生成 N 色组合）
    注意：data-name/data-pkey 是联动、快照与渲染回写的唯一依据；
         BG_PARAM_DEFS 注册的全局键（shape./border./shapeShadow.）写 bgParams。
    ============================================================ */
@@ -18,9 +19,12 @@ function paramRow(name, value, min = 0, max = 100, unit = '', opts = {}){
   const key = opts.key || name; // 未给 key 时退化为显示名（纯 UI 参数）
   // 重置按钮回到"参数注册表的默认值"；未注册的 UI-only 行回退为当前值
   const def = (typeof PARAM_DEFS !== 'undefined' && PARAM_DEFS[key]) ? PARAM_DEFS[key].def
-    : ((typeof BG_PARAM_DEFS !== 'undefined' && BG_PARAM_DEFS[key]) ? BG_PARAM_DEFS[key].def : value);
+    : ((typeof BG_PARAM_DEFS !== 'undefined' && BG_PARAM_DEFS[key]) ? BG_PARAM_DEFS[key].def
+      : ((typeof FILL_PARAM_DEFS !== 'undefined' && FILL_PARAM_DEFS[key]) ? FILL_PARAM_DEFS[key].def : value));
   const cls = opts.tight ? 'param tight' : (opts.stacked ? 'param stacked' : 'param');
-  return `<div class="${cls}" data-name="${key}" data-min="${min}" data-max="${max}" data-default="${def}">
+  // resync：值变化后需要联动重算/重渲染的模块（如 fill.layers → 校准分界线数组）
+  const resync = opts.resync ? ` data-resync="${opts.resync}"` : '';
+  return `<div class="${cls}" data-name="${key}" data-min="${min}" data-max="${max}" data-default="${def}"${resync}>
     <span class="pname">${name}</span>
     <div class="pctrl">
       <input type="range" min="${min}" max="${max}" value="${value}" step="${step}">
@@ -61,9 +65,12 @@ function colorRow(label, key, value, opts = {}){
 }
 
 /* ---------- 芯片组 ---------- */
+/* opts.values：逐个芯片的取值 → 写进各自的 data-val，供专用绑定读取（如填充的布局形式）；
+   缺省时只带共享的 opts.group（此时芯片仅由通用处理器切换高亮，不改状态） */
 function inlineChips(name, chips, activeIdx = 0, opts = {}){
   const groupAttr = opts.group ? `data-group="${opts.group}"` : '';
-  return `<div class="param inline-chips" ${groupAttr}><span class="pname">${name}</span><div class="pctrl"><div class="chip-row">${chips.map((c, i) => `<button class="chip${i === activeIdx ? ' active' : ''}">${c}</button>`).join('')}</div></div></div>`;
+  const vals = opts.values || null;
+  return `<div class="param inline-chips" ${groupAttr}><span class="pname">${name}</span><div class="pctrl"><div class="chip-row">${chips.map((c, i) => `<button class="chip${i === activeIdx ? ' active' : ''}"${vals && vals[i] !== undefined ? ` data-val="${vals[i]}"` : ''}>${c}</button>`).join('')}</div></div></div>`;
 }
 
 /* ---------- 启用状态读取（tab 徽标 / MODULE_TABS） ---------- */
@@ -132,13 +139,23 @@ function buildAdviceHTML(mode, baseHex){
   return ['互补', '类似', '柔和', '明亮'].map(g => `<div class="param tight"><span class="pname">${g}色</span><div class="pctrl"><div class="suggest-row">${adv[g].map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}</div></div></div>`).join('');
 }
 
-/* FILL_ADVICE：填充色块建议（背景暂缓，保留静态数据） */
-const FILL_ADVICE = {
-  互补: ['#4d6ef5', '#f5a04d', '#f5d74d', '#4df5a0', '#a04df5', '#f54d6e'],
-  类似: ['#4d6ef5', '#7c5cff', '#a04df5', '#c04de0', '#4da0f5', '#4df5d7'],
-  柔和: ['#a8b8f0', '#f0c9a8', '#f0e6a8', '#a8f0c2', '#d8a8f0', '#f0a8c9'],
-  明亮: ['#22d3ee', '#facc15', '#f97316', '#22c55e', '#ec4899', '#8b5cf6']
-};
+/* 填充色块组合建议（需求 2.4）：按文本颜色用公式算出 N 色组合。
+   注意，不用静态色表——需求要求"根据文本颜色"计算，静态表与文本颜色无关。
+   互补：从互补色起把色相均分一圈；类似：以文本色相为中心 ±24° 铺开；
+   柔和：同互补色相但降饱和提亮度；明亮：从文本色相均分一圈并提饱和。 */
+function fillAdvicePalette(group, baseHex, N){
+  const n = Math.max(1, Math.min(6, Math.round(N) || 1));
+  const { h, s, l } = hexToHsl(baseHex || '#6C8CFF');
+  const spread = 360 / n;
+  const out = [];
+  for (let i = 0; i < n; i++){
+    if (group === '互补') out.push(hslToHex(h + 180 + i * spread, s, l));
+    else if (group === '类似') out.push(hslToHex(h + (i - (n - 1) / 2) * 24, s, l));
+    else if (group === '柔和') out.push(hslToHex(h + 180 + i * spread, s * 0.45, Math.min(0.9, l + 0.15)));
+    else out.push(hslToHex(h + i * spread, Math.min(1, s * 1.25), 0.58));
+  }
+  return out;
+}
 
 function buildEdgeParams(shape){
   if (shape === '直线') return `<div style="font-size:10.5px;color:var(--muted);padding:4px 0">直线边界无可调参数</div>`;

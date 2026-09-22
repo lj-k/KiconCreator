@@ -4,7 +4,7 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.09（V2.18：恢复安全边距时同步边距框内缩量）
+   版本：V0.10（V2.22：快照/恢复纳入 fillParams 并在恢复后校准分界线数组）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
 
@@ -30,7 +30,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.21',
+    version: '2.22',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),
@@ -40,6 +40,7 @@ function snapshotState(){
     fills: fillModes.map((m, i) => ({ mode: m, color: fillColors[i] || '' })),
     fillCount,
     activeFill,
+    fill: normalizeFillParams(fillParams),  // 填充数量与布局（需求 三.2）：含三组多分界线数组
     currentEdgeShape,
     bg: normalizeBgParams(bgParams),   // 形状与外框（需求 三.1）：全局唯一，整体入快照
     iconSize,
@@ -72,6 +73,8 @@ function restoreState(snap){
       });
     }
     if (snap.bg) bgParams = normalizeBgParams(snap.bg);   // 形状与外框（需求 三.1）
+    if (snap.fill) fillParams = normalizeFillParams(snap.fill); // 填充数量与布局（需求 三.2）
+    syncFillArrays();   // 分界线数组长度按恢复后的 色块数/层数 校准（fillLayout.js）
     if (snap.iconSize !== undefined){
       iconSize = snap.iconSize;
       const si = document.querySelector('#sizeInput');

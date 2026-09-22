@@ -6,7 +6,8 @@
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
    - 形状模块 pane：形状种类/尺寸/拉伸/方向/弧度/内角 + 边框 + 形状阴影
        （需求 三.1，参数读写全局 bgParams；弧度与内角随形状种类动态出现）
-   版本：V0.06（V2.18：形状标签页在"填满绘图区域"后新增"重置形状参数"按钮）
+   版本：V0.08（V2.22：布局形式的芯片逐片带 data-val——此前芯片无取值属性，点击不切换布局）
+        V0.07（V2.22：布局 pane 改为状态驱动，接 fillLayout.js 的共享滑轨与颜色建议）
    约束：pane 的交互行为统一由 js/interactions.js 绑定，本文件只产出结构。
    ============================================================ */
 
@@ -147,25 +148,44 @@ function fshadowPaneHTML(){
     ${paramRow('Y 偏移', bgParams['shapeShadow.y'], -100, 100, '', { key: 'shapeShadow.y', reset: true })}`;
 }
 
-/* ---------- 填充 pane（背景暂缓：保留 UI） ---------- */
+/* ---------- 填充 pane：布局（需求 2.2/2.3） ----------
+   单色不出现布局与边界（需求 2.2）；多色下布局形式/层数/层间比例/层内比例/方向/偏移/拉伸
+   全部读写全局 fillParams（键前缀 fill.），三组"多分界线"用共享滑轨组件（fillLayout.js）。
+   层数上限 = 当前填充数量，填充数量降低时层数跟随降低（需求 2.3）。 */
 function fillLayoutPaneHTML(){
   const single = fillCount === 1;
   if (single) return `<div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">单色填充无需设置布局与边界，直接到下方「内部填充」调整颜色即可。</div>`;
+  const m = fillLayoutModel();
+  const pie = m.pie;
   return `
-    ${inlineChips('布局形式', ['矩阵布局', '饼图布局'])}
-    ${paramRow('层数', 1, 1, fillCount, '')}
-    ${paramRow('层间比例', 50, 0, 100, '%')}
-    ${paramRow('层内比例', 50, 0, 100, '%')}
-    ${paramRow('方向', 0, 0, 360, '°')}
-    ${paramRow('X 偏移', 0, -100, 100, '%')}
-    ${paramRow('Y 偏移', 0, -100, 100, '%')}
-    ${paramRow('X 拉伸', 100, 1, 300, '%')}
-    ${paramRow('Y 拉伸', 100, 1, 300, '%')}`;
+    ${fillShapeHintHTML()}
+    ${inlineChips('布局形式', ['矩阵布局', '饼图布局'], pie ? 1 : 0, { group: 'fillLayout', values: ['矩阵布局', '饼图布局'] })}
+    ${paramRow('层数', m.L, 1, fillCount, '', { key: 'fill.layers', reset: true, resync: 'fill' })}
+    ${m.layerCount > 0 ? multiSliderHTML({
+      key: 'fill.layerRatios',
+      label: pie ? '层间比例（各环半径分界）' : '层间比例（层间横线位置）',
+      values: fillParams['fill.layerRatios'], max: 100, unit: '%', equal: true
+    }) : ''}
+    ${m.inCount > 0 ? multiSliderHTML({
+      key: 'fill.inRatios',
+      label: pie ? '层内比例（各环扇区分界角）' : '层内比例（各层竖线位置）',
+      values: fillParams['fill.inRatios'], max: 100, unit: '%', equal: true
+    }) : ''}
+    ${multiSliderHTML({
+      key: 'fill.angles',
+      label: m.angleCount > 1 ? '方向（每层独立）' : '方向（整体旋转）',
+      values: fillParams['fill.angles'], max: 360, unit: '°'
+    })}
+    ${paramRow('X 偏移', fillParams['fill.offsetX'], -100, 100, '%', { key: 'fill.offsetX', reset: true })}
+    ${paramRow('Y 偏移', fillParams['fill.offsetY'], -100, 100, '%', { key: 'fill.offsetY', reset: true })}
+    ${paramRow('X 拉伸', fillParams['fill.stretchX'], 1, 300, '%', { key: 'fill.stretchX', reset: true })}
+    ${paramRow('Y 拉伸', fillParams['fill.stretchY'], 1, 300, '%', { key: 'fill.stretchY', reset: true })}`;
 }
 function fillEdgePaneHTML(){
   const single = fillCount === 1;
   if (single) return `<div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">单色填充没有内部边界，无需设置过渡与边界形状。</div>`;
   return `
+    <div class="mslider-empty">填充边界（过渡宽度 / 边界形状 sin·tan·锯齿 / 过渡样式）尚未实现（需求 2.3），以下为预留界面。</div>
     ${paramRow('过渡宽度', 0, 0, 100, '%')}
     <div class="param inline-chips" id="edgeShapeRow">
       <span class="pname">边界形状</span>
@@ -176,10 +196,16 @@ function fillEdgePaneHTML(){
     <div id="edgeParamsWrap">${buildEdgeParams(currentEdgeShape)}</div>
     ${inlineChips('过渡样式', ['单色', '渐变', '加深', '变浅', '透明'])}`;
 }
+/* 颜色建议（需求 2.4）：按文本颜色算出 N 色组合（互补/类似/柔和/明亮），
+   「填充」把该组颜色依次写入各色块（一键填充仅限纯色模式色块） */
 function fillAdvicePaneHTML(){
-  const adviceRow = (name, key) => {
-    const palette = FILL_ADVICE[key].slice(0, fillCount);
-    return `<div class="param tight"><span class="pname">${name}</span><div class="pctrl"><div class="suggest-row">${palette.map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}</div><button class="btn ghost sm" style="margin-left:auto">填充</button></div></div>`;
+  const base = (rows[activeRow] && rows[activeRow].params['color.c1']) || '#6C8CFF';
+  const row = g => {
+    const palette = fillAdvicePalette(g, base, fillCount);
+    return `<div class="param tight"><span class="pname">${g}色</span><div class="pctrl">
+      <div class="suggest-row">${palette.map(c => `<span class="sw" style="background:${c}" title="${c}"></span>`).join('')}</div>
+      <button class="btn ghost sm" data-fill-palette="${g}" style="margin-left:auto" title="把这组颜色依次应用到各色块（仅纯色模式）">填充</button>
+    </div></div>`;
   };
-  return `<div class="cp-label">根据文本颜色提供的填充组合建议（数量与填充数量一致）</div>${adviceRow('互补色', '互补')}${adviceRow('类似色', '类似')}${adviceRow('柔和色', '柔和')}${adviceRow('明亮色', '明亮')}`;
+  return `<div class="cp-label">按文本颜色 ${base} 计算 ${fillCount} 色组合建议（需求 2.4）</div>${row('互补')}${row('类似')}${row('柔和')}${row('明亮')}`;
 }

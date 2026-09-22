@@ -2,7 +2,8 @@
    KiconCreator V2 · layout.css
    职责：顶栏、三栏栅格布局（three/two/one 三种模式）、合并标签、
         模块卡片外壳、预览模块与浮动预览的布局骨架
-   版本：V0.03（V2.18：预览画布改正方形并去掉投影，预览框内边距归零——
+   版本：V0.04（V2.22：新增画布边界虚线覆盖层 .canvas-edge——纯 CSS 装饰，不进入导出）
+        V0.03（V2.18：预览画布改正方形并去掉投影，预览框内边距归零——
         默认 100% 缩放下画布与预览框内视口重合）
    说明：布局模式由 <html data-layout="three|two|one"> 驱动，
         由 js/layout.js 的 updateLayoutMode() 动态切换。
@@ -55,6 +56,10 @@ html[data-layout="two"] .merge-tabs{display:flex}
    方角 + 无投影，避免"画布边界看起来比实际图标范围小"。双击可切到 1:1 模态预览看像素精确效果 */
 .preview-canvas-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:min(100%,100cqh);aspect-ratio:1/1;max-width:100%;max-height:100%;transition:transform .12s ease-out;transform-origin:center center}
 #iconCanvas{display:block;width:100%;height:100%;border-radius:0;cursor:zoom-in}
+/* 画布边界虚线标记（用户需求）：画布之外是棋盘格、形状之外透明，
+   没有标记时"画布边界"与"形状边界"容易混淆；纯 CSS 覆盖层，不进入导出。
+   inset:0 + border-box → 虚线画在画布内侧，贴边（画布紧贴预览框时）也不会被 overflow 裁掉 */
+.canvas-edge{position:absolute;inset:0;box-sizing:border-box;pointer-events:none;border:1px dashed color-mix(in srgb,var(--muted) 80%,transparent)}
 .safe-box{position:absolute;pointer-events:none;border:1px dashed color-mix(in srgb,var(--muted) 70%,transparent);display:none;border-radius:4px}
 .safe-box.show{display:block}
 .guides-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}

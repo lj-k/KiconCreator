@@ -2,7 +2,8 @@
    KiconCreator V2 · components.css
    职责：可复用控件与面板内部组件 —— 按钮/标签组(tab-group)/参数行/
         芯片/胶囊/预设网格/历史列表/内容纵向标签(vtab)/内部填充/TOAST/模态
-   版本：V0.05（V2.18：模态预览画布去圆角与投影，与主画布保持同一"正方形画布"观感）
+   版本：V0.06（V2.22：模态 1:1 预览画布加虚线边界；新增多分界线共享滑轨 .mslider 样式）
+        V0.05（V2.18：模态预览画布去圆角与投影，与主画布保持同一"正方形画布"观感）
    说明：pane 内的 HTML 由 js/panes.js、js/fa.js、js/imagePane.js、js/tabs.js
         动态生成，修改选择器类名时必须同步对应 JS 模板字符串。
    ============================================================ */
@@ -157,6 +158,15 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .fill-swatch:hover{transform:translateY(-1px) scale(1.04)}
 .fill-swatch.active{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
 .fill-body{flex:1;min-width:0;background:var(--accent-soft);border:1px solid var(--border);border-radius:10px;padding:9px 10px}
+/* ---------- 多分界线共享滑轨（js/fillLayout.js，需求 2.3：层间比例/层内比例/方向） ---------- */
+.mslider{position:relative;height:22px;margin:5px 2px 3px;cursor:pointer;touch-action:none}
+.mslider-rail{position:absolute;left:0;right:0;top:50%;height:4px;transform:translateY(-50%);border-radius:99px;background:var(--field);border:1px solid var(--border)}
+.mslider-h{position:absolute;top:50%;width:13px;height:13px;margin-left:-6.5px;transform:translateY(-50%);border-radius:50%;background:var(--panel);border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.28);padding:0;cursor:grab;transition:transform .1s}
+.mslider-h:hover{transform:translateY(-50%) scale(1.18)}
+.mslider-h.dragging{cursor:grabbing;transform:translateY(-50%) scale(1.22)}
+.mslider-nums{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:3px}
+.mslider-nums .unit{font-size:10px;color:var(--muted)}
+.mslider-empty{font-size:10.5px;color:var(--muted);padding:3px 0}
 .footer{display:none}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--panel);padding:8px 18px;border-radius:99px;font-size:12px;font-weight:600;opacity:0;transition:.25s;z-index:200;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -166,7 +176,7 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .modal-head{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;font-size:12.5px;font-weight:700}
 .modal-body{flex:1;min-height:0;overflow:auto;background-color:var(--checker-a);background-image:linear-gradient(45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(-45deg,var(--checker-b) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--checker-b) 75%),linear-gradient(-45deg,transparent 75%,var(--checker-b) 75%);background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;place-items:center}
 .modal-body:active{cursor:grabbing}
-.modal-body canvas{display:block;border-radius:0;box-shadow:none}
+.modal-body canvas{display:block;border-radius:0;box-shadow:none;outline:1px dashed color-mix(in srgb,var(--muted) 80%,transparent)}
 
 /* ---------- 询问对话框（js/imagePane.js askImageExportMode，需求 2.1） ---------- */
 .ask-mask{position:fixed;inset:0;background:rgba(8,10,18,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:grid;place-items:center;z-index:210;padding:16px}

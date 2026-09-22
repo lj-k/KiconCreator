@@ -9,8 +9,11 @@
      - bgShapePath / shapeBounds：轮廓路径与包围盒（内容裁切、内部填充共用）
      - drawBgShape：绘制栈 = 形状阴影 → 边框（只向形状外延伸）→ 内部填充
      - shapeFillSize："填满绘图区域"求解（含拉伸与方向）
-   版本：V0.02（V2.18：新增 resetBgParams 供模块/标签页重置按钮共用）
+   版本：V0.03（V2.22：内部填充改由 fillLayout.js 的 paintFillPattern 承担——形状引擎只管
+        几何与边界，布局/比例/方向不再在本文件内实现）
+        V0.02（V2.18：新增 resetBgParams 供模块/标签页重置按钮共用）
    依赖：schema.js（BG_PARAM_DEFS/normalizeBgParams）、state.js（bgParams/fillColors/fillCount）、
+        fillLayout.js（paintFillPattern——形状内部的填充图案，运行时调用）、
         canvas.js（ctx/iconSize——运行时读取）。
    约束：所有形状都必须是"对中心可见的星形域"（任意方向从中心出发只与轮廓相交一次），
         这样轮廓天然封闭连续、边线不交叠（需求 1.1.3），极点采样与 clip 裁切才可靠。
@@ -245,18 +248,13 @@ function drawBgShape(S){
   }
   ctx.restore();
 
-  /* 2) 内部填充：整个形状铺满填充色块；单色 = 色块1，多色 = 横向等分
-        （层数 = 1 的矩阵布局默认形态；完整布局/边界/过渡见"填充"模块） */
+  /* 2) 内部填充（需求 三.2）：按"填充数量和布局"把整个形状铺满色块
+        （矩阵/饼图、层数、层间/层内比例、每层方向、偏移、拉伸 —— 全部在 fillLayout.js 中实现）；
+        多色分块只画一次填充，不与阴影叠加（阴影已在上一步投完） */
   ctx.save();
   bgShapePath(ctx, S, cfg);
   ctx.clip();
-  const box = shapeBoundsOfPoints(pts);
-  const n = Math.max(1, Math.min(6, fillCount || 1));
-  const cw = (box.maxX - box.minX) / n;
-  for (let i = 0; i < n; i++){
-    ctx.fillStyle = bgFillColorAt(i);
-    ctx.fillRect(box.minX + i * cw - 0.5, box.minY - 0.5, cw + 1, (box.maxY - box.minY) + 1);
-  }
+  paintFillPattern(ctx, S, pts, fillColors);
   ctx.restore();
   return true;
 }

@@ -6,7 +6,7 @@
      - 样式重置：按当前激活标签重置对应参数组（需求 3.3）
      - 填充数量芯片（背景暂缓，仅 UI + 触发 fill 模块重渲染）
      - renderStyle：样式/内容模块头副标题同步 + style 模块重渲染
-   版本：V0.05（V2.18：新增形状与外框模块头重置按钮 #shapeReset——重置三个标签全部参数）
+   版本：V0.06（V2.22：填充数量切换时层数跟随降低并校准分界线数组）
    依赖：history.js（undo/redo/commitHistory，必须先于本文件加载）、
         linkage.js、schema.js、state.js、fills.js（运行时）。
    ============================================================ */
@@ -80,7 +80,7 @@ $('#shapeReset').addEventListener('click', () => {
   toast('已重置形状与外框的全部参数');
 });
 
-/* ---------- 填充数量（形状内部按数量分色块，切数量即重绘） ---------- */
+/* ---------- 填充数量（需求 2.1）：切数量即重绘，内部填充模块标签数量随之变化 ---------- */
 $('#fillCount').addEventListener('click', e => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -88,6 +88,9 @@ $('#fillCount').addEventListener('click', e => {
   const idx = kids.indexOf(chip);
   fillCount = idx === 0 ? 1 : idx + 1;
   if (activeFill >= fillCount) activeFill = 0;
+  // 层数取值范围 1~填充数量，填充数量降低时跟随降低（需求 2.3）
+  fillParams['fill.layers'] = Math.max(1, Math.min(fillCount, Math.round(fillParams['fill.layers']) || 1));
+  syncFillArrays();     // 层/分界线数组按新色块数校准（已设置的参数不重置，需求 2.1）
   $$('.chip', chip.parentElement).forEach(c => c.classList.toggle('active', c === chip));
   renderFillList();
   renderFillBody2();

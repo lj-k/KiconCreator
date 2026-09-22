@@ -7,11 +7,12 @@
      - drawIcon()：背景（形状轮廓或白底/透明，需求 1.8/三.1）→ 按层次顺序逐行绘制
        （行内容可选按形状轮廓裁切，需求 3.5 style.clip）
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.06（V2.17：接入背景形状——形状轮廓 + 边框 + 形状阴影，内容按形状裁切）
-   暂缓（按任务要求）：填充数量和布局（矩阵/饼图、层数、边界过渡）与内部填充的
-        完整参数体系；当前形状内部按"填充色块横向等分"铺色（见 bgshape.js）。
-   说明：辅助线/安全边距由 index.html 的 SVG 覆盖层与 #safeBox 承担，
-        不画进画布，因此天然不导出（需求 2.34/1.7）。
+   版本：V0.07（V2.22：快照缩略图渲染纳入 fillParams——预设/历史缩略图与主画布同数据结构；
+        填充数量与布局已由 fillLayout.js 落地，删除"暂缓"说明）
+        V0.06（V2.17：接入背景形状——形状轮廓 + 边框 + 形状阴影，内容按形状裁切）
+   说明：形状内部填充不在本文件绘制，由 bgshape.js → fillLayout.js 的 paintFillPattern 完成。
+        辅助线/安全边距/画布边界虚线均由 index.html 的 SVG 覆盖层与 #safeBox/.canvas-edge
+        承担，不画进画布，因此天然不导出（需求 2.34/1.7）。
    ============================================================ */
 /* 渲染目标：常规指向主画布；renderSnapshotThumb 会临时切换后恢复 */
 let cvs = $('#iconCanvas');
@@ -260,7 +261,7 @@ function drawRow(r, cell, S){
 function renderSnapshotThumb(snap, canvas, size){
   if (!snap || !canvas) return;
   const S = Math.max(16, Math.min(64, size || 48));
-  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder, bgParams, fillCount, fillColors };
+  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder, bgParams, fillParams, fillCount, fillColors };
   const tc = $('#transparentChk');
   const bakTc = tc ? tc.checked : false;
   try {
@@ -275,6 +276,7 @@ function renderSnapshotThumb(snap, canvas, size){
     currentLayout = snap.currentLayout || '全在上（左右分）';
     layerOrder = snap.layerOrder || '1to9';
     bgParams = normalizeBgParams(snap.bg);              // 形状与外框随预设真实呈现（需求 2.1）
+    fillParams = normalizeFillParams(snap.fill);        // 填充数量与布局同样随预设还原（需求 三.2）
     fillCount = Math.max(1, Math.min(6, snap.fillCount || fillCount));
     fillColors = (snap.fills || []).map(f => f && f.color).filter(Boolean).concat(fillColors).slice(0, 6);
     if (tc) tc.checked = !!snap.transparent;
@@ -292,6 +294,7 @@ function renderSnapshotThumb(snap, canvas, size){
     currentLayout = bak.currentLayout;
     layerOrder = bak.layerOrder;
     bgParams = bak.bgParams;
+    fillParams = bak.fillParams;
     fillCount = bak.fillCount;
     fillColors = bak.fillColors;
   }

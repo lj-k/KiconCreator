@@ -40,7 +40,7 @@
   <div class="brand">
     <div class="logo">K</div>
     <div class="brand-text">
-      <h1>KiconCreator <span class="ver">V2.21</span></h1>
+      <h1>KiconCreator <span class="ver">V2.22</span></h1>
       <p>图标王制作器 · 零安装 · 纯浏览器运行 · by Kong</p>
     </div>
   </div>
@@ -94,6 +94,7 @@
         <div class="preview-stage" id="stage" title="滚轮缩放 · 左键拖动 · 双击复位 / 模态预览">
           <div class="preview-canvas-wrap" id="canvasWrap">
             <canvas id="iconCanvas" width="256" height="256"></canvas>
+            <div class="canvas-edge" id="canvasEdge" aria-hidden="true"></div>
             <svg class="guides-layer" id="guidesLayer" viewBox="0 0 100 100" preserveAspectRatio="none" data-mode="none">
               <g class="g-guide g-cross"><line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/><line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/></g>
               <g class="g-guide g-star"><line x1="50" y1="0" x2="50" y2="100" vector-effect="non-scaling-stroke"/><line x1="0" y1="50" x2="100" y2="50" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/><line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g>
@@ -267,6 +268,7 @@
     ['js/exports.js',           '导出模块'],
     ['js/presets.js',           '预设模块'],
     ['presets/index.js',        '本地预设', 1],   // 第 3 位 = 可选：文件缺失时跳过而不中断启动
+    ['js/fillLayout.js',        '填充布局引擎'],
     ['js/bgshape.js',           '形状引擎'],
     ['js/canvas.js',            '渲染引擎'],
     ['js/content.js',           '内容模块'],
@@ -281,7 +283,7 @@
   /* 应用版本号（与顶栏 .ver 徽标保持一致）：http(s) 下给每个资源追加 ?v= 查询串，
      避免静态服务器（多无 Cache-Control）与浏览器启发式缓存把旧模块喂给新页面；
      file:// 下不加查询串，保证双击打开时仍按本地路径加载 */
-  var APP_VER = 'V2.21';
+  var APP_VER = 'V2.22';
   var BUST = (location.protocol === 'file:') ? '' : ('?v=' + APP_VER);
 
   function setProgress(done){
