@@ -2,7 +2,8 @@
    KiconCreator V2 · components.css
    职责：可复用控件与面板内部组件 —— 按钮/标签组(tab-group)/参数行/
         芯片/胶囊/预设网格/历史列表/内容纵向标签(vtab)/内部填充/TOAST/模态
-   版本：V0.06（V2.22：模态 1:1 预览画布加虚线边界；新增多分界线共享滑轨 .mslider 样式）
+   版本：V0.07（V2.29：历史删除按钮改右键/长按显示（.menu），去掉 hover 常驻——需求 2.2）
+        V0.06（V2.22：模态 1:1 预览画布加虚线边界；新增多分界线共享滑轨 .mslider 样式）
         V0.05（V2.18：模态预览画布去圆角与投影，与主画布保持同一"正方形画布"观感）
    说明：pane 内的 HTML 由 js/panes.js、js/fa.js、js/imagePane.js、js/tabs.js
         动态生成，修改选择器类名时必须同步对应 JS 模板字符串。
@@ -84,8 +85,10 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 .history-item:hover{border-color:var(--accent);background:var(--accent-soft)}
 .history-item canvas{width:26px;height:26px;border-radius:6px;flex:none}
 .history-item .hname{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.history-item .hdel{opacity:0;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px;transition:.15s}
-.history-item:hover .hdel{opacity:1}
+/* V2.29（需求 2.2）：删除按钮默认隐藏，右键/长按条目（.menu）才显示——
+   不再随 hover 显示（此前 hover 常驻与需求"右键或长按可显示"不符） */
+.history-item .hdel{display:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 4px;transition:.15s}
+.history-item.menu .hdel{display:inline-block}
 .history-item .hdel:hover{color:var(--err)}
 .format-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .fmt{border:1px solid var(--border);background:var(--field);color:var(--muted);border-radius:9px;padding:9px 3px;font-size:11px;font-weight:700;cursor:pointer;transition:.15s;letter-spacing:.3px}

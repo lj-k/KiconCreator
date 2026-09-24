@@ -4,7 +4,8 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.12（V2.28：fills 快照含每色块渐变/图片参数；恢复后 imgSyncFillRefs 对齐图片引用）
+   版本：V0.13（V2.29：快照 version 字段随项目版本升至 2.29；打包导出产生的下载历史与普通下载一致）
+        V0.12（V2.28：fills 快照含每色块渐变/图片参数；恢复后 imgSyncFillRefs 对齐图片引用）
         V0.11（V2.24：快照移除 UI-only 的 currentEdgeShape；fill 字段现在含填充边界参数）
         V0.10（V2.22：快照/恢复纳入 fillParams 并在恢复后校准分界线数组）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
@@ -32,7 +33,7 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.28',
+    version: '2.29',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),

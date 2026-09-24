@@ -1,7 +1,55 @@
 # KiconCreator V2 · Changelog
 
-> **文档版本：V0.25**（对应项目代码版本 **V2.28**）
+> **文档版本：V0.26**（对应项目代码版本 **V2.29**）
 > 记录范围：`V2/` 目录的代码与文档变更。
+
+---
+
+## [V2.29] - 2026-09-24
+
+### 新增：下载模块三个打包勾选项与真实多尺寸 ICO；修正：下载历史删除按钮改为右键/长按显示
+
+**背景**：分析 git 历史（最近提交 V2.28）与需求文档 2.3/2.2 对照，"预设、历史和下载"模块中**下载**标签的三个打包勾选项（多尺寸打包/代码打包/原始图片打包）在 panes.js 中早有 UI（V2.17 前后引入），但 exports.js 从未实现——勾选后没有任何效果；ICO 按钮一直是"单尺寸 PNG 改名 .ico"的占位实现（toast 自述"多尺寸打包开发中"）；下载历史列表的删除按钮为 hover 常驻显示，与需求 2.2"右键或长按可显示删除按钮"不符。预设模块（导入/导出/保存/复制 JSON/复制 HTML/本地预设目录）与下载历史列表（恢复/20 条上限/按数据绘缩略图）此前版本已完成，本次未改动其语义。
+
+### ① 新增 js/pack.js（V0.01）——零依赖导出打包工具
+
+- `crc32`（查表法）+ `zipStoreFiles`：ZIP 打包器，**STORE 存储法**（不压缩）+ UTF-8 文件名标志位（0x0800）——图标本就高压缩比内容，浏览器原生无 zip 接口，项目约束"只包含 js 和 html、无后端"，故不引入任何第三方库。
+- `dataURLBytes`：dataURL → 字节（原始图片打包用）。
+- `buildICOBlob`：多尺寸 ICO 组装器（PNG-in-ICO 规范，256 尺寸宽高字节写 0）。
+- 加载位置：`utils.js` 之后、`images.js` 之前（零依赖纯函数模块，仅运行时被调用）。
+
+### ② 下载模块：三个打包勾选项落地（exports.js V0.09）
+
+- **任意尺寸渲染**：新增 `renderIconCanvasAt(size)`——当前状态快照经 `renderSnapshotThumb`（尺寸上限 64 → 1024，canvas.js V0.09）在离屏画布按任意尺寸重画，多尺寸打包与多尺寸 ICO 复用同一渲染管线（保证 zip 内每个尺寸 = 预览缩放效果，而非主画布位图拉伸糊化）。
+- **多尺寸打包**（`multiSizeChk`）：光栅格式（png/jpg/webp）输出 **32/64/128/256 各一份**的 zip（需求 2.3）；JPG 各尺寸仍垫白底。
+- **代码打包**（`codeChk`）：zip 内附带 canvas 代码（`canvasHTMLString`，自 exportCanvas 抽出复用）+ json 预设（`presetJSONZipEntry`，复用导出预设语义——涉及剪裁图片时先弹"原图/剪裁后"询问，取消则整次取消）。
+- **原始图片打包**（`rawChk`）：zip 内附带上传的原始图片——全部内容行 + 填充色块引用的会话仓库条目**去重**收集，优先入库时的原始 dataURL（`entry.src`），预设导入的图回退重编码整图（未剪裁）；文件名去扩展名后重名自动 `(2)` 递增。
+- **统一出口**：三个勾选**任一勾选 → 该次下载输出 zip**（`buildPackZip(fmt)` 按主格式组装，zip 名 `KIcon-{内容}-{时间}.zip` 取消{尺寸}）；都不勾选时行为与旧版一致（单文件下载）。
+- **真实多尺寸 ICO**：`buildMultiSizeICO()` 逐尺寸渲染 PNG 后组装——**任何情况下 ICO 都输出单个多尺寸 ico 文件**（内置 16/32/48/64/128/256，不受导出尺寸设置影响，需求 2.3）；勾选打包时 ico 作为文件进入 zip。删除旧"单尺寸 PNG 冒名 + 开发中 toast"实现。
+- **命名规则补齐**（需求 2.35）：ico 文件名取消{尺寸}（`buildFileName('ico', false)`，此前带 256 字样）；zip 内文件沿用 `KIcon-{尺寸}-{内容}-{时间}.{ext}`；下载历史 `pushDownloadHistory` 增加 `name` 参数，**条目名与实际下载文件名一致**（zip 时记 zip 名；html 记无尺寸名）。
+
+### ③ 下载历史：右键/长按显示删除按钮（presets.js V0.10 + components.css V0.07）
+
+- 删除按钮（✕）默认 `display:none`，**右键**（contextmenu）或**长按**（触屏 pointer 按住 ≥500ms）该条目才显示；点击列表外任意处收回；再右键一次也可收回。长按后的派生 click 被拦截，不会误触"恢复快照"。
+- 注意，此前删除按钮是 hover 常驻（opacity 随 hover 显示），与需求 2.2"右键或长按可显示删除按钮"不符；本次修正后删除入口行为与需求一致。
+
+### 版本号同步
+
+- `index.html` 顶栏 `.ver` 与 `APP_VER`（V2.29）、`snapshotState().version`（'2.29'）、`exportHTML` 注释 → V2.29；引导器 steps 注册 pack.js。
+- 模块头：`pack.js` V0.01（新）、`exports.js` V0.09、`presets.js` V0.10、`history.js` V0.13、`canvas.js` V0.09、`css/components.css` V0.07。
+
+### 校验记录
+
+- **单元验证（pack.js，Node 22 临时脚本，验证后删除）**：25 项全过——crc32 标准测试向量（"" → 0、"123456789" → 0xCBF43926、fox 句 → 0x414FA339）；dataURLBytes 往返；ZIP 结构（本地头 magic/UTF-8 标志/STORE 法/CRC 复算/EOCD/central directory 文件名 UTF-8 可读）；ICO 结构（type=1/count/256→宽高字节 0/planes/bitcount/偏移与数据落位逐字节比对）。
+- **真实浏览器冒烟（本地 http + Chrome）**：页面 V2.29 正常渲染，console 0 错误（仅既有本地预设 info）；`buildMultiSizeICO()` → image/x-icon Blob 14142 字节；`zipStoreFiles` 输出规范最小 STORE 结构（PK 头、method=0、CRC 一致）；三个打包复选框齐备；点击 ICO → 无报错，下载历史新增 `KIcon-KICON-20260924154106.ico`（不含 256 字样，{内容}=默认行文本 K+ICON）；右键历史条目 → ✕ 显示（右键前 computed display:none）。
+- **`node --check`**：pack.js/exports.js/presets.js/history.js/canvas.js 全部通过。
+- **文档**：ARCHITECTURE.md 升至 V0.26（4.8 新增"任意尺寸渲染与打包"、文件结构与加载链 +pack.js 共 25 模块、5.1/5.2 第 23 条/5.3 增导出打包自检、特别说明改写）；本文件升至 V0.26。
+
+### 特别说明
+
+- **ZIP 体积 113 字节是正确的最小结构**（冒烟时误报为"约 131"）：30 字节本地头 + 5 文件名 + 5 数据 + 46 central directory + 22 EOCD，与 data descriptor/额外字段等变体无关；CRC 已复算一致，勿把"体积比别的库大"当成 bug 去修。
+- **ICO 不要回退成"PNG 改名 .ico"**：Windows 资源管理器与 favicon 场景都不认；PNG-in-ICO 是 Vista 起的标准容器，16/32/48/64/128/256 全部内嵌后才符合需求 2.3"内置 6 尺寸、不受导出尺寸设置影响"。
+- **打包勾选的优先级语义**：需求 2.3"勾选打包时，导出 ico 和 canvas 代码、json 预设为 zip"落地为"任一打包勾选 → 整次下载为 zip、按主格式 + codeChk/rawChk 附加项组装"；JSON/HTML 按钮（复制与导出预设语义）保持单文件出口不参与打包，json 进入 zip 的唯一路径是 codeChk。
 
 ---
 

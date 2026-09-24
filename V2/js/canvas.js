@@ -7,7 +7,9 @@
      - drawIcon()：背景（形状轮廓或白底/透明，需求 1.8/三.1）→ 按层次顺序逐行绘制
        （行内容可选按形状轮廓裁切，需求 3.5 style.clip）
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.08（V2.28：快照缩略图还原 色块模式/渐变/图片参数——缩略图真实呈现 渐/图 色块）
+   版本：V0.09（V2.29：renderSnapshotThumb 尺寸上限 64→1024，支撑任意尺寸导出渲染——
+        多尺寸打包/多尺寸 ICO 复用快照渲染管线）
+        V0.08（V2.28：快照缩略图还原 色块模式/渐变/图片参数——缩略图真实呈现 渐/图 色块）
         V0.07（V2.22：快照缩略图渲染纳入 fillParams——预设/历史缩略图与主画布同数据结构；
         填充数量与布局已由 fillLayout.js 落地，删除"暂缓"说明）
         V0.06（V2.17：接入背景形状——形状轮廓 + 边框 + 形状阴影，内容按形状裁切）
@@ -261,7 +263,9 @@ function drawRow(r, cell, S){
    ============================================================ */
 function renderSnapshotThumb(snap, canvas, size){
   if (!snap || !canvas) return;
-  const S = Math.max(16, Math.min(64, size || 48));
+  /* V2.29：上限由 64 放宽到 1024——多尺寸打包（32/64/128/256）与多尺寸 ICO
+     的任意尺寸导出渲染复用本函数（exports.js），缩略图常规调用不受影响 */
+  const S = Math.max(16, Math.min(1024, size || 48));
   const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder, bgParams, fillParams, fillCount, fillColors, fillModes, fillStyles };
   const tc = $('#transparentChk');
   const bakTc = tc ? tc.checked : false;

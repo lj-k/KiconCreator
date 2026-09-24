@@ -5,7 +5,9 @@
      - renderPresets（预设网格，右键删除）
      - renderHistory（下载历史列表，点击恢复快照）
      - 顶层注册 [data-act] 委托点击（导入/导出/保存/复制 JSON/复制 HTML）
-   版本：V0.09（V2.28：snapForExport/registerPresetImages 携带填充色块图片（整图 dataURL + 保留剪裁））
+   版本：V0.10（V2.29：下载历史删除按钮改为右键/长按显示（需求 2.2，原 hover 常驻）；
+        点击列表外收回）
+        V0.09（V2.28：snapForExport/registerPresetImages 携带填充色块图片（整图 dataURL + 保留剪裁））
         V0.08（V2.21：本地预设简化为单一来源 presets/index.js（可手改）；预设列表加空态提示）
    依赖：state.js（PRESETS/downloadHistory）、history.js（snapshotState/restoreState）、
         images.js（ImageRepo/imgIsCropped/imgCropDataURL/imgFullDataURL）、
@@ -302,7 +304,12 @@ function renderPresetsInternal(){
 /* 对外暴露的 renderPresets */
 function renderPresets(){ renderPresetsInternal(); }
 
-/* ---------- 下载历史列表渲染（P0-5） ---------- */
+/* ---------- 下载历史列表渲染（P0-5） ----------
+   删除按钮交互（需求 2.2，V2.29）：默认隐藏，右键或长按（≥500ms）该条目
+   才显示其删除按钮；点击页面其它位置收回。长按不触发恢复点击。 */
+function closeHistoryMenus(){
+  document.querySelectorAll('.history-item.menu').forEach(el => el.classList.remove('menu'));
+}
 function renderHistoryInternal(){
   const list = $('#historyList');
   if (!list) return;
@@ -339,7 +346,31 @@ function renderHistoryInternal(){
       toast('已删除历史快照');
     });
     d.appendChild(del);
+    /* 右键显示删除按钮（需求 2.2） */
+    d.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = d.classList.contains('menu');
+      closeHistoryMenus();
+      if (!open) d.classList.add('menu');
+    });
+    /* 长按显示删除按钮（触屏，需求 2.2）；长按后拦截其派生的 click（恢复） */
+    let pressTimer = null;
+    let longPressed = false;
+    d.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') return; // 鼠标走右键
+      longPressed = false;
+      pressTimer = setTimeout(() => {
+        longPressed = true;
+        const open = d.classList.contains('menu');
+        closeHistoryMenus();
+        if (!open) d.classList.add('menu');
+      }, 500);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
+      d.addEventListener(ev, () => { if (pressTimer){ clearTimeout(pressTimer); pressTimer = null; } }));
     d.addEventListener('click', () => {
+      if (longPressed){ longPressed = false; return; }
       restoreState(entry.snap);
       toast('已恢复历史快照：' + entry.name);
     });
@@ -347,6 +378,8 @@ function renderHistoryInternal(){
   });
 }
 function renderHistory(){ renderHistoryInternal(); }
+/* 点击列表外任意处收回删除按钮 */
+document.addEventListener('click', closeHistoryMenus);
 
 /* ---------- 预设按钮行为（事件委托） ---------- */
 document.addEventListener('click', e => {
