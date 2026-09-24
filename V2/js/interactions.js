@@ -8,7 +8,8 @@
      - 颜色控件：取色器与 HEX 输入双向同步
      - 颜色建议 swatch：点击写回 color.c1/c2（需求 3.4）
      - chip 单选组、边界形状切换、形状种类与"填满 / 重置形状参数"按钮（需求 三.1）
-   版本：V0.07（V2.24：填充边界的边界形状/过渡样式芯片改走 bindFillParamChips（data-val → fillParams））
+   版本：V0.08（V2.28：渐变/图片模式控件绑定——bindFillGradControls/bindFillImgControls + data-fb 专用滑块行 bindFillNumRow）
+        V0.07（V2.24：填充边界的边界形状/过渡样式芯片改走 bindFillParamChips（data-val → fillParams））
         V0.06（V2.23：通用滑块拖动时同步刷新数字框与 --fill 蓝色进度条）
         V0.05（V2.22：新增 fill 参数通道、多分界线滑轨绑定、纯色模式控件与一键填充）
    说明：背景（形状与外框）参数是全局唯一的（BG_PARAM_DEFS → bgParams），
@@ -33,8 +34,8 @@ function bindPaneInteractions(moduleId, container, rowIdx){
 
   /* ---------- 滑块 + 数字输入 ---------- */
   container.querySelectorAll('input[type=range]').forEach(r => {
-    // HSL（data-hsl）与多分界线滑轨（data-ms）有专用绑定，跳过通用逻辑
-    if (r.closest('[data-hsl]') || r.closest('[data-ms]')) return;
+    // HSL（data-hsl）、多分界线滑轨（data-ms）与色块背景滑块（data-fb）有专用绑定，跳过通用逻辑
+    if (r.closest('[data-hsl]') || r.closest('[data-ms]') || r.closest('[data-fb]')) return;
     const rowEl = r.closest('.param');
     const min = +r.min || 0, max = +r.max || 100;
     const key = rowEl?.dataset.name;
@@ -298,6 +299,10 @@ function bindPaneInteractions(moduleId, container, rowIdx){
   /* ---------- 内部填充：纯色模式控件与颜色建议（需求 3.2.1） ---------- */
   bindFillSolidControls(container);
 
+  /* ---------- 内部填充：渐变 / 图片模式控件（需求 3.2.2/3.2.3，V2.28） ---------- */
+  bindFillGradControls(container);
+  bindFillImgControls(container);
+
   /* ---------- 颜色建议 tab：一键填充各色块（需求 2.4，仅纯色模式色块） ---------- */
   container.querySelectorAll('[data-fill-palette]').forEach(btn => {
     if (btn.dataset.bound) return;
@@ -405,6 +410,217 @@ function bindFillSolidControls(container){
     });
   });
   paint(false);
+}
+
+/* ---------- 色块背景滑块行（data-fb 标记，V2.28） ----------
+   per-block 参数（渐变角度/图片大小位置/剪裁缩放）不注册进 FILL_PARAM_DEFS，
+   不能走通用参数绑定：input 实时写 + change 入撤销栈，与通用行的交互一致 */
+function bindFillNumRow(row, apply){
+  const r = row.querySelector('input[type=range]');
+  const num = row.querySelector('.num');
+  if (!r || r.dataset.bound) return;
+  r.dataset.bound = '1';
+  const min = +r.min || 0, max = +r.max || 100;
+  const upd = () => {
+    r.style.setProperty('--fill', ((+r.value - min) / (max - min) * 100).toFixed(1) + '%');
+    if (num && document.activeElement !== num) num.value = r.value;
+  };
+  upd();
+  r.addEventListener('input', () => { upd(); apply(+r.value); });
+  r.addEventListener('change', () => commitHistory());
+  if (num) num.addEventListener('change', () => {
+    const v = parseFloat(num.value);
+    if (isNaN(v) || v < min || v > max){
+      flashInvalid(num, min, max);
+      setTimeout(upd, 620);
+      return;
+    }
+    r.value = v; upd(); apply(v); commitHistory();
+  });
+}
+
+/* ---------- 内部填充：渐变模式控件（需求 3.2.2，V2.28） ----------
+   写 fillStyles[activeFill].grad；起止色为空时渲染端回退当前色值（fillGradOf） */
+function bindFillGradControls(container){
+  const has = container.querySelector('[data-fg-color],[data-fg-hex],[data-fg-adv],#fillGradType,[data-fb="angle"]');
+  if (!has) return;
+  const idx = activeFill;
+  const grad = () => fillStyleOf(idx).grad;
+  const paint = () => { renderFillList(); scheduleDrawIcon(); };
+  container.querySelectorAll('[data-fg-color]').forEach(cp => {
+    if (cp.dataset.bound) return;
+    cp.dataset.bound = '1';
+    cp.addEventListener('input', () => { grad()[cp.dataset.fgColor] = cp.value.toUpperCase(); paint(); });
+    cp.addEventListener('change', () => commitHistory());
+  });
+  container.querySelectorAll('[data-fg-hex]').forEach(hexIn => {
+    if (hexIn.dataset.bound) return;
+    hexIn.dataset.bound = '1';
+    hexIn.addEventListener('change', () => {
+      const v = /^#[0-9a-fA-F]{6}$/.test(hexIn.value.trim()) ? hexIn.value.trim().toUpperCase() : null;
+      if (!v){
+        flashInvalid(hexIn, 0, 100);
+        hexIn.value = fillGradOf(idx)[hexIn.dataset.fgHex] || '';
+        return;
+      }
+      grad()[hexIn.dataset.fgHex] = v;
+      renderFillBody2(); paint(); commitHistory();
+    });
+  });
+  const seg = container.querySelector('#fillGradType');
+  if (seg && !seg.dataset.bound){
+    seg.dataset.bound = '1';
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      grad().type = b.dataset.gt;
+      renderFillBody2(); paint(); commitHistory();
+    });
+  }
+  container.querySelectorAll('[data-fb="angle"]').forEach(row => {
+    bindFillNumRow(row, v => { grad().angle = v; paint(); });
+  });
+  container.querySelectorAll('[data-fg-adv]').forEach(sw => {
+    if (sw.dataset.bound) return;
+    sw.dataset.bound = '1';
+    sw.addEventListener('click', () => {
+      const parts = sw.dataset.fgAdv.split(':');
+      grad()[parts[0]] = parts[1];
+      renderFillBody2(); paint(); commitHistory();
+      toast('已应用建议颜色 ' + parts[1]);
+    });
+  });
+}
+
+/* ---------- 内部填充：图片模式控件（需求 3.2.3，V2.28） ----------
+   写 fillStyles[activeFill].image；图片走会话图片仓库（imgLoadFile 入库，
+   imgSyncFillRefs 以 fill: 前缀同步引用——更换/移除后旧图延迟释放） */
+function bindFillImgControls(container){
+  const has = container.querySelector('[data-fill-img-pick],[data-fill-img-clear],[data-fill-img-crop],#fillImgPrev,#fillCropRatios,[data-fb="size"],[data-fb="fx"],[data-fb="fy"],[data-fb="czoom"]');
+  if (!has) return;
+  const idx = activeFill;
+  const im = () => fillStyleOf(idx).image;
+  const refresh = () => { fillImgCacheClear(); renderFillList(); renderFillBody2(); scheduleDrawIcon(); };
+  /* 上传 / 更换 */
+  const pick = container.querySelector('[data-fill-img-pick]');
+  if (pick && !pick.dataset.bound){
+    pick.dataset.bound = '1';
+    pick.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const prog = container.querySelector('#fillImgProg');
+        try {
+          const entry = await imgLoadFile(file, p => { if (prog) prog.textContent = `读取中 ${(p * 100) | 0}%`; });
+          fillStyleOf(idx).image = makeFillImage({ id: entry.id, name: entry.name, w: entry.w, h: entry.h });
+          imgSyncFillRefs();          // 旧图引用随同步自动解除（无其它引用后 4s 释放）
+          refresh(); commitHistory();
+          toast('已上传图片：' + entry.name);
+        } catch (e){
+          toast('图片读取失败：' + (e && e.message ? e.message : '未知错误'));
+        } finally { if (prog) prog.textContent = ''; }
+      };
+      input.click();
+    });
+  }
+  /* 移除：按纯色参与渲染 */
+  const clear = container.querySelector('[data-fill-img-clear]');
+  if (clear && !clear.dataset.bound){
+    clear.dataset.bound = '1';
+    clear.addEventListener('click', () => {
+      fillStyleOf(idx).image = null;
+      imgSyncFillRefs();
+      refresh(); commitHistory();
+      toast('已移除色块图片（按纯色参与渲染）');
+    });
+  }
+  /* 大小 / 位置滑块 */
+  container.querySelectorAll('[data-fb="size"],[data-fb="fx"],[data-fb="fy"]').forEach(row => {
+    const field = row.dataset.fb;
+    bindFillNumRow(row, v => { const image = im(); if (!image) return; image[field] = v; renderFillList(); scheduleDrawIcon(); });
+  });
+  /* 剪裁展开/收起 */
+  const cropBtn = container.querySelector('[data-fill-img-crop]');
+  if (cropBtn && !cropBtn.dataset.bound){
+    cropBtn.dataset.bound = '1';
+    cropBtn.addEventListener('click', () => {
+      const mount = container.querySelector('#fillCropMount');
+      if (!mount) return;
+      mount.hidden = !mount.hidden;
+      cropBtn.textContent = mount.hidden ? '展开剪裁' : '收起剪裁';
+    });
+  }
+  /* 剪裁比例 */
+  container.querySelectorAll('#fillCropRatios button').forEach(b => {
+    if (b.dataset.bound) return;
+    b.dataset.bound = '1';
+    b.addEventListener('click', () => {
+      const image = im(); if (!image) return;
+      image.crop = Object.assign(image.crop || { zoom: 1, ox: 0, oy: 0 }, { aspect: b.dataset.fc });
+      refresh(); commitHistory();
+    });
+  });
+  /* 剪裁缩放滑块 */
+  container.querySelectorAll('[data-fb="czoom"]').forEach(row => {
+    bindFillNumRow(row, v => {
+      const image = im(); if (!image) return;
+      image.crop = Object.assign(image.crop || { aspect: '原图', ox: 0, oy: 0 }, { zoom: v });
+      fillImgCacheClear();
+      paintFillImgPrev(); scheduleDrawIcon();
+    });
+  });
+  /* 剪裁后预览：拖动移动窗口 / 滚轮缩放 / 双击复位 */
+  const prev = container.querySelector('#fillImgPrev');
+  if (prev && !prev.dataset.bound){
+    prev.dataset.bound = '1';
+    const clamp1 = v => Math.max(-1, Math.min(1, v));
+    prev.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const image = im(); if (!image) return;
+      const start = Object.assign({ aspect: '原图', zoom: 1, ox: 0, oy: 0 }, image.crop);
+      const rect = prev.getBoundingClientRect();
+      const move = ev => {
+        image.crop = {
+          aspect: start.aspect, zoom: start.zoom,
+          ox: clamp1(start.ox - (ev.clientX - e.clientX) / rect.width),
+          oy: clamp1(start.oy - (ev.clientY - e.clientY) / rect.height)
+        };
+        fillImgCacheClear();
+        paintFillImgPrev(); scheduleDrawIcon();
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        fillImgCacheClear();
+        renderFillList(); paintFillImgPrev(); scheduleDrawIcon(); commitHistory();
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    });
+    prev.addEventListener('wheel', e => {
+      e.preventDefault();
+      const image = im(); if (!image) return;
+      const cur = (image.crop && image.crop.zoom) || 1;
+      image.crop = Object.assign(image.crop || { aspect: '原图', ox: 0, oy: 0 }, { zoom: Math.max(1, Math.min(8, cur * (e.deltaY < 0 ? 1.1 : 0.9))) });
+      fillImgCacheClear();
+      const row = container.querySelector('[data-fb="czoom"]');
+      if (row){
+        const r = row.querySelector('input[type=range]');
+        const n = row.querySelector('.num');
+        if (r){ r.value = image.crop.zoom; r.style.setProperty('--fill', ((image.crop.zoom - 1) / 7 * 100).toFixed(1) + '%'); }
+        if (n && document.activeElement !== n) n.value = image.crop.zoom;
+      }
+      paintFillImgPrev(); scheduleDrawIcon();
+    }, { passive: false });
+    prev.addEventListener('dblclick', () => {
+      const image = im(); if (!image) return;
+      image.crop = { aspect: (image.crop && image.crop.aspect) || '原图', zoom: 1, ox: 0, oy: 0 };
+      fillImgCacheClear();
+      renderFillBody2(); renderFillList(); scheduleDrawIcon(); commitHistory();
+    });
+  }
 }
 
 /* 角星内角 0° → 形状不可见（需求 1.1.1）：红字提示随拖动实时显隐 */

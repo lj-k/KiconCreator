@@ -7,7 +7,8 @@
      - relayoutColumn / relayoutAllModules：按列高分配 tab 展开分组
      - renderTabGroupsFromGroups：渲染分组后的 tab-group 并绑定切换
      - rerenderModule：单个模块重渲染入口
-   版本：V0.04（V2.17：标签标题支持函数（形状标签直接显示当前形状名））
+   版本：V0.05（V2.28：填充模块标签拆分——边界形状 + 边界过渡两个标签（需求 2.3/2.4））
+        V0.04（V2.17：标签标题支持函数（形状标签直接显示当前形状名））
    依赖：layout.js（computeTabLayout/measureTabHeights/refreshLayoutKeepGroups）、
         interactions.js（bindPaneInteractions）、presets.js（renderPresets/renderHistory）、
         exports.js（bindDownloadPaneInteractions）—— 均为运行时调用，加载顺序见 index.html。
@@ -31,7 +32,10 @@ const MODULE_TABS = {
   ],
   fill: [
     { id: 'layout', label: '布局', getContent: () => fillLayoutPaneHTML() },
-    { id: 'edge', label: '填充边界', getContent: () => fillEdgePaneHTML() },
+    // V2.28：原「填充边界」拆为两个标签（需求 2.3/2.4 本就各自成标签）——
+    // 边界形状（形状芯片 + A·ω·φ·k 参数 + 包含形状外框）、边界过渡（过渡宽度 + 过渡样式）
+    { id: 'edgeShape', label: '边界形状', getContent: () => fillEdgeShapePaneHTML() },
+    { id: 'edgeTransition', label: '边界过渡', getContent: () => fillEdgeTransitionPaneHTML() },
     { id: 'advice', label: '颜色建议', getContent: () => fillAdvicePaneHTML() }
   ]
 };

@@ -5,7 +5,8 @@
      - renderPresets（预设网格，右键删除）
      - renderHistory（下载历史列表，点击恢复快照）
      - 顶层注册 [data-act] 委托点击（导入/导出/保存/复制 JSON/复制 HTML）
-   版本：V0.08（V2.21：本地预设简化为单一来源 presets/index.js（可手改）；预设列表加空态提示）
+   版本：V0.09（V2.28：snapForExport/registerPresetImages 携带填充色块图片（整图 dataURL + 保留剪裁））
+        V0.08（V2.21：本地预设简化为单一来源 presets/index.js（可手改）；预设列表加空态提示）
    依赖：state.js（PRESETS/downloadHistory）、history.js（snapshotState/restoreState）、
         images.js（ImageRepo/imgIsCropped/imgCropDataURL/imgFullDataURL）、
         imagePane.js（askImageExportMode）、canvas.js（renderSnapshotThumb）。
@@ -45,6 +46,15 @@ function snapForExport(snap, mode){
         im.data = imgFullDataURL(entry);
       }
     }
+    delete im.id;
+  });
+  /* 填充色块的图片（需求 3.2.3，V2.28）：导出整图 + 保留剪裁参数——
+     渲染时才取剪裁窗口，导入后不会二次裁切；会话 id 一律不导出 */
+  (out.fills || []).forEach(f => {
+    const im = f && f.image;
+    if (!im || !im.id) return;
+    const entry = imgGet(im.id);
+    if (entry) im.data = imgFullDataURL(entry);
     delete im.id;
   });
   return out;
@@ -127,7 +137,27 @@ async function registerPresetImages(snap, presetName, diffs){
       missing++;
     }
   }
-  if (missing) diffs.push(`预设「${presetName}」：${missing} 行图片缺失（已用占位）`);
+  /* 填充色块的图片（需求 3.2.3，V2.28）：dataURL 重新入库并回填会话 id */
+  for (const f of (snap.fills || [])){
+    if (!f || !f.image) continue;
+    const data = f.image.data;
+    const name = f.image.name || '';
+    f.image = makeFillImage(f.image);  // 规范化（含 size/fx/fy）；丢弃 data 字段
+    f.image.id = null;                 // 旧 id 属其它会话，一律作废
+    if (data){
+      try {
+        const entry = await imgLoadData(data, name || '填充图片');
+        f.image.id = entry.id;
+        f.image.w = entry.w;
+        f.image.h = entry.h;
+        loaded++;
+      } catch (e){
+        f.image.name = '图片缺失';
+        missing++;
+      }
+    }
+  }
+  if (missing) diffs.push(`预设「${presetName}」：${missing} 张图片缺失（已用占位）`);
   return loaded;
 }
 

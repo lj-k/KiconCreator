@@ -8,6 +8,8 @@
      - 裁剪几何：比例 + 缩放 + 拖动偏移 → 源矩形 imgCropRect()
      - 白色透明：色度键结果按图片缓存（需求 3.4）
      - 预设序列化：只导出可见裁切部分并量化（需求 2.1）
+   版本：V0.04（V2.28：新增 imgSyncFillRefs——填充色块图片引用同步（fill: 前缀，需求 3.2.3；
+        imgRefsOfSnap 原本就扫描 snap.fills[].image.id，快照/撤销/预设引用计数自动生效））
    版本：V0.03（V2.16：导出编码改为"无损优先"——PNG 无损、超体量退 WebP 近无损，
         编码上限由 256 提至 IMG_MAX_EDGE（不再额外降采样）；dataURL 入库与文件入库
         共用同一 IMG_MAX_EDGE 降采样标准，避免多轮往返分辨率逐次劣化）
@@ -105,6 +107,11 @@ function imgReleaseSnap(obj){
 function imgSyncRowRefs(){
   imgReleasePrefix('row:');
   rows.forEach((r, i) => { const id = r && r.image && r.image.id; if (id) imgRetain(id, 'row:' + i); });
+}
+/* 填充色块图片引用同步（V2.28 需求 3.2.3）：恢复快照 / 色块图片变更后调用（键前缀 fill:） */
+function imgSyncFillRefs(){
+  imgReleasePrefix('fill:');
+  (fillStyles || []).forEach((st, i) => { const id = st && st.image && st.image.id; if (id) imgRetain(id, 'fill:' + i); });
 }
 
 /* ---------- 注册与解码 ---------- */

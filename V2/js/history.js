@@ -4,7 +4,8 @@
      - commitHistory：用户操作完成后压栈（滑块拖动中不入栈）
      - undo / redo：Ctrl+Z / Ctrl+Y；撤销后人工修改使重做失效（栈裁剪）
      - snapshotState / restoreState：全量快照（rows 深拷贝含 params/link）
-   版本：V0.11（V2.24：快照移除 UI-only 的 currentEdgeShape；fill 字段现在含填充边界参数）
+   版本：V0.12（V2.28：fills 快照含每色块渐变/图片参数；恢复后 imgSyncFillRefs 对齐图片引用）
+        V0.11（V2.24：快照移除 UI-only 的 currentEdgeShape；fill 字段现在含填充边界参数）
         V0.10（V2.22：快照/恢复纳入 fillParams 并在恢复后校准分界线数组）
    约束：新增状态字段时必须同时扩展 snapshotState 与 restoreState。
    ============================================================ */
@@ -31,14 +32,26 @@ function redo(){
 /* ---------- 状态快照 ---------- */
 function snapshotState(){
   return {
-    version: '2.26',
+    version: '2.28',
     rowCount,
     activeRow,
     rows: rows.map(normalizeRow),
     currentLayout,
     layoutByCount: { ...layoutByCount },
     layerOrder,
-    fills: fillModes.map((m, i) => ({ mode: m, color: fillColors[i] || '' })),
+    /* 色块背景（需求 3.2）：模式 + 纯色值 + 渐变/图片扩展参数（V2.28）。
+       image.id 属本会话仓库：快照/撤销栈经 imgRefsOfSnap → imgRetainSnap 自动持引用 */
+    fills: fillModes.map((m, i) => {
+      const st = fillStyles[i] || makeFillStyle();
+      return {
+        mode: m,
+        color: fillColors[i] || '',
+        grad: { from: st.grad.from, to: st.grad.to, type: st.grad.type, angle: st.grad.angle },
+        image: st.image ? { id: st.image.id, name: st.image.name, w: st.image.w, h: st.image.h,
+                            crop: st.image.crop ? { ...st.image.crop } : null,
+                            size: st.image.size, fx: st.image.fx, fy: st.image.fy } : null
+      };
+    }),
     fillCount,
     activeFill,
     fill: normalizeFillParams(fillParams),  // 填充数量与布局 + 填充边界（需求 三.2）：含三组多分界线数组
@@ -69,6 +82,29 @@ function restoreState(snap){
         if (!f || i > 5) return;
         if (f.mode) fillModes[i] = f.mode;
         if (/^#[0-9a-fA-F]{6}$/.test(f.color || '')) fillColors[i] = f.color.toUpperCase();
+        /* 渐变/图片扩展参数（V2.28）：逐字段校验后恢复；image.id 由 imgSyncFillRefs 重新持引用 */
+        const st = makeFillStyle();
+        if (f.grad && typeof f.grad === 'object'){
+          st.grad = {
+            from: /^#[0-9a-fA-F]{6}$/.test(f.grad.from || '') ? f.grad.from.toUpperCase() : '',
+            to: /^#[0-9a-fA-F]{6}$/.test(f.grad.to || '') ? f.grad.to.toUpperCase() : '',
+            type: f.grad.type === '径向' ? '径向' : '线性',
+            angle: Math.max(0, Math.min(360, +f.grad.angle || 0))
+          };
+        }
+        if (f.image && typeof f.image === 'object' && f.image.id){
+          st.image = {
+            id: f.image.id, name: f.image.name || '图片', w: +f.image.w || 0, h: +f.image.h || 0,
+            crop: (f.image.crop && typeof f.image.crop === 'object')
+              ? { aspect: f.image.crop.aspect || '原图', zoom: Math.max(1, Math.min(8, +f.image.crop.zoom || 1)),
+                  ox: Math.max(-1, Math.min(1, +f.image.crop.ox || 0)), oy: Math.max(-1, Math.min(1, +f.image.crop.oy || 0)) }
+              : null,
+            size: Math.max(10, Math.min(400, +f.image.size || 100)),
+            fx: Math.max(-100, Math.min(100, +f.image.fx || 0)),
+            fy: Math.max(-100, Math.min(100, +f.image.fy || 0))
+          };
+        }
+        fillStyles[i] = st;
       });
     }
     if (snap.bg) bgParams = normalizeBgParams(snap.bg);   // 形状与外框（需求 三.1）
@@ -102,6 +138,7 @@ function restoreState(snap){
     }
     // 全量重绘
     imgSyncRowRefs(); // 行引用与恢复后的 rows 对齐（快照只是引用，不解除引用）
+    imgSyncFillRefs(); // 填充色块图片引用与恢复后的 fillStyles 对齐（V2.28）
     renderRowCount();
     renderLayoutChips();
     renderContentTabs();

@@ -6,7 +6,9 @@
        （需求 3.2/3.3：参数跟随内容模块激活行，模式切换保留数据）
    - 形状模块 pane：形状种类/尺寸/拉伸/方向/弧度/内角 + 边框 + 形状阴影
        （需求 三.1，参数读写全局 bgParams；弧度与内角随形状种类动态出现）
-   版本：V0.11（V2.25：填充边界 pane 新增"包含形状外框"复选行（默认关闭））
+   版本：V0.13（V2.28：填充边界拆为 fillEdgeShapePaneHTML/fillEdgeTransitionPaneHTML 两个标签（需求 2.3/2.4）；tan 提示语更新）
+        V0.12（V2.27：边界形状芯片新增「波浪」；波浪参数行 A 高度/ω 宽度/φ 偏移（无 k））
+        V0.11（V2.25：填充边界 pane 新增"包含形状外框"复选行（默认关闭））
         V0.10（V2.24：填充边界 pane 落地——过渡宽度/边界形状/A·ω·φ·k（锯齿为 A·ω）/过渡样式）
         V0.09（V2.23：层内比例改为每层一条滑轨（读 fillLayoutModel().groups 的 offset））
         V0.08（V2.22：布局形式的芯片逐片带 data-val——此前芯片无取值属性，点击不切换布局）
@@ -191,7 +193,7 @@ function fillLayoutPaneHTML(){
     ${paramRow('Y 拉伸', fillParams['fill.stretchY'], 1, 300, '%', { key: 'fill.stretchY', reset: true })}`;
 }
 /* 填充边界（需求 2.3）：过渡宽度 + 边界形状 + 形状函数参数 + 过渡样式。
-   参数显示名用 A / ω / φ / k（锯齿为 A / ω），键注册在 FILL_PARAM_DEFS 并走 fillParams；
+   参数显示名用 A / ω / φ / k（锯齿为 A / ω，波浪为 A / ω / φ），键注册在 FILL_PARAM_DEFS 并走 fillParams；
    形状与样式用逐片带 data-val 的芯片（fillLayout.js 的 bindFillParamChips 绑定）。
    注意：背景类参数是全局唯一的，因此这几行不提供"逐行联动"链条（同形状参数，见 4.11）。 */
 function edgeShapeParamsHTML(shape){
@@ -201,7 +203,14 @@ function edgeShapeParamsHTML(shape){
       ${paramRow('ω 频率', fillParams['edge.W'], 0.1, 10, '', { key: 'edge.W', reset: true, step: 0.1 })}
       ${paramRow('φ 相位', fillParams['edge.phi'], -180, 180, '°', { key: 'edge.phi', reset: true })}
       ${paramRow('k 偏移', fillParams['edge.k'], -50, 50, '%', { key: 'edge.k', reset: true })}
-      <div style="font-size:10px;color:var(--muted);padding-top:2px">y = A·${shape}(2π·ω·x/S + φ) + k，原点（x=0）在形状中心点；ω = 横跨画布的周期数</div>`;
+      <div style="font-size:10px;color:var(--muted);padding-top:2px">y = A·${shape}(2π·ω·x/S + φ) + k，原点（x=0）在形状中心点；ω = 横跨画布的周期数${shape === 'tan' ? '；tan 取过中心的主值分支，渐近线由 ±10×画布截断兜底（可见范围内为一条连续曲线），ω 越小曲线越平缓、覆盖越宽' : ''}</div>`;
+  }
+  if (shape === '波浪'){
+    return `
+      ${paramRow('A 高度', fillParams['edge.A'], 0, 50, '%', { key: 'edge.A', reset: true })}
+      ${paramRow('ω 宽度', fillParams['edge.wave'], 1, 100, '%', { key: 'edge.wave', reset: true })}
+      ${paramRow('φ 偏移', fillParams['edge.phi'], -180, 180, '°', { key: 'edge.phi', reset: true })}
+      <div style="font-size:10px;color:var(--muted);padding-top:2px">连续半圆上下交替组成的波浪；ω 为单个半圆的宽度（画布边长百分比），默认 A=10%、ω=20% 时恰为半圆；φ=180° 上下翻转</div>`;
   }
   if (shape === '锯齿'){
     return `
@@ -209,20 +218,32 @@ function edgeShapeParamsHTML(shape){
       ${paramRow('ω 齿宽', fillParams['edge.tooth'], 1, 100, '%', { key: 'edge.tooth', reset: true })}
       <div style="font-size:10px;color:var(--muted);padding-top:2px">三角锯齿波，齿峰落在形状中心点；ω 为单齿宽度（画布边长百分比）</div>`;
   }
-  return `<div class="mslider-empty">直线边界没有边界参数（可在上方选择 sin / tan / 锯齿）</div>`;
+  return `<div class="mslider-empty">直线边界没有边界参数（可在上方选择 sin / tan / 波浪 / 锯齿）</div>`;
 }
-function fillEdgePaneHTML(){
+/* 填充边界 → 两个标签（V2.28 按需求 2.3/2.4 拆分）：
+   「边界形状」= 边界形状芯片 + 形状函数参数 + 包含形状外框；
+   「边界过渡」= 过渡宽度 + 过渡样式。单色填充两个标签都只给提示。 */
+function fillEdgeSingleHint(){
   const single = fillCount === 1;
-  if (single) return `<div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">单色填充没有内部边界，无需设置过渡与边界形状。</div>`;
+  return single ? `<div style="font-size:10.5px;color:var(--muted);line-height:1.7;padding:2px 0">单色填充没有内部边界，无需设置过渡与边界形状。</div>` : '';
+}
+function fillEdgeShapePaneHTML(){
+  const single = fillEdgeSingleHint();
+  if (single) return single;
   const shape = fillParams['edge.shape'] || '直线';
+  return `
+    ${inlineChips('边界形状', ['直线', 'sin', 'tan', '波浪', '锯齿'], Math.max(0, ['直线', 'sin', 'tan', '波浪', '锯齿'].indexOf(shape)), { group: 'edgeShape', values: ['直线', 'sin', 'tan', '波浪', '锯齿'] })}
+    ${edgeShapeParamsHTML(shape)}
+    <div style="padding-top:2px">${checkRow('包含形状外框（默认只调节内部填充之间的边界）', 'edge.frame', !!fillParams['edge.frame'], { rerender: 'fill' })}</div>`;
+}
+function fillEdgeTransitionPaneHTML(){
+  const single = fillEdgeSingleHint();
+  if (single) return single;
   const style = fillParams['edge.style'] || '渐变';
   const width = +fillParams['edge.width'] || 0;
   return `
     ${paramRow('过渡宽度', width, 0, 100, '%', { key: 'edge.width', reset: true })}
     <div class="mslider-empty">过渡宽度为 0 时无过渡（色块之间为硬边界）；调大后按下方「过渡样式」沿边界曲线绘制过渡带。</div>
-    ${inlineChips('边界形状', ['直线', 'sin', 'tan', '锯齿'], Math.max(0, ['直线', 'sin', 'tan', '锯齿'].indexOf(shape)), { group: 'edgeShape', values: ['直线', 'sin', 'tan', '锯齿'] })}
-    ${edgeShapeParamsHTML(shape)}
-    <div style="padding-top:2px">${checkRow('包含形状外框（默认只调节内部填充之间的边界）', 'edge.frame', !!fillParams['edge.frame'], { rerender: 'fill' })}</div>
     ${inlineChips('过渡样式', ['单色', '渐变', '加深', '变浅', '透明'], Math.max(0, ['单色', '渐变', '加深', '变浅', '透明'].indexOf(style)), { group: 'edgeStyle', values: ['单色', '渐变', '加深', '变浅', '透明'] })}
     <div style="font-size:10px;color:var(--muted);padding-top:2px">单色 = 两端色的中值平涂；渐变 = 两端色之间渐变；加深/变浅 = 中值色明度加减；透明 = 过渡带擦成透明缝</div>`;
 }

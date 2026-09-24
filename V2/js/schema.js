@@ -7,7 +7,8 @@
      - 字体注册表 FONT_DEFS：web 字体优先、系统字体回退，
        web:false 或 unavailable 的字体在下拉框标注（未下载）
      - makeRow(text)：构造带完整参数与联动标记的行对象
-   版本：V0.09（V2.25：FILL_PARAM_DEFS 新增 edge.frame——边界形状是否包含形状外框，默认 false）
+   版本：V0.10（V2.27：FILL_PARAM_DEFS 新增 edge.wave——波浪形状的 ω 半圆宽度（1~100%，默认 20=2×A → 恰为半圆））
+        V0.09（V2.25：FILL_PARAM_DEFS 新增 edge.frame——边界形状是否包含形状外框，默认 false）
         V0.08（V2.24：FILL_PARAM_DEFS 新增填充边界参数 edge.width/shape/A/W/phi/k/tooth/style）
         V0.07（V2.23：默认形状改为"圆角方形 + 弧度 30"（用户指定））
         V0.06（V2.22：新增填充布局参数表 FILL_PARAM_DEFS 与 makeFillParams/normalizeFillParams；
@@ -230,11 +231,12 @@ const FILL_PARAM_DEFS = {
   'fill.stretchX': { label: 'X 拉伸',   min: 1,   max: 300, def: 100, unit: '%' },
   'fill.stretchY': { label: 'Y 拉伸',   min: 1,   max: 300, def: 100, unit: '%' },
 
-  /* 填充边界（需求 2.3 标签"填充边界"）：过渡带宽 + 边界形状 + 形状函数的四个边界参数
+  /* 填充边界（需求 2.3 标签"填充边界"）：过渡带宽 + 边界形状 + 形状函数的边界参数
      范围为"函数安全范围"（需求 2.3：防止除零/无穷大，渲染再做 10× 画布截断）：
        A 振幅/高度 0~50%（画布边长的百分比）
-       ω sin/tan = 横跨画布的完整周期数（0.1~10，步进 0.1）；锯齿 = 齿宽（1~100%）
-       φ 相位 −180~180°；k 垂直偏移 −50~50% */
+       ω sin/tan = 横跨画布的完整周期数（0.1~10，步进 0.1）；
+         锯齿 = 齿宽（1~100%）；波浪 = 半圆宽度（1~100%）
+       φ 相位/偏移 −180~180°；k 垂直偏移 −50~50%（波浪按需求只有 A/ω/φ，无 k） */
   'edge.width':    { label: '过渡宽度', min: 0,   max: 100, def: 0,    unit: '%' },
   'edge.shape':    { label: '边界形状', type: 'select', def: '直线' },
   'edge.A':        { label: 'A',        min: 0,   max: 50,  def: 10,   unit: '%' },
@@ -242,6 +244,7 @@ const FILL_PARAM_DEFS = {
   'edge.phi':      { label: 'φ',        min: -180, max: 180, def: 0,   unit: '°' },
   'edge.k':        { label: 'k',        min: -50, max: 50,  def: 0,    unit: '%' },
   'edge.tooth':    { label: 'ω',        min: 1,   max: 100, def: 12,   unit: '%' },  // 锯齿专用：齿宽
+  'edge.wave':     { label: 'ω',        min: 1,   max: 100, def: 20,   unit: '%' },  // 波浪专用：半圆宽度（默认 2×A=20 → 恰为半圆）
   'edge.frame':    { label: '包含形状外框', type: 'bool', def: false },   // V2.25：默认只调节内部填充之间的边界
   'edge.style':    { label: '过渡样式', type: 'select', def: '渐变' }
 };

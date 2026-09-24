@@ -7,7 +7,8 @@
      - drawIcon()：背景（形状轮廓或白底/透明，需求 1.8/三.1）→ 按层次顺序逐行绘制
        （行内容可选按形状轮廓裁切，需求 3.5 style.clip）
      - scheduleDrawIcon()：滑块拖动时的 rAF 节流重绘
-   版本：V0.07（V2.22：快照缩略图渲染纳入 fillParams——预设/历史缩略图与主画布同数据结构；
+   版本：V0.08（V2.28：快照缩略图还原 色块模式/渐变/图片参数——缩略图真实呈现 渐/图 色块）
+        V0.07（V2.22：快照缩略图渲染纳入 fillParams——预设/历史缩略图与主画布同数据结构；
         填充数量与布局已由 fillLayout.js 落地，删除"暂缓"说明）
         V0.06（V2.17：接入背景形状——形状轮廓 + 边框 + 形状阴影，内容按形状裁切）
    说明：形状内部填充不在本文件绘制，由 bgshape.js → fillLayout.js 的 paintFillPattern 完成。
@@ -261,7 +262,7 @@ function drawRow(r, cell, S){
 function renderSnapshotThumb(snap, canvas, size){
   if (!snap || !canvas) return;
   const S = Math.max(16, Math.min(64, size || 48));
-  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder, bgParams, fillParams, fillCount, fillColors };
+  const bak = { cvs, ctx, iconSize, rows, rowCount, activeRow, currentLayout, layerOrder, bgParams, fillParams, fillCount, fillColors, fillModes, fillStyles };
   const tc = $('#transparentChk');
   const bakTc = tc ? tc.checked : false;
   try {
@@ -279,6 +280,16 @@ function renderSnapshotThumb(snap, canvas, size){
     fillParams = normalizeFillParams(snap.fill);        // 填充数量与布局同样随预设还原（需求 三.2）
     fillCount = Math.max(1, Math.min(6, snap.fillCount || fillCount));
     fillColors = (snap.fills || []).map(f => f && f.color).filter(Boolean).concat(fillColors).slice(0, 6);
+    /* 色块背景模式与渐变/图片参数随快照还原（V2.28）——缩略图才能真实呈现 渐/图 色块；
+       图片按快照里的仓库 id 直接取（预设/下载历史的图片引用已被持有），缺失回退纯色 */
+    fillModes = (snap.fills || []).map(f => (f && f.mode) || '纯').concat(fillModes).slice(0, 6);
+    fillStyles = (snap.fills || []).map(f => {
+      const st = makeFillStyle();
+      if (f && f.grad) st.grad = { from: f.grad.from || '', to: f.grad.to || '',
+                                   type: f.grad.type === '径向' ? '径向' : '线性', angle: +f.grad.angle || 0 };
+      if (f && f.image) st.image = { ...f.image };
+      return st;
+    }).concat(fillStyles).slice(0, 6);
     if (tc) tc.checked = !!snap.transparent;
     drawIcon();
   } catch (e){
@@ -297,6 +308,8 @@ function renderSnapshotThumb(snap, canvas, size){
     fillParams = bak.fillParams;
     fillCount = bak.fillCount;
     fillColors = bak.fillColors;
+    fillModes = bak.fillModes;
+    fillStyles = bak.fillStyles;
   }
 }
 

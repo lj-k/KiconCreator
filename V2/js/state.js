@@ -6,7 +6,8 @@
      - rows：9 行内容状态（makeRow 构造，含 params/link，见 schema.js）
      - currentLayout / layerOrder：排版模式与多行排列层次（需求 1.2/1.3）
      - bgParams / fillColors / fillCount：背景形状与外框参数、填充色块色值（需求 三.1）
-   版本：V0.07（V2.24：移除 UI-only 的 currentEdgeShape——填充边界形状改存 fillParams['edge.shape']）
+   版本：V0.08（V2.28：新增 fillStyles 6 槽与 makeFillStyle——色块渐变/图片扩展参数（需求 3.2.2/3.2.3））
+        V0.07（V2.24：移除 UI-only 的 currentEdgeShape——填充边界形状改存 fillParams['edge.shape']）
         V0.06（V2.22：新增 fillParams（填充数量与布局，全局唯一）；V2.17 起含 bgParams 与 fillColors）
    约束：本文件必须最先加载（schema.js 之后）；任何模块读写状态请引用
         这里的变量，不要新建平行状态，避免快照/撤销遗漏字段。
@@ -81,6 +82,14 @@ let fillModes = ['纯', '纯', '纯', '纯', '纯', '纯'];
 /* 填充色块的真实色值（唯一来源）：形状内部填充按它取色，
    色块列表的缩略渐变与快照也由它派生，避免出现第二套颜色 */
 let fillColors = ['#6C8CFF', '#22C55E', '#F97316', '#0EA5E9', '#FACC15', '#EC4899'];
+/* 每个色块的背景模式扩展参数（需求 3.2.2/3.2.3，V2.28）：与 fillModes/fillColors 平行的 6 槽。
+   仅 渐/图 模式读取：grad = { from, to, type:'线性'|'径向', angle }（from/to 为空时回退当前色值）；
+   image = { id, name, w, h, crop:{aspect,zoom,ox,oy}, size, fx, fy }
+   —— image.id 走会话图片仓库引用计数（键前缀 fill:），快照/撤销/预设经 imgRefsOfSnap 自动持引用 */
+let fillStyles = [null, null, null, null, null, null];
+function makeFillStyle(){
+  return { grad: { from: '', to: '', type: '线性', angle: 0 }, image: null };
+}
 /* 形状与外框参数（背景栏，需求 三.1）：全局唯一，扁平存键（schema.js 定义键与默认值） */
 let bgParams = makeBgParams();
 /* 填充数量与布局参数（背景栏，需求 三.2）：同样全局唯一；

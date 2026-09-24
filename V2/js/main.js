@@ -6,7 +6,8 @@
      - 启动无内置预设（列表内容只来自用户操作/文件导入/presets 清单）
      - resize/orientationchange/字体就绪/ResizeObserver/滚动联动
      - Ctrl+Z / Ctrl+Y 全局快捷键
-   版本：V0.13（V2.26：版本同步——边界形状改为只作用于内部接缝）
+   版本：V0.15（V2.28：版本同步——tan 曲线化、填充边界拆双标签、渐变与图片填充模式）
+        V0.13（V2.26：版本同步——边界形状改为只作用于内部接缝）
         V0.12（V2.25：版本同步——填充边界新增"包含形状外框"选项）
         V0.11（V2.24：版本同步——填充边界落地）
         V0.10（V2.23：版本同步——默认形状改为圆角方形·弧度30、填满语义与逐层层内比例）
@@ -82,7 +83,7 @@ function init(){
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); }
   });
 
-  setTimeout(() => toast('欢迎使用 KiconCreator V2.26'), 400);
+  setTimeout(() => toast('欢迎使用 KiconCreator V2.28'), 400);
   // FA6 字体与图标库在主界面加载后异步装载（需求 2.7）
   setTimeout(ensureFaFonts, 0);
   // 本地预设目录：启动后异步扫描并加载（需求 2.1 第 3 条；file:// 打开时自动跳过）。

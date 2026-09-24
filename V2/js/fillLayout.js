@@ -5,12 +5,16 @@
      - fillLayoutModel：层/分组/分界线数量/方向数量的统一模型（UI 与渲染共用同一份推算）
      - syncFillArrays：按模型校准三组数组参数（层间比例/层内比例/每层方向）
      - convertInRatios：布局形式切换时按"各段跨度"换算层内比例（矩阵 ⇄ 饼图语义不同）
-     - 填充边界（需求 2.3）：edgeOffset（边界形状 sin/tan/锯齿 的位移 + 10× 画布截断）、
+     - 填充边界（需求 2.3）：edgeOffset（边界形状 sin/tan/波浪/锯齿 的位移 + 10× 画布截断）、
        edgeCurveV/H/Ray/Ring（把分界线采样成曲线）、paintEdgeBand（五种过渡样式的过渡带）
      - fillExtentOf / paintFillPattern：矩阵布局（纵向 L 层 × 横向若干列）与
        饼图布局（L 个同心环 × 每环若干扇区）的几何与绘制
      - multiSliderHTML / bindMultiSliders：多分界线共享滑轨组件（+ 参数输入框 + 均分）
-   版本：V0.07（V2.26：边界形状只作用于**内部接缝**——填充外边界（最左/最右竖边、最上层上边、最下层下边、
+   版本：V0.09（V2.28：tan 改为整段主值曲线（±10×画布截断兜底，修"三段直线"观感）；paintFillPattern 组装每色块 paint 描述符，fillPaintOf 解析渐变/图片（需求 3.2.2/3.2.3）；饼图径向分界角偏移夹取 ±0.75π）
+        V0.08（V2.27：① 新增"波浪"边界形状——连续半圆（默认参数）上下交替组成的曲线，参数 A 高度/ω 半圆宽度/φ 偏移，无 k；
+        ② tan 改为**主值分支 + ±45° 饱和**（|tan|≤1 → 位移 ≤ ±A），分界线是**一条连续曲线**——此前 tan 全周期渲染在渐近线处把边界撕成多条冲出画布的线段；
+        ③ paintEdgeBand 重写为"逐点法向带状多边形"——过渡宽度沿**所选边界形状**左右各扩 w/2、渐变按逐点法向展开，不再锚在原始直线两侧）
+        V0.07（V2.26：边界形状只作用于**内部接缝**——填充外边界（最左/最右竖边、最上层上边、最下层下边、
         最外环外弧、单色层的半径）不再参与位移，修掉"贴边露空隙"；直线形状下采样降到 2 段）
         V0.06（V2.25：新增 edgeFramePoints——"包含形状外框"开启时轮廓随边界形状起伏
         （弧长参数化 + 重采样 + 整周期取整保证闭合无台阶）；波形取值抽为 edgeWave）
@@ -233,24 +237,32 @@ function fillAngles(values, k){
 
 /* ---------- 填充边界（需求 2.3 标签"填充边界"） ---------- */
 /* 边界位移量（沿"垂直于边界"的方向，正值偏向 +x/+y）：
-     t = 边界上的位置参数，**原点在形状中心点**（需求 2.3：sin/tan 的圆点在中心、锯齿原点以中心为基准）
+     t = 边界上的位置参数，**原点在形状中心点**（需求 2.3：sin/tan 的圆点在中心、
+         锯齿原点以中心为基准；波浪同理以中心为相位基准）
          · 矩阵竖向分界 → 局部 y      · 矩阵横向分界 → 局部 x
          · 饼图径向分界 → 半径 r      · 饼图环分界   → 沿环的弧长（环的原点角从中心辐射）
      S = 画布边长（A 振幅、k 偏移都按画布边长的百分比换算）
-   形状：直线 → 0；sin/tan → A·f(2π·ω·t/S + φ) + k；锯齿 → 三角波（齿宽 ω%×S，t=0 处为齿峰）
-   安全保护（需求 2.3"参数范围限制 + 渲染截断"）：ω 取下限避免除零、tan 近渐近线先按 A 限幅、
+   形状：直线 → 0；sin/tan → A·f(2π·ω·t/S + φ) + k；锯齿 → 三角波（齿宽 ω%×S，t=0 处为齿峰）；
+         波浪 → 连续半圆上下交替（V2.27：半圆宽 ω%×S、高 A%×S，默认 A=10/ω=20 恰为半圆，
+         A≠ω/2 时为半椭圆；只有 A/ω/φ 三个参数，无 k）
+   安全保护（需求 2.3"参数范围限制 + 渲染截断"）：ω 取下限避免除零、tan 饱和限幅（见 edgeWave）、
    最终位移一律截断到 ±10×画布，且绝不返回 NaN/Infinity。 */
 function clampEdge(x, lim){
   if (!isFinite(x)) return 0;
   return Math.max(-lim, Math.min(lim, x));
 }
-/* 波形取值（带 tan 的渐近线限幅）：arg 为函数自变量 */
-function edgeWave(shape, arg, S, cfg){
-  const lim = 10 * S, A = Math.max(0, +cfg['edge.A'] || 0) / 100 * S;
-  if (shape === 'tan'){
-    const cap = A > 1e-6 ? lim / A : lim;
-    return clampEdge(Math.tan(arg), cap);
-  }
+/* 波形取值（V2.28：tan 取**主值分支整段曲线**）：arg 为函数自变量。
+   tan(arg) 在渐近线处发散且逐周期跳变（+∞ → −∞）——按 y=Atan(ωx+φ)+k 全周期渲染时，
+   每个渐近线都会把分界线撕成一条冲出画布的线段，整条边界断成多段、互相穿插
+   （用户要求 V2.27：tan 形状下应只有一条线作为边界）。因此只取**过中心的主值分支**。
+   幅度兜底 = 最终 clampEdge(±10×画布)（需求 2.3 的渲染截断保护）：渐近线方向的饱和段
+   全部落在画布外 10 倍处，可见范围内整条边界都是 y=Atan(ωx+φ)+k 的**曲线**
+   （V2.27 曾把自变量限幅在 ±45°，|d|≤A，结果可见范围出现"平线−陡坡−平线"的
+   三段直线观感——用户指出应为曲线，V2.28 改为整段主值曲线；
+   自变量仍截在渐近线前 1e−6 rad，防止 Math.tan 返回 Infinity）。 */
+const TAN_ARG_MAX = Math.PI / 2 - 1e-6;
+function edgeWave(shape, arg){
+  if (shape === 'tan') return Math.tan(Math.max(-TAN_ARG_MAX, Math.min(TAN_ARG_MAX, arg)));
   return Math.sin(arg);
 }
 function edgeOffset(t, S, cfg){
@@ -264,11 +276,22 @@ function edgeOffset(t, S, cfg){
     const tri = (u < tooth / 2) ? (u / (tooth / 2)) : (2 - u / (tooth / 2));
     return clampEdge(A * (1 - tri * 2), lim);                        // +A … −A（t=0 为峰、半齿为谷）
   }
+  if (shape === '波浪'){
+    /* 连续半圆组成的波浪（V2.27）：单拱宽 W = ω%×S、高 A%×S，相邻拱上下交替；
+       φ 以 180° = 半个波长平移（上下翻转）。半圆纵剖比例 s∈[0,1] → √(4s(1−s))
+       （拱顶 ±A、拱脚过基线且切线竖直）；A ≠ ω/2 时为半椭圆，默认恰为半圆。 */
+    const W = Math.max(1, +cfg['edge.wave'] || 20) / 100 * S;
+    const te = t + ((+cfg['edge.phi'] || 0) / 180) * W;
+    const n = Math.floor(te / W);
+    const s = te / W - n;
+    const half = Math.sqrt(Math.max(0, 4 * s * (1 - s)));             // 0…1，s=0.5 处取 1
+    return clampEdge(A * half * ((((n % 2) + 2) % 2) ? -1 : 1), lim);
+  }
   const w = Math.max(0.05, +cfg['edge.W'] || 2);                      // ω 下限：避免除零/零频
   const phi = (+cfg['edge.phi'] || 0) * Math.PI / 180;
   const k = (+cfg['edge.k'] || 0) / 100 * S;
   const arg = 2 * Math.PI * w * (t / S) + phi;
-  return clampEdge(A * edgeWave(shape, arg, S, cfg) + k, lim);
+  return clampEdge(A * edgeWave(shape, arg) + k, lim);
 }
 
 /* 形状外框参与边界形状（`edge.frame`，需求 2.3 扩展；**默认关闭** → 只调节内部填充之间的边界）。
@@ -311,13 +334,17 @@ function edgeFramePoints(pts, S){
     const d = Math.abs(((ang + Math.PI / 2 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
     if (d < best){ best = d; start = i; }
   });
-  /* 整周期（闭合接缝无台阶）：ω = 每倍画布边长的周期数 → 轮廓上的总周期取整；锯齿同理由齿数取整 */
+  /* 整周期（闭合接缝无台阶）：ω = 每倍画布边长的周期数 → 轮廓上的总周期取整；
+     锯齿同理由齿数取整；波浪由"完整波长（上+下两个半圆）"数取整（V2.27） */
   const A = Math.max(0, +cfg['edge.A'] || 0) / 100 * S;
   const kOff = (+cfg['edge.k'] || 0) / 100 * S;
   const lim = 10 * S;
+  const waveW = Math.max(1, (+cfg['edge.wave'] || 20) / 100 * S);
   const cycles = shape === '锯齿'
     ? Math.max(1, Math.round(L / Math.max(1, (+cfg['edge.tooth'] || 12) / 100 * S)))
-    : Math.max(1, Math.round(Math.max(1, +cfg['edge.W'] || 2) * (L / S)));
+    : shape === '波浪'
+      ? Math.max(1, Math.round(L / (2 * waveW)))
+      : Math.max(1, Math.round(Math.max(1, +cfg['edge.W'] || 2) * (L / S)));
   const phi = (+cfg['edge.phi'] || 0) * Math.PI / 180;
   /* 按遍历顺序的弧长表（n=0 → 0，n 递增到接近 L） */
   const order = [], arcs = [];
@@ -346,8 +373,16 @@ function edgeFramePoints(pts, S){
       const u = ((arc % tooth) + tooth) % tooth;
       const tri = (u < tooth / 2) ? (u / (tooth / 2)) : (2 - u / (tooth / 2));
       d = clampEdge(A * (1 - tri * 2), lim);
+    } else if (shape === '波浪'){
+      /* 波浪：整周期化后的波长 = L/cycles（上+下两个半圆），半圆宽 = 波长/2；
+         弧长平移 cycles·波长 后回到同一相位 → 起点接缝无台阶；φ 以 180° = 半个波长平移 */
+      const period = L / cycles, W = period / 2;
+      const ae = arc + ((+cfg['edge.phi'] || 0) / 180) * W;
+      const u = ((ae % period) + period) % period;
+      const q = Math.floor(u / W), s = u / W - q;
+      d = clampEdge(A * Math.sqrt(Math.max(0, 4 * s * (1 - s))) * (q ? -1 : 1), lim);
     } else {
-      d = clampEdge(A * edgeWave(shape, 2 * Math.PI * cycles * (arc / L) + phi, S, cfg) + kOff, lim);
+      d = clampEdge(A * edgeWave(shape, 2 * Math.PI * cycles * (arc / L) + phi) + kOff, lim);
     }
     out[i] = { x: p.x + nx * d, y: p.y + ny * d };
   }
@@ -404,10 +439,13 @@ function edgeCurveH(b, xA, xB, S){
 function edgeCurveRay(b, rA, rB, S, plain){
   const n = edgeSteps(rB - rA), out = [];
   const ramp = S * 0.25;
+  /* 角偏移夹取（V2.28）：tan 的 d 可达 ±10×画布，d/r 会让射线在原地缠绕多圈、扇区多边形撕碎；
+     夹在 ±0.75π 内（sin 的正常偏移 ≤ ~1 rad 不受影响），两条射线的偏移相同 → 永不交叉 */
+  const TH_MAX = Math.PI * 0.75;
   for (let i = 0; i <= n; i++){
     const r = rA + (rB - rA) * i / n;
     const d = plain ? 0 : edgeOffset(Math.max(1e-3, r), S, fillParams) * Math.min(1, r / ramp);
-    const th = b + d / Math.max(1e-3, r);
+    const th = b + Math.max(-TH_MAX, Math.min(TH_MAX, d / Math.max(1e-3, r)));
     out.push({ x: Math.cos(th) * r, y: Math.sin(th) * r });
   }
   return out;
@@ -431,56 +469,185 @@ function strokePolyline(c, pts){
   pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
   c.stroke();
 }
-function fillPolygon(c, pts, color){
+/* 多边形填充：paint 可为 hex 字符串 / CanvasGradient / CanvasPattern（V2.28 需求 3.2.2/3.2.3）。
+   同一 paint 同时赋给 fillStyle 与 strokeStyle：渐变/图案的坐标在绘制时的用户空间解释，
+   与 fill 同变换，1px 描边仍能与色块本体同色，盖住相邻色块之间的抗锯齿细缝 */
+function fillPolygon(c, pts, paint){
   c.beginPath();
   pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
   c.closePath();
-  c.fillStyle = color;
+  c.fillStyle = paint;
   c.fill();
-  c.lineWidth = 1;                 // 同色描边：盖住相邻色块之间的抗锯齿细缝
-  c.strokeStyle = color;
+  c.lineWidth = 1;                 // 同 paint 描边：盖住相邻色块之间的抗锯齿细缝
+  c.strokeStyle = paint;
   c.stroke();
 }
 
-/* 过渡带（需求 2.3）：沿边界曲线描边，宽度 = 过渡宽度；colA/colB 为两侧色块色值
-   样式：单色 = 两端色的中值平涂；渐变 = 沿带法向在两端色之间渐变；
-        加深/变浅 = 中值色的明度加减；透明 = 用 destination-out 把带擦成透明
-   axis 指定渐变轴：{ linear:{nx,ny} } 开放边界按法向（colA 在 +n 侧）；
-                    { radial:{r} } 闭合环用径向渐变（colA 在外侧 = +r 侧） */
+/* ---------- 色块背景 paint（V2.28，需求 3.2.2 渐变 / 3.2.3 图片） ---------- */
+/* 多边形包围盒（局部坐标）：渐变几何与图片覆盖都以它为基准 */
+function polyBBox(pts){
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  (pts || []).forEach(p => {
+    if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+  });
+  return { x: minX, y: minY, w: Math.max(1e-3, maxX - minX), h: Math.max(1e-3, maxY - minY) };
+}
+/* 渐变起止色解析：from/to 为空时回退当前色值 / 其同色系亮色（与色块缩略同规则） */
+function fillGradColors(p){
+  const from = (p.grad && p.grad.from) || p.color;
+  let to = (p.grad && p.grad.to) || '';
+  if (!to){
+    const { h, s, l } = hexToHsl(p.color);
+    to = hslToHex(h + 16, Math.min(1, s * 0.92), Math.min(0.86, l + 0.16));
+  }
+  return { from, to };
+}
+/* 线性/径向渐变（渐变坐标建立在色块多边形包围盒上，随布局变换一起缩放旋转） */
+function fillGradPaint(p, c, poly){
+  const { from, to } = fillGradColors(p);
+  const b = polyBBox(poly);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  if (p.grad && p.grad.type === '径向'){
+    const g = c.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(b.w, b.h) / 2);
+    g.addColorStop(0, from);
+    g.addColorStop(1, to);
+    return g;
+  }
+  /* 线性：角度 0° = 自下向上（CSS 惯例），渐变线长度按包围盒投影取"完全覆盖"值 */
+  const a = (((p.grad && p.grad.angle) || 0)) * Math.PI / 180;
+  const dx = Math.sin(a), dy = -Math.cos(a);
+  const L = Math.abs(b.w * dx) + Math.abs(b.h * dy);
+  const g = c.createLinearGradient(cx - dx * L / 2, cy - dy * L / 2, cx + dx * L / 2, cy + dy * L / 2);
+  g.addColorStop(0, from);
+  g.addColorStop(1, to);
+  return g;
+}
+/* 色块图片的离屏画布（按剪裁窗口取像素，带缓存；key = id + 剪裁参数） */
+const fillImgCache = new Map();
+/* 清空剪裁画布缓存：改剪裁/换图/移除后由 interactions.js 的绑定调用 */
+function fillImgCacheClear(){ fillImgCache.clear(); }
+function fillImageCanvasOf(image, entry){
+  const key = image.id + '|' + JSON.stringify(image.crop || null);
+  let cv = fillImgCache.get(key);
+  if (cv) return cv;
+  if (fillImgCache.size > 12) fillImgCache.clear();   // 简单上限：换图/改剪裁后旧画布不再保留
+  const { sx, sy, sw, sh } = imgCropRect(entry, image.crop);
+  const k = Math.min(1, IMG_MAX_EDGE / Math.max(sw, sh));
+  cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(sw * k));
+  cv.height = Math.max(1, Math.round(sh * k));
+  cv.getContext('2d').drawImage(entry.bitmap, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+  fillImgCache.set(key, cv);
+  return cv;
+}
+/* 图片色块 → CanvasPattern：裁剪后的画面按"覆盖色块包围盒"为基准缩放（size%）并平移（fx/fy%），
+   repeat 平铺（放大后拖动不会露底）。图片缺失/未上传 → null（回退纯色） */
+function fillImagePattern(p, c, poly){
+  const image = p.image;
+  const entry = image && image.id ? imgGet(image.id) : null;
+  if (!entry || !entry.bitmap) return null;
+  const src = fillImageCanvasOf(image, entry);
+  const b = polyBBox(poly);
+  const cover = Math.max(b.w / src.width, b.h / src.height);
+  const k = cover * Math.max(0.05, Math.min(4, (+image.size || 100) / 100));
+  const pat = c.createPattern(src, 'repeat');
+  if (pat && pat.setTransform){
+    const tx = b.x + b.w / 2 - src.width * k / 2 + (+image.fx || 0) / 100 * b.w;
+    const ty = b.y + b.h / 2 - src.height * k / 2 + (+image.fy || 0) / 100 * b.h;
+    try { pat.setTransform(new DOMMatrix([k, 0, 0, k, tx, ty])); } catch (e){ /* 老浏览器忽略变换 */ }
+  }
+  return pat;
+}
+/* 色块 paint 解析：hex 描述符 → 实际绘制对象。渐变/图片失效时回退纯色，
+   保证任何状态下色块都有确定颜色（不会出现漏底） */
+function fillPaintOf(p, c, poly){
+  if (!p) return '#000000';
+  if (p.image){
+    const pat = fillImagePattern(p, c, poly);
+    if (pat) return pat;
+    return p.color;
+  }
+  if (p.grad) return fillGradPaint(p, c, poly);
+  return p.color;
+}
+
+/* 过渡带（需求 2.3；V2.27 重写）：把边界曲线沿**逐点法向**左右各扩 w/2 张成"带状多边形"，
+   颜色过渡也按逐点法向展开——此前渐变是"过曲线中点、沿固定轴"的线性/径向渐变，
+   波形振幅大时过渡色仍锚在**原始直线**两侧，峰谷处的左右范围与过渡带错位
+   （用户要求：过渡宽度应沿所选边界形状左右扩展，而非原始直线）。
+   样式：单色 = 两端色的中值平涂；渐变 = 每小段用该段法向的线性渐变；
+        加深/变浅 = 中值色的明度加减；透明 = 沿曲线描边 destination-out
+        （描边宽度本就跨在曲线两侧法向上，无需重写）。
+   axis 只用于统一法向朝向（保证 +n 侧 = colA，与位移轴同侧）：
+     { linear:{nx,ny} } 开放边界给固定参考方向（即该接缝的位移轴）；
+     { radial:{r} } 闭合环逐点取"背离圆心"（饼图局部坐标系以圆心为原点） */
 function paintEdgeBand(c, pts, S, colA, colB, axis){
   const w = Math.max(0, (+fillParams['edge.width'] || 0) / 100 * S);
   if (w <= 0.05 || !pts || pts.length < 2) return;
   const style = fillParams['edge.style'] || '渐变';
-  c.save();
-  c.lineWidth = w;
-  c.lineJoin = 'round';
   if (style === '透明'){
+    c.save();
     c.globalCompositeOperation = 'destination-out';
     c.strokeStyle = '#000';
+    c.lineWidth = w;
+    c.lineJoin = 'round';
     strokePolyline(c, pts);
     c.restore();
     return;
   }
+  const n = pts.length, half = w / 2;
+  /* 逐点法向：切线 = 前后邻点连线（开曲线端点用单侧），法向取 (−ty, tx)，
+     再按参考方向把整条曲线的法向统一翻到"colA 在 +n 一侧" */
+  const nrm = new Array(n);
+  for (let i = 0; i < n; i++){
+    const a = pts[i > 0 ? i - 1 : 0], b = pts[i < n - 1 ? i + 1 : n - 1];
+    let tx = b.x - a.x, ty = b.y - a.y;
+    const tl = Math.hypot(tx, ty) || 1;
+    tx /= tl; ty /= tl;
+    let nx = -ty, ny = tx;
+    const rx = (axis && axis.radial) ? pts[i].x : (axis ? axis.linear.nx : 1);
+    const ry = (axis && axis.radial) ? pts[i].y : (axis ? axis.linear.ny : 0);
+    if (nx * rx + ny * ry < 0){ nx = -nx; ny = -ny; }
+    nrm[i] = { x: nx, y: ny };
+  }
+  const side = (i, s) => ({ x: pts[i].x + nrm[i].x * s, y: pts[i].y + nrm[i].y * s });
+  c.save();
+  c.lineJoin = 'round';
   if (style === '渐变'){
-    const mid = pts[Math.floor(pts.length / 2)];
-    let g;
-    if (axis && axis.radial){
-      g = c.createRadialGradient(0, 0, Math.max(0, axis.radial.r - w / 2), 0, 0, axis.radial.r + w / 2);
-      g.addColorStop(0, colB);
-      g.addColorStop(1, colA);                    // 外侧（大半径）= colA
-    } else {
-      const nx = axis ? axis.linear.nx : 1, ny = axis ? axis.linear.ny : 0;
-      /* colA 在 +n 侧：渐变起点放在该侧（stop 0 = colA） */
-      g = c.createLinearGradient(mid.x + nx * w / 2, mid.y + ny * w / 2, mid.x - nx * w / 2, mid.y - ny * w / 2);
+    /* 逐段四边形 + 该段法向的线性渐变（stop 0 = +n 侧 = colA）；
+       每段 1px 同渐变描边盖住段与段之间的抗锯齿细缝 */
+    for (let i = 0; i < n - 1; i++){
+      const p0 = side(i, half), p1 = side(i + 1, half), p2 = side(i + 1, -half), p3 = side(i, -half);
+      let gx = nrm[i].x + nrm[i + 1].x, gy = nrm[i].y + nrm[i + 1].y;
+      const gl = Math.hypot(gx, gy) || 1;
+      gx /= gl; gy /= gl;
+      const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+      const g = c.createLinearGradient(mx + gx * half, my + gy * half, mx - gx * half, my - gy * half);
       g.addColorStop(0, colA);
       g.addColorStop(1, colB);
+      c.fillStyle = g;
+      c.strokeStyle = g;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(p0.x, p0.y); c.lineTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.lineTo(p3.x, p3.y);
+      c.closePath();
+      c.fill();
+      c.stroke();
     }
-    c.strokeStyle = g;
   } else {
     const m = edgeMix(colA, colB, 0.5);
-    c.strokeStyle = style === '加深' ? edgeShade(m, -0.22) : (style === '变浅' ? edgeShade(m, 0.32) : m);
+    const col = style === '加深' ? edgeShade(m, -0.22) : (style === '变浅' ? edgeShade(m, 0.32) : m);
+    c.beginPath();
+    for (let i = 0; i < n; i++){ const p = side(i, half); i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); }
+    for (let i = n - 1; i >= 0; i--){ const p = side(i, -half); c.lineTo(p.x, p.y); }
+    c.closePath();
+    c.fillStyle = col;
+    c.fill();
+    c.lineWidth = 1;                 // 同色描边：盖住带边缘的抗锯齿细缝
+    c.strokeStyle = col;
+    c.stroke();
   }
-  strokePolyline(c, pts);
   c.restore();
 }
 
@@ -492,11 +659,12 @@ function paintEdgeBand(c, pts, S, colA, colB, axis){
    **填充的外边界（最左/最右竖边、最上层上边、最下层下边）不参与位移**——它们必须始终贴合形状轮廓，
    否则波形向内的一侧会与轮廓之间露出空隙（实测双色+sin 会露出 13% 面积），见 4.14 的注意。
    过渡带延后到色块全部铺完再画（避免被后画的色块盖住），且只画在内部接缝上。 */
-function paintFillMatrix(c, model, ext, colors, S){
+function paintFillMatrix(c, model, ext, paints, S){
   const ys = fillBoundaries(fillParams['fill.layerRatios'], model.L, ext.hh);
   const straightV = (b, yA, yB) => [{ x: b, y: yA }, { x: b, y: yB }];
   const straightH = (b, xA, xB) => [{ x: xA, y: b }, { x: xB, y: b }];
-  const ciOf = (li, j) => colors[(model.layerFirst[li] + j) % colors.length];
+  /* 色块描述符（{color, grad?, image?}）：过渡带取 .color（hex），色块本体走 fillPaintOf（V2.28） */
+  const ciOf = (li, j) => paints[(model.layerFirst[li] + j) % paints.length];
   let ci = 0;
   for (let li = 0; li < model.L; li++){
     const k = model.sizes[li];
@@ -505,13 +673,14 @@ function paintFillMatrix(c, model, ext, colors, S){
     /* 竖边：最左/最右是填充外边界（直），其余为内部接缝（按波形位移） */
     const vCurves = xs.map((b, j) => (j === 0 || j === k) ? straightV(b, yT, yB) : edgeCurveV(b, yT, yB, S));
     for (let j = 0; j < k; j++){
-      const col = colors[ci % colors.length];
+      const p = paints[ci % paints.length];
       ci++;
       if (xs[j + 1] - xs[j] <= 0.25 || yB - yT <= 0.25) continue;   // 分界线重合 → 该色块消失
       /* 横边：最上层上边 / 最下层下边是填充外边界（直），其余（层间接缝）按波形位移 */
       const top = (li === 0) ? straightH(yT, xs[j], xs[j + 1]) : edgeCurveH(yT, xs[j], xs[j + 1], S);
       const bot = (li === model.L - 1) ? straightH(yB, xs[j], xs[j + 1]) : edgeCurveH(yB, xs[j], xs[j + 1], S);
-      fillPolygon(c, cellPolygon(vCurves[j], vCurves[j + 1], top, bot), col);
+      const poly = cellPolygon(vCurves[j], vCurves[j + 1], top, bot);
+      fillPolygon(c, poly, fillPaintOf(p, c, poly));
     }
   }
   /* 过渡带：层内竖向分界（同层相邻两色之间） */
@@ -522,7 +691,7 @@ function paintFillMatrix(c, model, ext, colors, S){
     const xs = fillBoundaries(fillInValues(model, li), k, ext.hw);
     for (let j = 1; j < k; j++){
       /* 竖向分界：colA（左）在 −x 侧 → 法向取 (−1, 0) */
-      paintEdgeBand(c, edgeCurveV(xs[j], yT, yB, S), S, ciOf(li, j - 1), ciOf(li, j), { linear: { nx: -1, ny: 0 } });
+      paintEdgeBand(c, edgeCurveV(xs[j], yT, yB, S), S, ciOf(li, j - 1).color, ciOf(li, j).color, { linear: { nx: -1, ny: 0 } });
     }
   }
   /* 过渡带：层间横向分界（上/下两层在中心 x 处的两色之间） */
@@ -536,7 +705,7 @@ function paintFillMatrix(c, model, ext, colors, S){
       return ciOf(ly, j);
     };
     /* 横向分界：colA（上层）在 −y 侧 → 法向取 (0, −1) */
-    paintEdgeBand(c, edgeCurveH(y, -ext.hw, ext.hw, S), S, pick(li - 1), pick(li), { linear: { nx: 0, ny: -1 } });
+    paintEdgeBand(c, edgeCurveH(y, -ext.hw, ext.hw, S), S, pick(li - 1).color, pick(li).color, { linear: { nx: 0, ny: -1 } });
   }
 }
 
@@ -582,7 +751,7 @@ function sectorPolygon(rayA, rayB, r0, r1, a0, a1, S, aBase, outerPlain, innerPl
    层间比例 = 环半径分界（0 → 内层消失，100 → 外层消失，需求 2.3），
    层内比例 = 该环各扇区分界角，方向 = 该层整体旋转（需求 2.3）；
    环分界与径向分界同样按 edgeOffset 位移（需求 2.3 的边界形状对两种布局都生效）。 */
-function paintFillPie(c, model, R, colors, S){
+function paintFillPie(c, model, R, paints, S){
   const rs = fillRadii(fillParams['fill.layerRatios'], model.L, R); // [0 … R] 由内到外
   for (let li = 0; li < model.L; li++){
     const k = model.sizes[li];
@@ -599,12 +768,14 @@ function paintFillPie(c, model, R, colors, S){
       const a1 = aBase + (j + 1 < k ? ths[j + 1] : ths[0] + 2 * Math.PI);
       /* 最外环的外弧 = 填充外边界（不做位移）；最内环的内弧（r0=0，中心的点）同理 */
       const outerPlain = (li === 0), innerPlain = (li === model.L - 1);
-      fillPolygon(c, sectorPolygon(rays[j], rays[(j + 1) % k], r0, r1, a0, a1, S, aBase, outerPlain, innerPlain), colors[(base + j) % colors.length]);
+      const poly = sectorPolygon(rays[j], rays[(j + 1) % k], r0, r1, a0, a1, S, aBase, outerPlain, innerPlain);
+      fillPolygon(c, poly, fillPaintOf(paints[(base + j) % paints.length], c, poly));
     }
     /* 过渡带：环内相邻扇区之间的径向分界（含整环首尾相接的那条）；单色层无内部接缝 → 跳过 */
     for (let j = 0; k >= 2 && j < k; j++){
       const a = aBase + ths[j];
-      paintEdgeBand(c, edgeCurveRay(a, r0, r1, S), S, colors[(base + (j - 1 + k) % k) % colors.length], colors[(base + j) % colors.length],
+      paintEdgeBand(c, edgeCurveRay(a, r0, r1, S), S,
+        paints[(base + (j - 1 + k) % k) % paints.length].color, paints[(base + j) % paints.length].color,
         { linear: { nx: Math.sin(a), ny: -Math.cos(a) } });
     }
   }
@@ -618,17 +789,28 @@ function paintFillPie(c, model, R, colors, S){
       let j = 0;
       while (j < k - 1 && 0 > ths[j + 1]) j++;
       const base = model.layerFirst[ly];
-      return colors[(base + j) % colors.length];
+      return paints[(base + j) % paints.length].color;
     };
     paintEdgeBand(c, edgeCurveRing(r, -Math.PI / 2, Math.PI * 1.5, S, -Math.PI / 2), S, pick(li - 1), pick(li), { radial: { r } });
   }
 }
 
 /* 入口：在已建立"形状裁切"的画布上铺满填充色块（由 bgshape.js 的 drawBgShape 调用）。
-   S = 画布边长；pts = 形状轮廓点（画布坐标）；colors = 色块色值（fillColors） */
+   S = 画布边长；pts = 形状轮廓点（画布坐标）；colors = 色块色值（fillColors）。
+   V2.28：内部按 fillModes/fillStyles 组装"色块描述符"（纯色 / 渐变 / 图片，需求 3.2），
+   图片缺失或渐变参数为空时逐块回退纯色——任何状态下都不会露底 */
 function paintFillPattern(c, S, pts, colors){
   if (!pts || pts.length < 3) return;
   const m = syncFillArrays();               // 每次绘制前校准数组（色块数/层数可能刚变化）
+  const paints = colors.map((hex, i) => {
+    const st = (typeof fillStyles !== 'undefined' && fillStyles[i]) || null;
+    const mode = (typeof fillModes !== 'undefined' && fillModes[i]) || '纯';
+    return {
+      color: hex,
+      grad: (mode === '渐' && st && st.grad) ? st.grad : null,
+      image: (mode === '图' && st && st.image) ? st.image : null
+    };
+  });
   const box = shapeBoundsOfPoints(pts);
   const sx = Math.max(0.01, (+fillParams['fill.stretchX'] || 100) / 100);
   const sy = Math.max(0.01, (+fillParams['fill.stretchY'] || 100) / 100);
@@ -642,8 +824,8 @@ function paintFillPattern(c, S, pts, colors){
   c.translate(cx, cy);
   if (angle) c.rotate(angle * Math.PI / 180);
   c.scale(sx, sy);
-  if (m.pie) paintFillPie(c, m, ext.r, colors, S);
-  else paintFillMatrix(c, m, ext, colors, S);
+  if (m.pie) paintFillPie(c, m, ext.r, paints, S);
+  else paintFillMatrix(c, m, ext, paints, S);
   c.restore();
 }
 
